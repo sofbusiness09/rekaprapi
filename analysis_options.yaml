@@ -1,0 +1,11 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - web/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Pemformat Dart memecah "if (x) return y;" menjadi dua baris tanpa kurung kurawal.
+    curly_braces_in_flow_control_structures: false

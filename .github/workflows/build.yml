@@ -1,0 +1,151 @@
+name: Build RekapRapi
+
+# Dijalankan dari tab Actions (tombol "Run workflow") atau saat menandai versi, mis. v1.0.0.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  android:
+    name: APK Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pastikan pengaturan Supabase terisi
+        run: |
+          test -n "${{ vars.SUPABASE_URL }}" || (echo "Variabel SUPABASE_URL belum diisi (Settings > Secrets and variables > Actions > Variables)." && exit 1)
+          test -n "${{ vars.SUPABASE_ANON_KEY }}" || (echo "Variabel SUPABASE_ANON_KEY belum diisi." && exit 1)
+          test -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" || (echo "Secret ANDROID_KEYSTORE_BASE64 belum diisi." && exit 1)
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Siapkan kunci tanda tangan rilis
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/rekaprapi-release.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=rekaprapi-release.jks\n' \
+            "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_PASSWORD" "$ANDROID_KEY_ALIAS" > android/key.properties
+
+      - name: Bangun APK rilis
+        run: >
+          flutter build apk --release
+          --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+
+      - name: Periksa tanda tangan APK
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort | tail -n 1)
+          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RekapRapi-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  web:
+    name: Versi web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pastikan pengaturan Supabase terisi
+        run: |
+          test -n "${{ vars.SUPABASE_URL }}" || (echo "Variabel SUPABASE_URL belum diisi." && exit 1)
+          test -n "${{ vars.SUPABASE_ANON_KEY }}" || (echo "Variabel SUPABASE_ANON_KEY belum diisi." && exit 1)
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Bangun versi web
+        run: >
+          flutter build web --release
+          --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+
+      - run: touch build/web/.nojekyll
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RekapRapi-web
+          path: build/web
+          include-hidden-files: true
+          if-no-files-found: error
+
+  pages:
+    name: Pasang web ke GitHub Pages
+    # Aktif hanya bila Anda membuat variabel DEPLOY_PAGES bernilai true.
+    # GitHub Pages gratis hanya untuk repositori publik.
+    if: ${{ vars.DEPLOY_PAGES == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pastikan pengaturan Supabase terisi
+        run: |
+          test -n "${{ vars.SUPABASE_URL }}" || (echo "Variabel SUPABASE_URL belum diisi." && exit 1)
+          test -n "${{ vars.SUPABASE_ANON_KEY }}" || (echo "Variabel SUPABASE_ANON_KEY belum diisi." && exit 1)
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # GitHub Pages melayani proyek di alamat /nama-repositori/, jadi base-href harus sama.
+      - name: Bangun web untuk GitHub Pages
+        run: >
+          flutter build web --release
+          --base-href /${{ github.event.repository.name }}/
+          --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+
+      - run: touch build/web/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
