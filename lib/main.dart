@@ -26,6 +26,10 @@ class RekapRapiApp extends StatelessWidget {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: themeController.mode,
+        // Ukuran huruf sistem yang sangat besar membuat kartu dan bilah bawah
+        // terpotong; dibatasi sedikit di atas normal.
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: 0.9, maxScaleFactor: 1.1, child: child!),
         home: const AuthGate(),
       ),
     );

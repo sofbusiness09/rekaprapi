@@ -44,22 +44,36 @@ Future<void> promptJoinByCode(
 
 /// Lembar pindah usaha: daftar usaha, undangan, tambah usaha, dan gabung dengan kode.
 /// Dibuka dari nama usaha di sidebar/bilah atas.
+///
+/// [onOpenSettings] menambahkan baris Pengaturan; dipakai di ponsel, tempat
+/// Pengaturan tidak punya tab sendiri.
 Future<void> showBusinessSwitcher(
-    BuildContext context, BusinessController controller) {
+  BuildContext context,
+  BusinessController controller, {
+  VoidCallback? onOpenSettings,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     constraints: const BoxConstraints(maxWidth: 480),
-    builder: (sheetContext) =>
-        _SwitcherSheet(controller: controller, parentContext: context),
+    builder: (sheetContext) => _SwitcherSheet(
+      controller: controller,
+      parentContext: context,
+      onOpenSettings: onOpenSettings,
+    ),
   );
 }
 
 class _SwitcherSheet extends StatelessWidget {
-  const _SwitcherSheet({required this.controller, required this.parentContext});
+  const _SwitcherSheet({
+    required this.controller,
+    required this.parentContext,
+    this.onOpenSettings,
+  });
 
   final BusinessController controller;
+  final VoidCallback? onOpenSettings;
 
   /// Konteks halaman di belakang lembar, dipakai untuk dialog dan pesan.
   final BuildContext parentContext;
@@ -164,6 +178,20 @@ class _SwitcherSheet extends StatelessWidget {
                   promptJoinByCode(parentContext, controller);
                 },
               ),
+              if (onOpenSettings != null) ...[
+                const Divider(height: 24),
+                ListTile(
+                  leading: const IconBadge(Icons.settings_rounded,
+                      color: Brand.profit, size: 42),
+                  title: const Text('Pengaturan',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: const Text('Usaha, tim, kategori, tampilan, backup'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onOpenSettings!();
+                  },
+                ),
+              ],
             ],
           ),
         ),

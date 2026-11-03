@@ -22,13 +22,28 @@ class Brand {
   static const profit = Color(0xFF7C5CFC);
 }
 
+/// Plus Jakarta Sans reguler terlihat tipis di layar ponsel; teks isi dan label
+/// dinaikkan satu tingkat ketebalan agar lebih terbaca.
+TextTheme _firmer(TextTheme t) {
+  TextStyle? weigh(TextStyle? s, FontWeight w) =>
+      s == null ? null : GoogleFonts.plusJakartaSans(textStyle: s, fontWeight: w);
+  return t.copyWith(
+    bodyLarge: weigh(t.bodyLarge, FontWeight.w500),
+    bodyMedium: weigh(t.bodyMedium, FontWeight.w500),
+    bodySmall: weigh(t.bodySmall, FontWeight.w500),
+    labelLarge: weigh(t.labelLarge, FontWeight.w600),
+    labelMedium: weigh(t.labelMedium, FontWeight.w600),
+    labelSmall: weigh(t.labelSmall, FontWeight.w600),
+  );
+}
+
 ThemeData buildTheme(Brightness brightness) {
   final scheme =
       ColorScheme.fromSeed(seedColor: Brand.seed, brightness: brightness);
   final light = brightness == Brightness.light;
   final base = ThemeData(
       colorScheme: scheme, useMaterial3: true, brightness: brightness);
-  final text = GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
+  final text = _firmer(GoogleFonts.plusJakartaSansTextTheme(base.textTheme));
   final bg = light ? const Color(0xFFF3F7F5) : const Color(0xFF0E1311);
   final surface = light ? Colors.white : const Color(0xFF171E1B);
   final outline = light ? const Color(0xFFE3EAE6) : const Color(0xFF26302C);

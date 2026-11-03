@@ -81,10 +81,34 @@ class _BusinessHomeState extends State<BusinessHome> {
     super.dispose();
   }
 
-  void _openSwitcher() => showBusinessSwitcher(context, widget.controller);
+  void _openSwitcher({bool withSettings = false}) => showBusinessSwitcher(
+        context,
+        widget.controller,
+        onOpenSettings: withSettings ? _openSettingsPage : null,
+      );
 
-  Widget _body() => IndexedStack(
-        index: _tab,
+  /// Di ponsel Pengaturan tidak punya tab sendiri; dibuka dari lembar usaha.
+  void _openSettingsPage() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Pengaturan')),
+        body: _settingsPage(),
+      ),
+    ));
+  }
+
+  Widget _settingsPage() => SettingsPage(
+        business: _business,
+        repo: _settingsRepo,
+        onRenamed: (name) => widget.controller.rename(_business.id, name),
+        debtRepo: _debtRepo,
+        changes: _changes,
+        onSwitchBusiness: _openSwitcher,
+        onBusinessGone: () => widget.controller.afterLeft(),
+      );
+
+  Widget _body({required bool wide}) => IndexedStack(
+        index: wide ? _tab : _tab.clamp(0, _tabs.length - 2),
         children: [
           _Dashboard(
             business: _business,
@@ -104,15 +128,7 @@ class _BusinessHomeState extends State<BusinessHome> {
               cash: _repo,
               debts: _debtRepo,
               changes: _changes),
-          SettingsPage(
-            business: _business,
-            repo: _settingsRepo,
-            onRenamed: (name) => widget.controller.rename(_business.id, name),
-            debtRepo: _debtRepo,
-            changes: _changes,
-            onSwitchBusiness: _openSwitcher,
-            onBusinessGone: () => widget.controller.afterLeft(),
-          ),
+          if (wide) _settingsPage(),
         ],
       );
 
@@ -124,7 +140,7 @@ class _BusinessHomeState extends State<BusinessHome> {
     // Nama usaha yang bisa ditekan untuk berpindah usaha.
     final title = InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: _openSwitcher,
+      onTap: () => _openSwitcher(withSettings: !wide),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -184,19 +200,20 @@ class _BusinessHomeState extends State<BusinessHome> {
             ],
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: _body()),
+          Expanded(child: _body(wide: true)),
         ]),
       );
     }
 
+    final phoneTabs = _tabs.take(_tabs.length - 1);
     return Scaffold(
       appBar: AppBar(title: title, titleSpacing: 8),
-      body: _body(),
+      body: _body(wide: false),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
+        selectedIndex: _tab.clamp(0, _tabs.length - 2),
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: [
-          for (final t in _tabs)
+          for (final t in phoneTabs)
             NavigationDestination(
                 icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
         ],
@@ -336,7 +353,7 @@ class _DashboardState extends State<_Dashboard> {
               onTap: () => _add(d.categories, 'in'),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: _QuickAction(
               icon: Icons.north_east_rounded,
@@ -345,7 +362,7 @@ class _DashboardState extends State<_Dashboard> {
               onTap: () => _add(d.categories, 'out'),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: _QuickAction(
               icon: Icons.handshake_rounded,
@@ -362,7 +379,7 @@ class _DashboardState extends State<_Dashboard> {
             Expanded(
               child: _DebtCard(
                 label: 'Piutang belum lunas',
-                hint: 'Uang yang harus Anda tagih',
+                hint: 'Yang harus Anda tagih',
                 value: s.receivableOpen,
                 color: Brand.receivable,
                 icon: Icons.call_received_rounded,
@@ -373,7 +390,7 @@ class _DashboardState extends State<_Dashboard> {
             Expanded(
               child: _DebtCard(
                 label: 'Utang belum lunas',
-                hint: 'Uang yang harus Anda bayar',
+                hint: 'Yang harus Anda bayar',
                 value: s.payableOpen,
                 color: Brand.payable,
                 icon: Icons.call_made_rounded,
@@ -429,7 +446,7 @@ class _DashboardState extends State<_Dashboard> {
       onRefresh: () async => _reload(),
       child: ContentWidth(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
           children: [
             if (sections.isEmpty)
               const EmptyState(
@@ -439,7 +456,7 @@ class _DashboardState extends State<_Dashboard> {
                     'Semua bagian Beranda disembunyikan. Pilih yang ingin tampil di Pengaturan > Tampilan Beranda.',
               ),
             for (var i = 0; i < sections.length; i++) ...[
-              if (i > 0) const SizedBox(height: 14),
+              if (i > 0) const SizedBox(height: 10),
               sections[i],
             ],
           ],
@@ -464,9 +481,9 @@ class _HeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -500,7 +517,7 @@ class _HeroCard extends StatelessWidget {
                     letterSpacing: -0.5)),
           ),
         ],
-        if (showBalance && showFlow) const SizedBox(height: 20),
+        if (showBalance && showFlow) const SizedBox(height: 14),
         if (showFlow)
           Row(children: [
             Expanded(
@@ -509,7 +526,7 @@ class _HeroCard extends StatelessWidget {
                   label: 'Masuk bulan ini',
                   value: summary.totalIn),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _HeroPill(
                   icon: Icons.north_east_rounded,
@@ -534,37 +551,32 @@ class _HeroPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle),
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label,
+      // Ikon dan label di baris atas, nominal di bawahnya, supaya label
+      // tidak terpotong di layar sempit.
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelSmall
                     ?.copyWith(color: Colors.white70)),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(rupiah(value),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
-            ),
-          ]),
+          ),
+        ]),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(rupiah(value),
+              style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.white, fontWeight: FontWeight.w800)),
         ),
       ]),
     );
@@ -634,10 +646,10 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoftCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       child: Column(children: [
-        IconBadge(icon, color: color, size: 48),
-        const SizedBox(height: 10),
+        IconBadge(icon, color: color, size: 42),
+        const SizedBox(height: 8),
         Text(label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -673,8 +685,8 @@ class _DebtCard extends StatelessWidget {
     return SoftCard(
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        IconBadge(icon, color: color, size: 40),
-        const SizedBox(height: 14),
+        IconBadge(icon, color: color, size: 36),
+        const SizedBox(height: 10),
         Text(label,
             style: theme.textTheme.labelMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
