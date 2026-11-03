@@ -1,7 +1,7 @@
 name: rekap_rapi
 description: RekapRapi - pencatatan kas dan utang piutang untuk usaha kecil.
 publish_to: none
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -34,10 +34,10 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#0B3220"
+  adaptive_icon_background: "#EAF7F0"
   adaptive_icon_foreground: "assets/icon/icon_fg.png"
   web:
     generate: true
     image_path: "assets/icon/icon.png"
-    background_color: "#0B3220"
+    background_color: "#EAF7F0"
     theme_color: "#0B3220"

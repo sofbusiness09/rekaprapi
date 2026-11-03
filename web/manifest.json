@@ -3,7 +3,7 @@
     "short_name": "RekapRapi",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0B3220",
+    "background_color": "#EAF7F0",
     "theme_color": "#0B3220",
     "description": "Pencatatan kas, penjualan, dan utang piutang untuk usaha kecil.",
     "orientation": "any",
