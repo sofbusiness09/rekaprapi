@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
+import 'url_auth_hint.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,6 +18,19 @@ class _LoginPageState extends State<LoginPage> {
   bool _register = false;
   bool _busy = false;
   bool _hide = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tautan email yang ditolak (kedaluwarsa atau sudah terpakai) menjelaskan alasannya.
+    final problem = UrlAuthHint.current.error;
+    if (problem != null) {
+      UrlAuthHint.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toast(problem);
+      });
+    }
+  }
 
   @override
   void dispose() {

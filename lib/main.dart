@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_gate.dart';
+import 'auth/url_auth_hint.dart';
 import 'config.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
@@ -9,7 +10,16 @@ import 'theme/theme_controller.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.load();
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+  // Dibaca sebelum Supabase menghapus parameter tautan email dari alamat.
+  UrlAuthHint.read(Uri.base);
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabaseAnonKey,
+    // Tautan reset dari email sering dibuka di peramban atau perangkat lain
+    // daripada yang meminta; alur PKCE gagal di sana, alur implisit tidak.
+    authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.implicit),
+  );
   runApp(const RekapRapiApp());
 }
 
