@@ -6,6 +6,7 @@ import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'contact_form.dart';
 import 'contact_page.dart';
+import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
 
@@ -98,6 +99,62 @@ class _ContactsPageState extends State<ContactsPage> {
   Future<void> _add() async {
     final c = await showContactForm(context, repo: widget.repo);
     if (c != null) widget.changes.value++;
+  }
+
+  /// Tombol Catat: pilih piutang atau utang, lalu isi formulir (siapa, berapa).
+  Future<void> _record(List<Contact> contacts) async {
+    final kind = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Catat apa?',
+                    style: Theme.of(sheetContext)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800)),
+              ),
+            ),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              leading: const IconBadge(Icons.call_received_rounded,
+                  color: Brand.receivable, size: 42),
+              title: const Text('Catat piutang',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Orang lain berutang kepada Anda'),
+              onTap: () => Navigator.pop(sheetContext, 'receivable'),
+            ),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              leading: const IconBadge(Icons.call_made_rounded,
+                  color: Brand.payable, size: 42),
+              title: const Text('Catat utang',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Anda berutang kepada orang lain'),
+              onTap: () => Navigator.pop(sheetContext, 'payable'),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (kind == null || !mounted) return;
+    final saved = await showDebtForm(
+      context,
+      repo: widget.repo,
+      contacts: contacts,
+      initialKind: kind,
+      lockKind: true,
+    );
+    if (saved) widget.changes.value++;
   }
 
   Future<void> _open(Contact c) async {
@@ -202,19 +259,29 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                   ]),
                   const SizedBox(height: 14),
-                  TextField(
-                    controller: _search,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Cari nama atau nomor telepon',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => setState(_search.clear)),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _search,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Cari nama atau nomor telepon',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _search.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setState(_search.clear)),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Tambah kontak',
+                      onPressed: _add,
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
                   Wrap(spacing: 8, runSpacing: 8, children: [
                     for (final f in const <(_Filter, String)>[
@@ -254,9 +321,9 @@ class _ContactsPageState extends State<ContactsPage> {
             ),
           ),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: _add,
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            label: const Text('Kontak baru'),
+            onPressed: () => _record(d.contacts),
+            icon: const Icon(Icons.edit_note_rounded),
+            label: const Text('Catat'),
           ),
         );
       },

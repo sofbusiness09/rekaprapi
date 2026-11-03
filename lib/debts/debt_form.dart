@@ -14,6 +14,7 @@ Future<bool> showDebtForm(
   required DebtRepository repo,
   required List<Contact> contacts,
   String initialKind = 'receivable',
+  bool lockKind = false,
   Debt? existing,
 }) async {
   final saved = await showModalBottomSheet<bool>(
@@ -24,6 +25,7 @@ Future<bool> showDebtForm(
         repo: repo,
         contacts: contacts,
         initialKind: initialKind,
+        lockKind: lockKind,
         existing: existing),
   );
   return saved ?? false;
@@ -34,12 +36,16 @@ class _DebtForm extends StatefulWidget {
     required this.repo,
     required this.contacts,
     required this.initialKind,
+    required this.lockKind,
     required this.existing,
   });
 
   final DebtRepository repo;
   final List<Contact> contacts;
   final String initialKind;
+
+  /// Jenis sudah dipilih sebelumnya (tombol Catat di tab Utang): tidak bisa diganti.
+  final bool lockKind;
   final Debt? existing;
 
   @override
@@ -131,10 +137,15 @@ class _DebtFormState extends State<_DebtForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_editing ? 'Ubah catatan' : 'Catat utang piutang',
+            Text(
+                _editing
+                    ? 'Ubah catatan'
+                    : (widget.lockKind
+                        ? (_receivable ? 'Catat piutang' : 'Catat utang')
+                        : 'Catat utang piutang'),
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            if (!_editing)
+            if (!_editing && !widget.lockKind)
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'receivable', label: Text('Piutang')),
@@ -145,7 +156,7 @@ class _DebtFormState extends State<_DebtForm> {
               ),
             if (!_editing)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: EdgeInsets.only(top: widget.lockKind ? 0 : 6),
                 child: Text(
                   _receivable
                       ? 'Piutang: orang lain berutang kepada Anda.'

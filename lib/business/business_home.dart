@@ -22,13 +22,13 @@ import 'business_switcher.dart';
 
 const _tabs = <(IconData, IconData, String)>[
   (Icons.home_outlined, Icons.home_rounded, 'Beranda'),
-  (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Kas'),
+  (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Transaksi'),
   (Icons.handshake_outlined, Icons.handshake_rounded, 'Utang'),
   (Icons.bar_chart_outlined, Icons.bar_chart_rounded, 'Laporan'),
   (Icons.settings_outlined, Icons.settings_rounded, 'Pengaturan'),
 ];
 
-/// Kerangka usaha yang sedang aktif: Beranda, Kas, Utang, Laporan, Pengaturan.
+/// Kerangka usaha yang sedang aktif: Beranda, Transaksi, Utang, Laporan, Pengaturan.
 /// Layar lebar memakai navigasi samping; layar sempit memakai bilah bawah.
 /// Menekan nama usaha membuka daftar usaha lain, tambah usaha, dan gabung dengan kode.
 class BusinessHome extends StatefulWidget {
@@ -379,7 +379,7 @@ class _DashboardState extends State<_Dashboard> {
             Expanded(
               child: _DebtCard(
                 label: 'Piutang belum lunas',
-                hint: 'Yang harus Anda tagih',
+                hint: 'Harus ditagih',
                 value: s.receivableOpen,
                 color: Brand.receivable,
                 icon: Icons.call_received_rounded,
@@ -390,7 +390,7 @@ class _DashboardState extends State<_Dashboard> {
             Expanded(
               child: _DebtCard(
                 label: 'Utang belum lunas',
-                hint: 'Yang harus Anda bayar',
+                hint: 'Harus dibayar',
                 value: s.payableOpen,
                 color: Brand.payable,
                 icon: Icons.call_made_rounded,
@@ -700,7 +700,7 @@ class _DebtCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(hint,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),

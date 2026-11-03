@@ -195,21 +195,16 @@ class _SearchSheetState extends State<_SearchSheet> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
               children: [
-                ListTile(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  leading: const IconBadge(Icons.person_add_alt_1_rounded,
-                      color: Colors.green, size: 42),
-                  title: Text(
-                    q.isEmpty
-                        ? 'Tambah kontak baru'
-                        : 'Tambah "${_query.text.trim()}" sebagai kontak baru',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  onTap: () => Navigator.pop(context,
-                      (_newContact, q.isEmpty ? null : _query.text.trim())),
-                ),
-                if (matches.isEmpty && widget.contacts.isNotEmpty)
+                if (widget.contacts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                        'Belum ada kontak. Tambahkan kontak baru di bawah.',
+                        textAlign: TextAlign.center,
+                        style:
+                            theme.textTheme.bodyMedium?.copyWith(color: muted)),
+                  )
+                else if (matches.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text('Tidak ada kontak yang cocok.',
@@ -232,6 +227,30 @@ class _SearchSheetState extends State<_SearchSheet> {
                     onTap: () => Navigator.pop(context, (c.id, null)),
                   ),
               ],
+            ),
+          ),
+          // Tambah kontak hanya bila orangnya belum ada di daftar di atas.
+          const Divider(height: 1),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                leading: const IconBadge(Icons.person_add_alt_1_rounded,
+                    color: Colors.green, size: 42),
+                title: Text(
+                  q.isEmpty
+                      ? 'Tambah kontak baru'
+                      : 'Tambah "${_query.text.trim()}" sebagai kontak baru',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                onTap: () => Navigator.pop(context,
+                    (_newContact, q.isEmpty ? null : _query.text.trim())),
+              ),
             ),
           ),
         ]),

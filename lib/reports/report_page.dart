@@ -65,7 +65,7 @@ class _ReportPageState extends State<ReportPage> {
   late DateTime _to = lastOfMonth(DateTime.now());
   late Future<_Loaded> _future = _load();
   bool _exporting = false;
-  bool _showIncome = false; // donat kategori: false = pengeluaran
+  bool _showIncome = true; // donat kategori: pemasukan dulu, lalu pengeluaran
 
   @override
   void initState() {
@@ -623,8 +623,8 @@ class _CategoryBreakdown extends StatelessWidget {
       SegmentedButton<bool>(
         showSelectedIcon: false,
         segments: const [
-          ButtonSegment(value: false, label: Text('Pengeluaran')),
           ButtonSegment(value: true, label: Text('Pemasukan')),
+          ButtonSegment(value: false, label: Text('Pengeluaran')),
         ],
         selected: {income},
         onSelectionChanged: (s) => onToggle(s.first),

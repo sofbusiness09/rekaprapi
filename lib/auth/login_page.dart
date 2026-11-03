@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/widgets.dart';
+import '../config.dart';
 import '../theme/app_theme.dart';
 import 'url_auth_hint.dart';
 
@@ -75,7 +77,11 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      // Di web kembali ke alamat yang sedang dibuka; di Android ke alamat web.
+      final back =
+          kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : webAppUrl;
+      await Supabase.instance.client.auth
+          .resetPasswordForEmail(email, redirectTo: back);
       _toast('Tautan reset password dikirim ke email Anda.');
     } on AuthException catch (e) {
       _toast(e.message);
