@@ -5,11 +5,13 @@ import 'auth/auth_gate.dart';
 import 'auth/url_auth_hint.dart';
 import 'config.dart';
 import 'theme/app_theme.dart';
+import 'theme/font_controller.dart';
 import 'theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.load();
+  await fontController.load();
   // Dibaca sebelum Supabase menghapus parameter tautan email dari alamat.
   UrlAuthHint.read(Uri.base);
   await Supabase.initialize(
@@ -29,12 +31,12 @@ class RekapRapiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: themeController,
+      listenable: Listenable.merge([themeController, fontController]),
       builder: (context, _) => MaterialApp(
         title: 'RekapRapi',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
-        darkTheme: buildTheme(Brightness.dark),
+        theme: buildTheme(Brightness.light, fontController.font.family),
+        darkTheme: buildTheme(Brightness.dark, fontController.font.family),
         themeMode: themeController.mode,
         // Ukuran huruf sistem yang sangat besar membuat kartu dan bilah bawah
         // terpotong; dibatasi sedikit di atas normal.

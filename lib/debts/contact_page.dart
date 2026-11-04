@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../business/business.dart';
+import '../common/amount_field.dart';
 import '../common/dialogs.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
@@ -36,6 +37,9 @@ class ContactPage extends StatefulWidget {
 class _ContactPageState extends State<ContactPage> {
   late Contact _contact = widget.contact;
   late Future<Ledger> _future = widget.repo.ledger(_contact.id);
+
+  /// Data terakhir yang dimuat; dipakai tombol Catat manual di kanan bawah.
+  Ledger? _ledger;
 
   @override
   void initState() {
@@ -221,6 +225,11 @@ class _ContactPageState extends State<ContactPage> {
                 onPressed: _delete),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _ledger == null ? null : () => _manual(_ledger!),
+        icon: const Icon(Icons.edit_note_rounded),
+        label: const Text('Catat manual'),
+      ),
       body: FutureBuilder<Ledger>(
         future: _future,
         builder: (context, snap) {
@@ -231,6 +240,7 @@ class _ContactPageState extends State<ContactPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final l = snap.data!;
+          _ledger = l;
           final net = l.net;
           final muted = theme.colorScheme.onSurfaceVariant;
           final entries = l.entries;
@@ -254,7 +264,7 @@ class _ContactPageState extends State<ContactPage> {
 
           return ContentWidth(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 104),
               children: [
                 _ProfileCard(contact: _contact, onEdit: _edit),
                 const SizedBox(height: 12),
@@ -297,12 +307,6 @@ class _ContactPageState extends State<ContactPage> {
                             child: const Text('LUNASKAN'),
                           ),
                         ]),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () => _manual(l),
-                          icon: const Icon(Icons.edit_note_rounded),
-                          label: const Text('Catat manual'),
-                        ),
                       ]),
                 ),
                 const SizedBox(height: 20),
@@ -509,7 +513,8 @@ class _MoneySheet extends StatefulWidget {
 }
 
 class _MoneySheetState extends State<_MoneySheet> {
-  late final _amount = TextEditingController(text: _suggested());
+  // Kosong: pengguna mengetik sendiri. Sisa saldo bisa diisi lewat tombol di bawah kolom.
+  final _amount = TextEditingController();
   final _note = TextEditingController();
   DateTime _date = DateTime.now();
 
@@ -518,8 +523,6 @@ class _MoneySheetState extends State<_MoneySheet> {
     if (widget.receive) return widget.net > 0 ? widget.net : 0;
     return widget.net < 0 ? -widget.net : 0;
   }
-
-  String _suggested() => _settleable > 0 ? thousands(_settleable) : '';
 
   @override
   void dispose() {
@@ -592,16 +595,12 @@ class _MoneySheetState extends State<_MoneySheet> {
               style: theme.textTheme.bodySmall?.copyWith(color: muted),
             ),
             const SizedBox(height: 16),
-            TextField(
+            AmountField(
               controller: _amount,
               autofocus: true,
+              title: _title,
               textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                ThousandsFormatter(),
-              ],
+              onChanged: () => setState(() {}),
               style: theme.textTheme.headlineMedium
                   ?.copyWith(fontWeight: FontWeight.w600, color: color),
               decoration: const InputDecoration(
@@ -613,6 +612,16 @@ class _MoneySheetState extends State<_MoneySheet> {
                 focusedBorder: InputBorder.none,
               ),
             ),
+            if (_settleable > 0)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () => setState(() {
+                    _amount.text = thousands(_settleable);
+                  }),
+                  child: Text('Isi sesuai total (${rupiah(_settleable)})'),
+                ),
+              ),
             Text(_effect(),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(color: muted)),

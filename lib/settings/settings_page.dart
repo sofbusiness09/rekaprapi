@@ -6,6 +6,8 @@ import '../backup/backup_setup_page.dart';
 import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
+import '../theme/font_controller.dart';
+import '../theme/font_picker.dart';
 import '../theme/theme_picker.dart';
 import 'activity_page.dart';
 import 'categories_page.dart';
@@ -205,6 +207,15 @@ class SettingsPage extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: ThemeModePicker(),
+        ),
+        ListenableBuilder(
+          listenable: fontController,
+          builder: (context, _) => ListTile(
+            leading: const Icon(Icons.text_fields_rounded),
+            title: const Text('Jenis huruf'),
+            subtitle: Text(fontController.font.name),
+            onTap: () => showFontPicker(context),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.dashboard_customize_outlined),

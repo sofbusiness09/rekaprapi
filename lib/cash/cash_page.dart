@@ -428,7 +428,7 @@ class _CreditTile extends StatelessWidget {
         : (debt.overdue ? Brand.expense : Brand.pending);
 
     return EntryRow(
-      icon: Icons.schedule_rounded,
+      icon: categoryIcon(title, income: debt.isReceivable),
       iconColor: tone,
       title: title,
       amount: rupiah(debt.amount),

@@ -22,18 +22,18 @@ class Brand {
   static const profit = Color(0xFF0B7A55);
 }
 
-/// Plus Jakarta Sans reguler terlihat tipis di layar ponsel; teks isi dan label
-/// dinaikkan satu tingkat ketebalan agar lebih terbaca.
-TextTheme _firmer(TextTheme t) {
+/// Huruf reguler terlihat tipis di layar ponsel; teks isi dan label dinaikkan
+/// satu tingkat ketebalan agar lebih terbaca.
+TextTheme _firmer(TextTheme t, String family) {
   // Angka tabular agar nominal rupiah di daftar dan laporan sejajar.
   const figures = [FontFeature.tabularFigures()];
   TextStyle? weigh(TextStyle? s, FontWeight w) => s == null
       ? null
-      : GoogleFonts.plusJakartaSans(
+      : GoogleFonts.getFont(family,
           textStyle: s, fontWeight: w, fontFeatures: figures);
   TextStyle? same(TextStyle? s) => s == null
       ? null
-      : GoogleFonts.plusJakartaSans(textStyle: s, fontFeatures: figures);
+      : GoogleFonts.getFont(family, textStyle: s, fontFeatures: figures);
   return t.copyWith(
     displayLarge: same(t.displayLarge),
     displayMedium: same(t.displayMedium),
@@ -53,13 +53,15 @@ TextTheme _firmer(TextTheme t) {
   );
 }
 
-ThemeData buildTheme(Brightness brightness) {
+ThemeData buildTheme(Brightness brightness,
+    [String fontFamily = 'Plus Jakarta Sans']) {
   final scheme =
       ColorScheme.fromSeed(seedColor: Brand.seed, brightness: brightness);
   final light = brightness == Brightness.light;
   final base = ThemeData(
       colorScheme: scheme, useMaterial3: true, brightness: brightness);
-  final text = _firmer(GoogleFonts.plusJakartaSansTextTheme(base.textTheme));
+  final text =
+      _firmer(GoogleFonts.getTextTheme(fontFamily, base.textTheme), fontFamily);
   // Permukaan netral; warna merek hanya muncul di aksen dan angka.
   final bg = light ? const Color(0xFFF5F6F5) : const Color(0xFF101211);
   final surface = light ? Colors.white : const Color(0xFF1A1C1B);

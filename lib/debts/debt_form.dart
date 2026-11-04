@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../common/amount_field.dart';
 import '../common/format.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
@@ -172,13 +172,9 @@ class _DebtFormState extends State<_DebtForm> {
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: 12),
-            TextField(
+            AmountField(
               controller: _amount,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                ThousandsFormatter()
-              ],
+              onChanged: () => setState(() {}),
               decoration:
                   const InputDecoration(labelText: 'Jumlah', prefixText: 'Rp '),
             ),
@@ -359,14 +355,10 @@ class _PaymentFormState extends State<_PaymentForm> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            TextField(
+            AmountField(
               controller: _amount,
               autofocus: true,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                ThousandsFormatter()
-              ],
+              title: 'Jumlah pembayaran',
               decoration:
                   const InputDecoration(labelText: 'Jumlah', prefixText: 'Rp '),
             ),

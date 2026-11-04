@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../common/amount_field.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/contact_picker.dart';
@@ -621,15 +621,11 @@ class _AmountBox extends StatelessWidget {
             style: theme.textTheme.labelLarge
                 ?.copyWith(color: theme.colorScheme.onSurface)),
       ),
-      TextField(
+      AmountField(
         controller: controller,
         autofocus: autofocus,
-        keyboardType: TextInputType.number,
-        onChanged: (_) => onChanged(),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          ThousandsFormatter(),
-        ],
+        title: label,
+        onChanged: onChanged,
         style: (large
                 ? theme.textTheme.headlineMedium
                 : theme.textTheme.titleLarge)
@@ -666,14 +662,10 @@ class _MoneyField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return AmountField(
       controller: controller,
-      keyboardType: TextInputType.number,
-      onChanged: (_) => onChanged(),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        ThousandsFormatter(),
-      ],
+      title: label,
+      onChanged: onChanged,
       style: Theme.of(context)
           .textTheme
           .titleMedium

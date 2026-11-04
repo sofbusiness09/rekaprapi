@@ -592,7 +592,8 @@ class _HeroPill extends StatelessWidget {
   }
 }
 
-/// Keuntungan penjualan bulan ini, di bawah kartu saldo.
+/// Keuntungan penjualan bulan ini. Sengaja dibuat paling menonjol setelah kartu
+/// saldo: angka besar, alas bertinta warna keuntungan, dan margin di bawahnya.
 class _ProfitStrip extends StatelessWidget {
   const _ProfitStrip({required this.summary});
 
@@ -601,38 +602,59 @@ class _ProfitStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
     final positive = summary.profit >= 0;
     final color = positive ? Brand.profit : Brand.expense;
-    return SoftCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(children: [
-        IconBadge(
-            positive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-            color: color,
-            size: 44),
-        const SizedBox(width: 16),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(positive ? 'Keuntungan bulan ini' : 'Rugi bulan ini',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(rupiah(summary.profit.abs()),
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w600, color: color)),
+    final hasSales = summary.salesTotal > 0;
+    final margin = hasSales ? summary.profit * 100 / summary.salesTotal : null;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.4),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(
+              positive
+                  ? Icons.trending_up_rounded
+                  : Icons.trending_down_rounded,
+              color: color,
+              size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(positive ? 'Keuntungan bulan ini' : 'Rugi bulan ini',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: color, fontWeight: FontWeight.w600)),
+          ),
+          if (margin != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Margin ${margin.toStringAsFixed(1)}%',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: color, fontWeight: FontWeight.w600)),
             ),
-          ]),
+        ]),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(rupiah(summary.profit.abs()),
+              style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w600, color: color, height: 1.1)),
         ),
+        const SizedBox(height: 6),
         Text(
-          summary.salesTotal > 0
-              ? 'dari penjualan\n${rupiah(summary.salesTotal)}'
-              : 'Catat penjualan\nuntuk melihat untung',
-          textAlign: TextAlign.right,
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          hasSales
+              ? 'dari penjualan ${rupiah(summary.salesTotal)}'
+              : 'Catat penjualan dan isi Harga Modal untuk melihat keuntungan.',
+          style: theme.textTheme.bodySmall?.copyWith(color: muted),
         ),
       ]),
     );
@@ -734,7 +756,7 @@ class _ActivityTile extends StatelessWidget {
     final IconData icon;
     if (a.isCredit) {
       tone = a.isIn ? Brand.receivable : Brand.payable;
-      icon = Icons.schedule_rounded;
+      icon = categoryIcon(a.title, income: a.isIn);
     } else {
       tone = amountColor(a.isIn);
       icon = categoryIcon(a.title, income: a.isIn);
