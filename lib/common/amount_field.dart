@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'calc_expression.dart';
 import 'format.dart';
+import 'glass.dart';
 
 /// Di ponsel kolom nominal membuka keyboard kalkulator (angka, 00, 000, +, −, ×
 /// dan "="), bukan keyboard biasa. Di komputer tetap kolom ketik biasa.
@@ -104,7 +105,7 @@ Future<int?> showCalcKeypad(
   String title = 'Jumlah',
   int? initial,
 }) {
-  return showModalBottomSheet<int>(
+  return showGlassSheet<int>(
     context: context,
     // Tanpa ini tinggi lembar dibatasi 9/16 layar dan tombol bawah terpotong.
     isScrollControlled: true,

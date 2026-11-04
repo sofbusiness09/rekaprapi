@@ -196,11 +196,16 @@ class _ReportPageState extends State<ReportPage> {
         final hasProfit = buckets.any((b) => b.profit != 0);
 
         return RefreshIndicator(
+          edgeOffset: MediaQuery.paddingOf(context).top,
           onRefresh: () async => _reload(),
           child: ContentWidth(
             maxWidth: 900,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: EdgeInsets.fromLTRB(
+                  16,
+                  8 + MediaQuery.paddingOf(context).top,
+                  16,
+                  32 + MediaQuery.paddingOf(context).bottom),
               children: [
                 if (snap.connectionState == ConnectionState.waiting)
                   const LinearProgressIndicator(minHeight: 3),

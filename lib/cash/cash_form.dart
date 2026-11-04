@@ -10,6 +10,7 @@ import '../debts/debt_repository.dart';
 import '../theme/app_theme.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
+import '../common/glass.dart';
 
 /// Lembar formulir catat transaksi.
 ///
@@ -29,7 +30,7 @@ Future<bool> showCashForm(
   String initialType = 'in',
   bool lockType = false,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showGlassSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

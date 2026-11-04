@@ -9,6 +9,7 @@ import 'contact_page.dart';
 import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import '../common/glass.dart';
 
 enum _Filter { all, receivable, payable, settled }
 
@@ -103,7 +104,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   /// Tombol Catat: pilih piutang atau utang, lalu isi formulir (siapa, berapa).
   Future<void> _record(List<Contact> contacts) async {
-    final kind = await showModalBottomSheet<String>(
+    final kind = await showGlassSheet<String>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 480),
@@ -222,10 +223,15 @@ class _ContactsPageState extends State<ContactsPage> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: RefreshIndicator(
+            edgeOffset: MediaQuery.paddingOf(context).top,
             onRefresh: () async => _reload(),
             child: ContentWidth(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+                padding: EdgeInsets.fromLTRB(
+                    16,
+                    8 + MediaQuery.paddingOf(context).top,
+                    16,
+                    110 + MediaQuery.paddingOf(context).bottom),
                 children: [
                   Row(children: [
                     Expanded(
@@ -320,10 +326,15 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _record(d.contacts),
-            icon: const Icon(Icons.edit_note_rounded),
-            label: const Text('Catat'),
+          floatingActionButton: Padding(
+            // Naik setinggi tab bawah berkaca yang melayang di atas isi.
+            padding:
+                EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            child: FloatingActionButton.extended(
+              onPressed: () => _record(d.contacts),
+              icon: const Icon(Icons.edit_note_rounded),
+              label: const Text('Catat'),
+            ),
           ),
         );
       },

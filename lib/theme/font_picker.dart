@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'font_controller.dart';
+import '../common/glass.dart';
 
 /// Lembar pilihan jenis huruf, tiap pilihan tampil dengan hurufnya sendiri.
 Future<void> showFontPicker(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showGlassSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import 'cash_form.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
+import '../common/glass.dart';
 
 class CashPage extends StatefulWidget {
   const CashPage({
@@ -146,7 +147,7 @@ class _CashPageState extends State<CashPage> {
 
   /// Tombol Catat: langsung tanya pemasukan atau pengeluaran, lalu buka formulirnya.
   Future<void> _choose(_Loaded d) async {
-    final type = await showModalBottomSheet<String>(
+    final type = await showGlassSheet<String>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 480),
@@ -216,7 +217,7 @@ class _CashPageState extends State<CashPage> {
       _toast('Staf hanya bisa mengubah transaksi yang ia catat sendiri.');
       return;
     }
-    showModalBottomSheet<void>(
+    showGlassSheet<void>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 560),
@@ -294,10 +295,15 @@ class _CashPageState extends State<CashPage> {
               const LinearProgressIndicator(minHeight: 3),
             Expanded(
               child: RefreshIndicator(
+                edgeOffset: MediaQuery.paddingOf(context).top,
                 onRefresh: () async => _reload(),
                 child: ContentWidth(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+                    padding: EdgeInsets.fromLTRB(
+                        16,
+                        4 + MediaQuery.paddingOf(context).top,
+                        16,
+                        110 + MediaQuery.paddingOf(context).bottom),
                     children: [
                       _MonthPill(
                         label: monthId(_month),
@@ -388,10 +394,15 @@ class _CashPageState extends State<CashPage> {
               ),
             ),
           ]),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _choose(d),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Catat'),
+          floatingActionButton: Padding(
+            // Naik setinggi tab bawah berkaca yang melayang di atas isi.
+            padding:
+                EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            child: FloatingActionButton.extended(
+              onPressed: () => _choose(d),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Catat'),
+            ),
           ),
         );
       },

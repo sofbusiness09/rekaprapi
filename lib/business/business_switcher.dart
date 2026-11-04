@@ -6,6 +6,7 @@ import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'business.dart';
 import 'business_controller.dart';
+import '../common/glass.dart';
 
 const roleNames = {'owner': 'Pemilik', 'admin': 'Admin', 'staff': 'Staf'};
 
@@ -53,7 +54,7 @@ Future<void> showBusinessSwitcher(
   BusinessController controller, {
   VoidCallback? onOpenSettings,
 }) {
-  return showModalBottomSheet<void>(
+  return showGlassSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

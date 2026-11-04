@@ -6,6 +6,7 @@ import '../common/format.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import '../common/glass.dart';
 
 /// Formulir tambah/ubah utang piutang. Mengembalikan true bila tersimpan.
 /// Saat mengubah, jenis dan pilihan "uang berpindah" tidak bisa diganti.
@@ -17,7 +18,7 @@ Future<bool> showDebtForm(
   bool lockKind = false,
   Debt? existing,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showGlassSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -259,7 +260,7 @@ Future<bool> showPaymentForm(
   required bool receivable,
   Payment? existing,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showGlassSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

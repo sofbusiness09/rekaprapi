@@ -6,6 +6,7 @@ import '../cash/cash_models.dart';
 import '../cash/cash_page.dart';
 import '../cash/cash_repository.dart';
 import '../common/format.dart';
+import '../common/glass.dart';
 import '../common/widgets.dart';
 import '../debts/debt_detail_page.dart';
 import '../debts/debt_repository.dart';
@@ -209,26 +210,43 @@ class _BusinessHomeState extends State<BusinessHome> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) setState(() => _settingsOpen = false);
       },
+      // Header dan tab bawah berefek kaca: isi halaman bergulir di bawahnya
+      // (extendBody), jadi setiap halaman menambah jarak atas dan bawah dari
+      // MediaQuery agar baris pertama dan terakhir tidak tertutup.
       child: Scaffold(
-        appBar: _settingsOpen
-            ? AppBar(
-                leading: BackButton(
-                    onPressed: () => setState(() => _settingsOpen = false)),
-                title: const Text('Pengaturan'),
-              )
-            : AppBar(title: title, titleSpacing: 8),
+        extendBody: true,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          flexibleSpace: const GlassBar(top: true),
+          leading: _settingsOpen
+              ? BackButton(
+                  onPressed: () => setState(() => _settingsOpen = false))
+              : null,
+          automaticallyImplyLeading: false,
+          title: _settingsOpen ? const Text('Pengaturan') : title,
+          titleSpacing: _settingsOpen ? null : 8,
+        ),
         body: _settingsOpen ? _settingsPage() : _body(wide: false),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tab.clamp(0, _tabs.length - 2),
-          onDestinationSelected: (i) => setState(() {
-            _tab = i;
-            _settingsOpen = false;
-          }),
-          destinations: [
-            for (final t in phoneTabs)
-              NavigationDestination(
-                  icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
-          ],
+        bottomNavigationBar: GlassBar(
+          child: NavigationBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            selectedIndex: _tab.clamp(0, _tabs.length - 2),
+            onDestinationSelected: (i) => setState(() {
+              _tab = i;
+              _settingsOpen = false;
+            }),
+            destinations: [
+              for (final t in phoneTabs)
+                NavigationDestination(
+                    icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
+            ],
+          ),
         ),
       ),
     );
@@ -459,10 +477,15 @@ class _DashboardState extends State<_Dashboard> {
     ];
 
     return RefreshIndicator(
+      edgeOffset: MediaQuery.paddingOf(context).top,
       onRefresh: () async => _reload(),
       child: ContentWidth(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+          padding: EdgeInsets.fromLTRB(
+              14,
+              4 + MediaQuery.paddingOf(context).top,
+              14,
+              24 + MediaQuery.paddingOf(context).bottom),
           children: [
             if (sections.isEmpty)
               const EmptyState(

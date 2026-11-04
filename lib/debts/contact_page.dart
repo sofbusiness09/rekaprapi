@@ -12,6 +12,7 @@ import 'contact_form.dart';
 import 'debt_detail_page.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import '../common/glass.dart';
 
 /// Halaman satu kontak: data kontak yang bisa diubah (telepon, alamat, catatan),
 /// saldo bersih (piutang dan utang digabung), tombol **Lunaskan** dan
@@ -37,9 +38,6 @@ class ContactPage extends StatefulWidget {
 class _ContactPageState extends State<ContactPage> {
   late Contact _contact = widget.contact;
   late Future<Ledger> _future = widget.repo.ledger(_contact.id);
-
-  /// Data terakhir yang dimuat; dipakai tombol Catat manual di kanan bawah.
-  Ledger? _ledger;
 
   @override
   void initState() {
@@ -121,7 +119,7 @@ class _ContactPageState extends State<ContactPage> {
 
   Future<void> _manual(Ledger l) async {
     final net = l.net;
-    final choice = await showModalBottomSheet<bool>(
+    final choice = await showGlassSheet<bool>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 560),
@@ -151,7 +149,7 @@ class _ContactPageState extends State<ContactPage> {
     );
     if (choice == null || !mounted) return;
 
-    final r = await showModalBottomSheet<_MoneyResult>(
+    final r = await showGlassSheet<_MoneyResult>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -225,10 +223,15 @@ class _ContactPageState extends State<ContactPage> {
                 onPressed: _delete),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _ledger == null ? null : () => _manual(_ledger!),
-        icon: const Icon(Icons.edit_note_rounded),
-        label: const Text('Catat manual'),
+      // Dibangun ulang bersama data: sebelumnya tombol dibuat saat data belum ada
+      // sehingga tetap mati walau data sudah tampil.
+      floatingActionButton: FutureBuilder<Ledger>(
+        future: _future,
+        builder: (context, snap) => FloatingActionButton.extended(
+          onPressed: snap.hasData ? () => _manual(snap.data!) : null,
+          icon: const Icon(Icons.edit_note_rounded),
+          label: const Text('Catat manual'),
+        ),
       ),
       body: FutureBuilder<Ledger>(
         future: _future,
@@ -240,7 +243,6 @@ class _ContactPageState extends State<ContactPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final l = snap.data!;
-          _ledger = l;
           final net = l.net;
           final muted = theme.colorScheme.onSurfaceVariant;
           final entries = l.entries;
