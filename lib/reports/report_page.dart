@@ -13,15 +13,16 @@ import 'report_exporter.dart';
 
 enum _Preset { thisMonth, lastMonth, thisYear, custom }
 
+/// Irisan terbesar memakai aksen merek; sisanya abu bertingkat agar tidak seperti pelangi.
 const _palette = <Color>[
   Color(0xFF0E9F6E),
-  Color(0xFF2F7DE1),
-  Color(0xFFF08A24),
-  Color(0xFF7C5CFC),
-  Color(0xFFE5484D),
-  Color(0xFF14B8A6),
-  Color(0xFFD946EF),
-  Color(0xFF64748B),
+  Color(0xFF3D4A44),
+  Color(0xFF66736D),
+  Color(0xFF8E9A94),
+  Color(0xFFB0BAB5),
+  Color(0xFFCBD2CE),
+  Color(0xFFDDE2DF),
+  Color(0xFFEBEEEC),
 ];
 
 class ReportPage extends StatefulWidget {
@@ -358,25 +359,25 @@ class _Kpi extends StatelessWidget {
           IconBadge(icon, color: color, size: 32),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            child: FitText(label,
+                maxLines: 2,
+                minFontSize: 10,
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ),
         ]),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(rupiah(value),
               style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                  ?.copyWith(fontWeight: FontWeight.w600, color: color)),
         ),
         if (sub != null)
-          Text(sub!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          FitText(sub!,
+              maxLines: 2,
+              minFontSize: 10,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       ]),
@@ -455,7 +456,7 @@ class _Legend extends StatelessWidget {
                 height: 10,
                 decoration: BoxDecoration(
                     color: i.$2, borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(i.$1, style: Theme.of(context).textTheme.labelMedium),
           ]),
       ]);
@@ -662,7 +663,7 @@ class _CategoryBreakdown extends StatelessWidget {
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               Text(rupiah(total),
                   style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ]),
           ]),
         ),
@@ -677,7 +678,7 @@ class _CategoryBreakdown extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: _palette[i % _palette.length],
                       borderRadius: BorderRadius.circular(4))),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(items[i]['category_name'] as String,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -689,7 +690,7 @@ class _CategoryBreakdown extends StatelessWidget {
               const SizedBox(width: 12),
               Text(rupiah((items[i]['total'] as num).toInt()),
                   style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ]),
           ),
       ],

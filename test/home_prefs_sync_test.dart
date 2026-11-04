@@ -6,22 +6,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Akun tiruan: menyimpan satu baris dan mencatat setiap unggahan.
 class FakeRemote implements HomePrefsRemote {
-  RemotePrefs? stored;
+  /// Satu baris per usaha; kunci null = pilihan akun tanpa usaha.
+  final rows = <String?, RemotePrefs>{};
   final saves = <Map<String, dynamic>>[];
   bool failFetch = false;
   bool failSave = false;
 
+  RemotePrefs? get stored => rows[null];
+  set stored(RemotePrefs? v) => v == null ? rows.remove(null) : rows[null] = v;
+
   @override
-  Future<RemotePrefs?> fetch(String uid) async {
+  Future<RemotePrefs?> fetch(String uid, String? businessId) async {
     if (failFetch) throw Exception('offline');
-    return stored;
+    return rows[businessId];
   }
 
   @override
-  Future<void> save(String uid, Map<String, dynamic> prefs, DateTime at) async {
+  Future<void> save(String uid, String? businessId, Map<String, dynamic> prefs,
+      DateTime at) async {
     if (failSave) throw Exception('offline');
     saves.add(prefs);
-    stored = RemotePrefs(prefs, at);
+    rows[businessId] = RemotePrefs(prefs, at);
   }
 }
 
@@ -169,5 +174,20 @@ void main() {
     remote.stored = null; // akun b belum punya pilihan di akun
     await c.load('b');
     expect(c.value.showBalance, isTrue);
+  });
+
+  test('tiap usaha punya pilihan sendiri dan tidak saling bocor', () async {
+    final remote = FakeRemote();
+    final c = HomePrefsController(remote: remote);
+    await c.load('u', businessId: 'b1');
+    await c.update(c.value.copyWith(showProfit: false));
+
+    await c.load('u', businessId: 'b2'); // usaha b2 belum punya pilihan di akun
+    expect(c.value.showProfit, isTrue);
+
+    await c.update(c.value.copyWith(txCredit: true));
+    await c.load('u', businessId: 'b1');
+    expect(c.value.showProfit, isFalse);
+    expect(c.value.txCredit, isFalse);
   });
 }

@@ -138,7 +138,7 @@ class _BackupCardState extends State<BackupCard> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Fitur backup belum siap.',
               style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+                  ?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text(
             'Pastikan migrasi 20261109000000_backup_settings.sql sudah dijalankan di Supabase.\n$_loadError',
@@ -157,7 +157,7 @@ class _BackupCardState extends State<BackupCard> {
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
             const IconBadge(Icons.cloud_upload_rounded, color: Brand.info),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 'Simpan salinan seluruh data ke Google Sheet Anda dengan satu klik.',
@@ -165,7 +165,7 @@ class _BackupCardState extends State<BackupCard> {
               ),
             ),
           ]),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           FilledButton.tonalIcon(
             onPressed: _openSetup,
             icon: const Icon(Icons.settings_suggest_rounded),
@@ -183,7 +183,7 @@ class _BackupCardState extends State<BackupCard> {
           IconBadge(
               failed ? Icons.error_outline_rounded : Icons.cloud_done_rounded,
               color: failed ? Brand.expense : Brand.income),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -194,7 +194,7 @@ class _BackupCardState extends State<BackupCard> {
                           ? 'Backup terakhir gagal'
                           : 'Backup terakhir',
                   style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               Text(
                 never
                     ? 'Tekan Backup sekarang untuk menyimpan data pertama kali.'
@@ -207,7 +207,7 @@ class _BackupCardState extends State<BackupCard> {
             ]),
           ),
         ]),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: _running ? null : _backup,
           icon: const Icon(Icons.cloud_upload_rounded),

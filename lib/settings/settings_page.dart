@@ -13,6 +13,7 @@ import 'contacts_manage_page.dart';
 import 'home_prefs_page.dart';
 import 'members_page.dart';
 import 'settings_repository.dart';
+import 'tx_prefs_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
@@ -116,8 +117,12 @@ class SettingsPage extends StatelessWidget {
         okLabel: 'Keluar')) {
       return;
     }
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await repo.leaveBusiness();
+      messenger.showSnackBar(
+          SnackBar(content: Text('Anda keluar dari "${business.name}".')));
       onBusinessGone();
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
@@ -133,8 +138,11 @@ class SettingsPage extends StatelessWidget {
       _toast(context, 'Nama tidak cocok. Usaha tidak dihapus.');
       return;
     }
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await repo.deleteBusiness();
+      messenger.showSnackBar(
+          SnackBar(content: Text('Usaha "${business.name}" dihapus.')));
       onBusinessGone();
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
@@ -201,8 +209,15 @@ class SettingsPage extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.dashboard_customize_outlined),
           title: const Text('Tampilan Beranda'),
-          subtitle: const Text('Pilih bagian dan jenis aktivitas yang tampil'),
-          onTap: () => _push(context, const HomePrefsPage()),
+          subtitle: const Text('Pilih, dan geser urutan bagian Beranda'),
+          onTap: () =>
+              _push(context, HomePrefsPage(businessName: business.name)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: const Text('Tampilan Transaksi'),
+          subtitle: const Text('Pilih apa yang tampil di tab Transaksi'),
+          onTap: () => _push(context, TxPrefsPage(businessName: business.name)),
         ),
         const Divider(),
         _Header('Akun ($email)'),

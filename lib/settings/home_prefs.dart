@@ -6,8 +6,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../cash/cash_models.dart';
 
-/// Pilihan apa yang tampil di Beranda. Bawaan = semuanya tampil (sama seperti
-/// tampilan awal), jadi pengguna yang tidak mengubah apa pun tidak melihat perbedaan.
+/// Bagian Beranda yang bisa digeser urutannya. Kartu saldo dan arus kas bulan
+/// ini dihitung satu bagian (`hero`).
+const homeSections = ['hero', 'profit', 'quick', 'debt', 'activity'];
+
+const homeSectionTitles = {
+  'hero': 'Saldo dan kas bulan ini',
+  'profit': 'Keuntungan bulan ini',
+  'quick': 'Tombol cepat',
+  'debt': 'Piutang dan utang belum lunas',
+  'activity': 'Aktivitas terbaru',
+};
+
+/// Pilihan tampilan satu usaha: apa yang tampil di Beranda dan di tab Transaksi.
+/// Tiap usaha punya pilihan sendiri. Bawaan Beranda = semuanya tampil; bawaan
+/// Transaksi = hanya pemasukan dan pengeluaran, tanpa catatan utang piutang.
 @immutable
 class HomePrefs {
   const HomePrefs({
@@ -23,6 +36,11 @@ class HomePrefs {
     this.actPayments = true,
     this.actLoans = true,
     this.activityCount = 8,
+    this.order = homeSections,
+    this.txIn = true,
+    this.txOut = true,
+    this.txCredit = false,
+    this.txDebtCash = false,
   });
 
   /// Saldo kas (angka besar).
@@ -53,16 +71,40 @@ class HomePrefs {
   /// Jumlah aktivitas yang ditampilkan.
   final int activityCount;
 
+  /// Urutan bagian Beranda dari atas ke bawah (selalu memuat semua id di [homeSections]).
+  final List<String> order;
+
+  // Isi tab Transaksi.
+  final bool txIn;
+  final bool txOut;
+
+  /// Transaksi hutang: penjualan atau pembelian kredit yang belum dibayar.
+  final bool txCredit;
+
+  /// Kas otomatis dari utang piutang: pemberian, pelunasan, penerimaan, pembayaran.
+  final bool txDebtCash;
+
   static const countOptions = [5, 8, 10, 15];
 
   bool get showHero => showBalance || showFlow;
 
-  bool get anySection =>
-      showHero ||
-      showProfit ||
-      showQuickActions ||
-      showDebtCards ||
-      showActivity;
+  bool sectionShown(String id) {
+    switch (id) {
+      case 'hero':
+        return showHero;
+      case 'profit':
+        return showProfit;
+      case 'quick':
+        return showQuickActions;
+      case 'debt':
+        return showDebtCards;
+      case 'activity':
+        return showActivity;
+    }
+    return false;
+  }
+
+  bool get anySection => homeSections.any(sectionShown);
 
   bool get anyActivityType =>
       actCashIn || actCashOut || actCredit || actPayments || actLoans;
@@ -96,6 +138,11 @@ class HomePrefs {
     bool? actPayments,
     bool? actLoans,
     int? activityCount,
+    List<String>? order,
+    bool? txIn,
+    bool? txOut,
+    bool? txCredit,
+    bool? txDebtCash,
   }) =>
       HomePrefs(
         showBalance: showBalance ?? this.showBalance,
@@ -110,6 +157,11 @@ class HomePrefs {
         actPayments: actPayments ?? this.actPayments,
         actLoans: actLoans ?? this.actLoans,
         activityCount: activityCount ?? this.activityCount,
+        order: order ?? this.order,
+        txIn: txIn ?? this.txIn,
+        txOut: txOut ?? this.txOut,
+        txCredit: txCredit ?? this.txCredit,
+        txDebtCash: txDebtCash ?? this.txDebtCash,
       );
 
   Map<String, dynamic> toJson() => {
@@ -125,13 +177,18 @@ class HomePrefs {
         'actPayments': actPayments,
         'actLoans': actLoans,
         'activityCount': activityCount,
+        'order': order,
+        'txIn': txIn,
+        'txOut': txOut,
+        'txCredit': txCredit,
+        'txDebtCash': txDebtCash,
       };
 
   /// Nilai yang hilang atau tidak dikenal memakai bawaan.
   factory HomePrefs.fromJson(Map<String, dynamic> j) {
-    bool b(String k) {
+    bool b(String k, [bool fallback = true]) {
       final v = j[k];
-      return v is bool ? v : true;
+      return v is bool ? v : fallback;
     }
 
     final count = j['activityCount'];
@@ -148,11 +205,33 @@ class HomePrefs {
       actPayments: b('actPayments'),
       actLoans: b('actLoans'),
       activityCount: count is int && countOptions.contains(count) ? count : 8,
+      order: normalizeOrder(j['order']),
+      txIn: b('txIn'),
+      txOut: b('txOut'),
+      txCredit: b('txCredit', false),
+      txDebtCash: b('txDebtCash', false),
     );
+  }
+
+  /// Urutan yang dikenal dipertahankan, id ganda dan asing dibuang, dan bagian
+  /// yang belum ada ditaruh di akhir.
+  static List<String> normalizeOrder(Object? raw) {
+    final seen = <String>[];
+    if (raw is List) {
+      for (final id in raw) {
+        if (id is String && homeSections.contains(id) && !seen.contains(id)) {
+          seen.add(id);
+        }
+      }
+    }
+    for (final id in homeSections) {
+      if (!seen.contains(id)) seen.add(id);
+    }
+    return List.unmodifiable(seen);
   }
 }
 
-/// Salinan pilihan Beranda yang tersimpan di akun (database).
+/// Salinan pilihan yang tersimpan di akun (database).
 class RemotePrefs {
   const RemotePrefs(this.prefs, this.updatedAt);
 
@@ -161,24 +240,37 @@ class RemotePrefs {
 }
 
 /// Penyimpanan pilihan di akun. Dipisah agar logika sinkron bisa diuji tanpa jaringan.
+/// [businessId] null = pilihan lama per akun (sebelum tiap usaha punya pilihan sendiri).
 abstract class HomePrefsRemote {
   /// null bila akun belum punya pilihan tersimpan.
-  Future<RemotePrefs?> fetch(String uid);
+  Future<RemotePrefs?> fetch(String uid, String? businessId);
 
-  Future<void> save(String uid, Map<String, dynamic> prefs, DateTime at);
+  Future<void> save(
+      String uid, String? businessId, Map<String, dynamic> prefs, DateTime at);
 }
 
-/// Menyimpan di tabel `user_settings` (hanya pemiliknya yang bisa membaca/menulis).
+/// Menyimpan di tabel `user_business_settings` (satu baris per pengguna dan usaha;
+/// hanya pemiliknya yang bisa membaca dan menulis).
 class SupabaseHomePrefsRemote implements HomePrefsRemote {
   SupabaseClient get _db => Supabase.instance.client;
 
   @override
-  Future<RemotePrefs?> fetch(String uid) async {
-    final row = await _db
-        .from('user_settings')
-        .select('home_prefs, updated_at')
-        .eq('user_id', uid)
-        .maybeSingle();
+  Future<RemotePrefs?> fetch(String uid, String? businessId) async {
+    final Map<String, dynamic>? row;
+    if (businessId == null) {
+      row = await _db
+          .from('user_settings')
+          .select('home_prefs, updated_at')
+          .eq('user_id', uid)
+          .maybeSingle();
+    } else {
+      row = await _db
+          .from('user_business_settings')
+          .select('home_prefs, updated_at')
+          .eq('user_id', uid)
+          .eq('business_id', businessId)
+          .maybeSingle();
+    }
     if (row == null) return null;
     final prefs = Map<String, dynamic>.from(row['home_prefs'] as Map);
     if (prefs.isEmpty) return null;
@@ -186,16 +278,27 @@ class SupabaseHomePrefsRemote implements HomePrefsRemote {
   }
 
   @override
-  Future<void> save(String uid, Map<String, dynamic> prefs, DateTime at) async {
-    await _db.from('user_settings').upsert({
-      'user_id': uid,
-      'home_prefs': prefs,
-      'updated_at': at.toUtc().toIso8601String(),
-    }, onConflict: 'user_id');
+  Future<void> save(String uid, String? businessId, Map<String, dynamic> prefs,
+      DateTime at) async {
+    final stamp = at.toUtc().toIso8601String();
+    if (businessId == null) {
+      await _db.from('user_settings').upsert({
+        'user_id': uid,
+        'home_prefs': prefs,
+        'updated_at': stamp,
+      }, onConflict: 'user_id');
+    } else {
+      await _db.from('user_business_settings').upsert({
+        'user_id': uid,
+        'business_id': businessId,
+        'home_prefs': prefs,
+        'updated_at': stamp,
+      }, onConflict: 'user_id,business_id');
+    }
   }
 }
 
-/// Memuat dan menyimpan pilihan Beranda untuk pengguna yang sedang masuk.
+/// Memuat dan menyimpan pilihan tampilan untuk pengguna dan usaha yang sedang dibuka.
 ///
 /// Pilihan tersimpan di akun sehingga ikut ke semua perangkat, dan disalin di
 /// perangkat ini agar Beranda langsung tampil (dan tetap bekerja saat offline).
@@ -209,9 +312,12 @@ class HomePrefsController extends ChangeNotifier {
   HomePrefs get value => _value;
 
   String? _uid;
+  String? _businessId;
   DateTime? _at; // waktu perubahan terakhir pilihan yang sedang dipakai
 
-  String get _key => 'home_prefs_$_uid';
+  String get _key => _businessId == null
+      ? 'home_prefs_$_uid'
+      : 'home_prefs_${_uid}_$_businessId';
 
   /// Pilihan di perangkat ini; [at] null untuk format lama yang belum bercap waktu.
   Future<(HomePrefs, DateTime?)?> _readLocal() async {
@@ -253,20 +359,25 @@ class HomePrefsController extends ChangeNotifier {
     final uid = _uid;
     if (remote == null || uid == null) return;
     try {
-      await remote.save(uid, _value.toJson(), _at ?? DateTime.now());
+      await remote.save(
+          uid, _businessId, _value.toJson(), _at ?? DateTime.now());
     } catch (_) {
       // Gagal (mis. offline): salinan lokal lebih baru dan akan diunggah saat berikutnya dibuka.
     }
   }
 
-  Future<void> load(String uid) async {
-    if (_uid != uid) {
-      _value = const HomePrefs(); // jangan menampilkan pilihan akun sebelumnya
+  Future<void> load(String uid, {String? businessId}) async {
+    if (_uid != uid || _businessId != businessId) {
+      _value =
+          const HomePrefs(); // jangan menampilkan pilihan akun atau usaha sebelumnya
       _at = null;
     }
     _uid = uid;
+    _businessId = businessId;
 
     final local = await _readLocal();
+    if (_uid != uid || _businessId != businessId)
+      return; // sudah berpindah lagi
     if (local != null) {
       _value = local.$1;
       _at = local.$2;
@@ -276,7 +387,8 @@ class HomePrefsController extends ChangeNotifier {
     final remote = _remote;
     if (remote == null) return;
     try {
-      final r = await remote.fetch(uid);
+      final r = await remote.fetch(uid, businessId);
+      if (_uid != uid || _businessId != businessId) return;
       if (r == null) {
         // Akun belum punya pilihan: unggah milik perangkat ini bila ada.
         if (local != null) {
@@ -312,5 +424,5 @@ class HomePrefsController extends ChangeNotifier {
   Future<void> reset() => update(const HomePrefs());
 }
 
-/// Satu pengatur pilihan Beranda untuk seluruh aplikasi.
+/// Satu pengatur pilihan tampilan untuk seluruh aplikasi (usaha aktif).
 final homePrefs = HomePrefsController(remote: SupabaseHomePrefsRemote());

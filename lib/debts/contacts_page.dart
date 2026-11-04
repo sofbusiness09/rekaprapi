@@ -119,26 +119,26 @@ class _ContactsPageState extends State<ContactsPage> {
                     style: Theme.of(sheetContext)
                         .textTheme
                         .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800)),
+                        ?.copyWith(fontWeight: FontWeight.w600)),
               ),
             ),
             ListTile(
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(14)),
               leading: const IconBadge(Icons.call_received_rounded,
                   color: Brand.receivable, size: 42),
               title: const Text('Catat piutang',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('Orang lain berutang kepada Anda'),
               onTap: () => Navigator.pop(sheetContext, 'receivable'),
             ),
             ListTile(
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(14)),
               leading: const IconBadge(Icons.call_made_rounded,
                   color: Brand.payable, size: 42),
               title: const Text('Catat utang',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               subtitle: const Text('Anda berutang kepada orang lain'),
               onTap: () => Navigator.pop(sheetContext, 'payable'),
             ),
@@ -258,7 +258,7 @@ class _ContactsPageState extends State<ContactsPage> {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Row(children: [
                     Expanded(
                       child: TextField(
@@ -314,7 +314,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                   for (final r in items) ...[
                     _ContactTile(row: r, onTap: () => _open(r.contact)),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                   ],
                 ],
               ),
@@ -370,22 +370,22 @@ class _Total extends StatelessWidget {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               IconBadge(icon, color: color, size: 36),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                        ?.copyWith(fontWeight: FontWeight.w600)),
               ),
             ]),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(rupiah(value),
                   style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                      ?.copyWith(fontWeight: FontWeight.w600, color: color)),
             ),
             Text(hint,
                 style: theme.textTheme.bodySmall
@@ -426,7 +426,7 @@ class _ContactTile extends StatelessWidget {
       onTap: onTap,
       child: Row(children: [
         InitialAvatar(row.contact.name, color: tone),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -434,7 +434,7 @@ class _ContactTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             Text(sub,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -447,12 +447,12 @@ class _ContactTile extends StatelessWidget {
         if (net == 0)
           Text('Lunas',
               style: theme.textTheme.labelLarge
-                  ?.copyWith(color: Brand.income, fontWeight: FontWeight.w700))
+                  ?.copyWith(color: Brand.income, fontWeight: FontWeight.w600))
         else
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(rupiah(net.abs()),
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800, color: tone)),
+                    ?.copyWith(fontWeight: FontWeight.w600, color: tone)),
             Text(net > 0 ? 'piutang' : 'utang',
                 style: theme.textTheme.labelSmall?.copyWith(color: muted)),
           ]),

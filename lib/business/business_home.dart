@@ -51,11 +51,18 @@ class _BusinessHomeState extends State<BusinessHome> {
   RealtimeChannel? _channel;
   int _tab = 0;
 
+  /// Di ponsel Pengaturan tidak punya tab; dibuka dari lembar nama usaha dan
+  /// menggantikan isi layar (bukan halaman baru) agar ikut berganti saat usaha berganti.
+  bool _settingsOpen = false;
+
   Business get _business => widget.business;
 
   @override
   void initState() {
     super.initState();
+    // Tampilan Beranda dan Transaksi dimiliki tiap usaha.
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null) homePrefs.load(uid, businessId: widget.business.id);
     var channel = Supabase.instance.client.channel('biz_${widget.business.id}');
     for (final table in const ['cash_transactions', 'debts', 'debt_payments']) {
       channel = channel.onPostgresChanges(
@@ -84,18 +91,9 @@ class _BusinessHomeState extends State<BusinessHome> {
   void _openSwitcher({bool withSettings = false}) => showBusinessSwitcher(
         context,
         widget.controller,
-        onOpenSettings: withSettings ? _openSettingsPage : null,
+        onOpenSettings:
+            withSettings ? () => setState(() => _settingsOpen = true) : null,
       );
-
-  /// Di ponsel Pengaturan tidak punya tab sendiri; dibuka dari lembar usaha.
-  void _openSettingsPage() {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => Scaffold(
-        appBar: AppBar(title: const Text('Pengaturan')),
-        body: _settingsPage(),
-      ),
-    ));
-  }
 
   Widget _settingsPage() => SettingsPage(
         business: _business,
@@ -155,7 +153,7 @@ class _BusinessHomeState extends State<BusinessHome> {
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               Text(roleNames[_business.role] ?? _business.role,
                   style: Theme.of(context)
                       .textTheme
@@ -206,17 +204,32 @@ class _BusinessHomeState extends State<BusinessHome> {
     }
 
     final phoneTabs = _tabs.take(_tabs.length - 1);
-    return Scaffold(
-      appBar: AppBar(title: title, titleSpacing: 8),
-      body: _body(wide: false),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab.clamp(0, _tabs.length - 2),
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: [
-          for (final t in phoneTabs)
-            NavigationDestination(
-                icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
-        ],
+    return PopScope(
+      canPop: !_settingsOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _settingsOpen = false);
+      },
+      child: Scaffold(
+        appBar: _settingsOpen
+            ? AppBar(
+                leading: BackButton(
+                    onPressed: () => setState(() => _settingsOpen = false)),
+                title: const Text('Pengaturan'),
+              )
+            : AppBar(title: title, titleSpacing: 8),
+        body: _settingsOpen ? _settingsPage() : _body(wide: false),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _tab.clamp(0, _tabs.length - 2),
+          onDestinationSelected: (i) => setState(() {
+            _tab = i;
+            _settingsOpen = false;
+          }),
+          destinations: [
+            for (final t in phoneTabs)
+              NavigationDestination(
+                  icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
+          ],
+        ),
       ),
     );
   }
@@ -305,7 +318,8 @@ class _DashboardState extends State<_Dashboard> {
         repo: widget.repo,
         debtRepo: widget.debtRepo,
         categories: cats,
-        initialType: type);
+        initialType: type,
+        lockType: true);
     if (saved) widget.changes.value++;
   }
 
@@ -334,112 +348,114 @@ class _DashboardState extends State<_Dashboard> {
     final s = d.summary;
     final activities = d.recent.where(p.allows).take(p.activityCount).toList();
 
-    // Setiap bagian dipisah jarak yang sama; bagian yang dimatikan dilewati.
-    final sections = <Widget>[
-      if (p.showHero)
-        _HeroCard(
-          summary: s,
-          showBalance: p.showBalance,
-          showFlow: p.showFlow,
-        ),
-      if (p.showProfit) _ProfitStrip(summary: s),
-      if (p.showQuickActions)
-        Row(children: [
-          Expanded(
-            child: _QuickAction(
-              icon: Icons.south_west_rounded,
-              label: 'Kas masuk',
-              color: Brand.income,
-              onTap: () => _add(d.categories, 'in'),
-            ),
+    // Urutan bagian mengikuti pilihan pengguna; bagian yang dimatikan dilewati.
+    final byId = <String, Widget Function()>{
+      'hero': () => _HeroCard(
+            summary: s,
+            showBalance: p.showBalance,
+            showFlow: p.showFlow,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _QuickAction(
-              icon: Icons.north_east_rounded,
-              label: 'Kas keluar',
-              color: Brand.expense,
-              onTap: () => _add(d.categories, 'out'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _QuickAction(
-              icon: Icons.handshake_rounded,
-              label: 'Utang',
-              color: Brand.info,
-              onTap: () => widget.onOpenTab(2),
-            ),
-          ),
-        ]),
-      if (p.showDebtCards)
-        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const SectionTitle('Utang piutang'),
-          Row(children: [
+      'profit': () => _ProfitStrip(summary: s),
+      'quick': () => Row(children: [
             Expanded(
-              child: _DebtCard(
-                label: 'Piutang belum lunas',
-                hint: 'Harus ditagih',
-                value: s.receivableOpen,
-                color: Brand.receivable,
-                icon: Icons.call_received_rounded,
-                onTap: () => widget.onOpenTab(2),
+              child: _QuickAction(
+                icon: Icons.south_west_rounded,
+                label: 'Kas masuk',
+                color: Brand.income,
+                onTap: () => _add(d.categories, 'in'),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
-              child: _DebtCard(
-                label: 'Utang belum lunas',
-                hint: 'Harus dibayar',
-                value: s.payableOpen,
-                color: Brand.payable,
-                icon: Icons.call_made_rounded,
+              child: _QuickAction(
+                icon: Icons.north_east_rounded,
+                label: 'Kas keluar',
+                color: Brand.expense,
+                onTap: () => _add(d.categories, 'out'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _QuickAction(
+                icon: Icons.handshake_rounded,
+                label: 'Utang',
+                color: Brand.info,
                 onTap: () => widget.onOpenTab(2),
               ),
             ),
           ]),
-        ]),
-      if (p.showActivity)
-        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          SectionTitle('Aktivitas terbaru',
-              action: activities.isEmpty ? null : 'Lihat semua',
-              onAction: () => widget.onOpenTab(1)),
-          if (!p.anyActivityType)
-            const SoftCard(
-              child: EmptyState(
-                icon: Icons.filter_alt_off_rounded,
-                title: 'Semua jenis aktivitas disembunyikan',
-                subtitle:
-                    'Pilih jenis yang ingin tampil di Pengaturan > Tampilan Beranda.',
+      'debt': () =>
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const SectionTitle('Utang piutang'),
+            Row(children: [
+              Expanded(
+                child: _DebtCard(
+                  label: 'Piutang belum lunas',
+                  hint: 'Yang harus Anda tagih',
+                  value: s.receivableOpen,
+                  color: Brand.receivable,
+                  icon: Icons.call_received_rounded,
+                  onTap: () => widget.onOpenTab(2),
+                ),
               ),
-            )
-          else if (activities.isEmpty)
-            SoftCard(
-              child: EmptyState(
-                icon: Icons.receipt_long_rounded,
-                title: 'Belum ada aktivitas',
-                subtitle: d.recent.isEmpty
-                    ? 'Aktivitas uang yang Anda pilih akan tampil di sini.'
-                    : 'Tidak ada aktivitas dari jenis yang Anda pilih.',
-                actionLabel: d.recent.isEmpty ? 'Catat kas masuk' : null,
-                onAction:
-                    d.recent.isEmpty ? () => _add(d.categories, 'in') : null,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _DebtCard(
+                  label: 'Utang belum lunas',
+                  hint: 'Yang harus Anda bayar',
+                  value: s.payableOpen,
+                  color: Brand.payable,
+                  icon: Icons.call_made_rounded,
+                  onTap: () => widget.onOpenTab(2),
+                ),
               ),
-            )
-          else
-            SoftCard(
-              padding: EdgeInsets.zero,
-              child: Column(children: [
-                for (var i = 0; i < activities.length; i++) ...[
-                  if (i > 0) const Divider(indent: 72),
-                  _ActivityTile(
-                    activity: activities[i],
-                    onTap: () => _openActivity(activities[i]),
-                  ),
-                ],
-              ]),
-            ),
-        ]),
+            ]),
+          ]),
+      'activity': () =>
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            SectionTitle('Aktivitas terbaru',
+                action: activities.isEmpty ? null : 'Lihat semua',
+                onAction: () => widget.onOpenTab(1)),
+            if (!p.anyActivityType)
+              const SoftCard(
+                child: EmptyState(
+                  icon: Icons.filter_alt_off_rounded,
+                  title: 'Semua jenis aktivitas disembunyikan',
+                  subtitle:
+                      'Pilih jenis yang ingin tampil di Pengaturan > Tampilan Beranda.',
+                ),
+              )
+            else if (activities.isEmpty)
+              SoftCard(
+                child: EmptyState(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'Belum ada aktivitas',
+                  subtitle: d.recent.isEmpty
+                      ? 'Aktivitas uang yang Anda pilih akan tampil di sini.'
+                      : 'Tidak ada aktivitas dari jenis yang Anda pilih.',
+                  actionLabel: d.recent.isEmpty ? 'Catat kas masuk' : null,
+                  onAction:
+                      d.recent.isEmpty ? () => _add(d.categories, 'in') : null,
+                ),
+              )
+            else
+              SoftCard(
+                padding: EdgeInsets.zero,
+                child: Column(children: [
+                  for (var i = 0; i < activities.length; i++) ...[
+                    if (i > 0) const Divider(indent: 72),
+                    _ActivityTile(
+                      activity: activities[i],
+                      onTap: () => _openActivity(activities[i]),
+                    ),
+                  ],
+                ]),
+              ),
+          ]),
+    };
+    final sections = <Widget>[
+      for (final id in p.order)
+        if (p.sectionShown(id)) byId[id]!(),
     ];
 
     return RefreshIndicator(
@@ -456,7 +472,7 @@ class _DashboardState extends State<_Dashboard> {
                     'Semua bagian Beranda disembunyikan. Pilih yang ingin tampil di Pengaturan > Tampilan Beranda.',
               ),
             for (var i = 0; i < sections.length; i++) ...[
-              if (i > 0) const SizedBox(height: 10),
+              if (i > 0) const SizedBox(height: 12),
               sections[i],
             ],
           ],
@@ -483,18 +499,12 @@ class _HeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Brand.deep, Brand.seed],
         ),
-        boxShadow: [
-          BoxShadow(
-              color: Brand.seed.withValues(alpha: 0.28),
-              blurRadius: 24,
-              offset: const Offset(0, 12)),
-        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (showBalance) ...[
@@ -513,11 +523,11 @@ class _HeroCard extends StatelessWidget {
             child: Text(rupiah(summary.balance),
                 style: theme.textTheme.displaySmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.5)),
           ),
         ],
-        if (showBalance && showFlow) const SizedBox(height: 14),
+        if (showBalance && showFlow) const SizedBox(height: 16),
         if (showFlow)
           Row(children: [
             Expanded(
@@ -526,7 +536,7 @@ class _HeroCard extends StatelessWidget {
                   label: 'Masuk bulan ini',
                   value: summary.totalIn),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: _HeroPill(
                   icon: Icons.north_east_rounded,
@@ -554,20 +564,19 @@ class _HeroPill extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
       ),
       // Ikon dan label di baris atas, nominal di bawahnya, supaya label
       // tidak terpotong di layar sempit.
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.white70)),
+            child: FitText(label,
+                style:
+                    theme.textTheme.labelSmall?.copyWith(color: Colors.white70),
+                minFontSize: 9),
           ),
         ]),
         const SizedBox(height: 4),
@@ -575,8 +584,8 @@ class _HeroPill extends StatelessWidget {
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(rupiah(value),
-              style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white, fontWeight: FontWeight.w800)),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -601,7 +610,7 @@ class _ProfitStrip extends StatelessWidget {
             positive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
             color: color,
             size: 44),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -613,7 +622,7 @@ class _ProfitStrip extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(rupiah(summary.profit.abs()),
                   style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                      ?.copyWith(fontWeight: FontWeight.w600, color: color)),
             ),
           ]),
         ),
@@ -656,7 +665,7 @@ class _QuickAction extends StatelessWidget {
             style: Theme.of(context)
                 .textTheme
                 .labelLarge
-                ?.copyWith(fontWeight: FontWeight.w700)),
+                ?.copyWith(fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -686,8 +695,9 @@ class _DebtCard extends StatelessWidget {
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         IconBadge(icon, color: color, size: 36),
-        const SizedBox(height: 10),
-        Text(label,
+        const SizedBox(height: 12),
+        FitText(label,
+            maxLines: 2,
             style: theme.textTheme.labelMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         const SizedBox(height: 2),
@@ -696,12 +706,11 @@ class _DebtCard extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(rupiah(value),
               style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                  ?.copyWith(fontWeight: FontWeight.w600, color: color)),
         ),
         const SizedBox(height: 4),
-        Text(hint,
+        FitText(hint,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       ]),
@@ -720,8 +729,6 @@ class _ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = activity;
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
 
     final Color tone;
     final IconData icon;
@@ -754,42 +761,18 @@ class _ActivityTile extends StatelessWidget {
       }
     }
 
-    return InkWell(
+    return EntryRow(
+      icon: icon,
+      iconColor: tone,
+      title: a.title,
+      amount: a.isCredit
+          ? rupiah(a.amount)
+          : '${a.isIn ? '+' : '-'}${rupiah(a.amount)}',
+      amountColor: tone,
+      sub: sub,
+      status: status,
+      statusColor: statusColor,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(children: [
-          IconBadge(icon, color: tone),
-          const SizedBox(width: 14),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(a.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              Text(sub,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: muted)),
-            ]),
-          ),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(
-                a.isCredit
-                    ? rupiah(a.amount)
-                    : '${a.isIn ? '+' : '-'}${rupiah(a.amount)}',
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800, color: tone)),
-            if (status != null)
-              Text(status,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor, fontWeight: FontWeight.w700)),
-          ]),
-        ]),
-      ),
     );
   }
 }

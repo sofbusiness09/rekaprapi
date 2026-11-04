@@ -27,6 +27,7 @@ Future<bool> showCashForm(
   required List<Category> categories,
   CashTx? existing,
   String initialType = 'in',
+  bool lockType = false,
 }) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
@@ -39,6 +40,7 @@ Future<bool> showCashForm(
       categories: categories.where((c) => !c.isSystem).toList(),
       existing: existing,
       initialType: existing?.type ?? initialType,
+      lockType: lockType && existing == null,
     ),
   );
   return saved ?? false;
@@ -51,6 +53,7 @@ class _CashForm extends StatefulWidget {
     required this.categories,
     required this.existing,
     required this.initialType,
+    required this.lockType,
   });
 
   final CashRepository repo;
@@ -58,6 +61,9 @@ class _CashForm extends StatefulWidget {
   final List<Category> categories;
   final CashTx? existing;
   final String initialType;
+
+  /// Jenis (pemasukan/pengeluaran) sudah dipilih sebelumnya, jadi tidak ditanyakan lagi.
+  final bool lockType;
 
   @override
   State<_CashForm> createState() => _CashFormState();
@@ -88,7 +94,10 @@ class _CashFormState extends State<_CashForm> {
       _contactNet; // saldo bersih kontak terpilih: positif = berutang kepada Anda
   String? _netFor;
   bool _credit = false;
-  bool _creditSale = true; // pemasukan hutang: apakah ini penjualan barang
+
+  /// Pemasukan = penjualan barang (ada harga modal dan keuntungan). Bawaannya aktif,
+  /// baik Lunas maupun Hutang; matikan untuk pemasukan biasa.
+  late bool _sale = widget.existing?.isSale ?? true;
   DateTime? _due;
   bool _busy = false;
 
@@ -101,19 +110,8 @@ class _CashFormState extends State<_CashForm> {
   List<Category> get _options =>
       widget.categories.where((c) => c.type == _type).toList();
 
-  Category? get _selectedCategory {
-    for (final c in widget.categories) {
-      if (c.id == _categoryId) return c;
-    }
-    return null;
-  }
-
   /// Mode penjualan: ada harga modal, diskon, biaya tambahan, dan keuntungan.
-  bool get _saleMode {
-    if (!_isIn) return false;
-    if (_editing && widget.existing!.isSale) return true;
-    return _credit ? _creditSale : (_selectedCategory?.isSale ?? false);
-  }
+  bool get _saleMode => _isIn && _sale;
 
   int get _gross => parseAmount(_amount.text) ?? 0;
   int get _costValue => parseAmount(_cost.text) ?? 0;
@@ -225,6 +223,17 @@ class _CashFormState extends State<_CashForm> {
         : null;
     final amount = _saleMode ? _received : _gross;
 
+    // Penjualan tanpa kategori dipilih: otomatis masuk kategori Penjualan.
+    var categoryId = _categoryId;
+    if (_saleMode && !_credit && categoryId == null) {
+      for (final c in _options) {
+        if (c.isSale) {
+          categoryId = c.id;
+          break;
+        }
+      }
+    }
+
     setState(() => _busy = true);
     try {
       if (_credit) {
@@ -250,7 +259,7 @@ class _CashFormState extends State<_CashForm> {
             type: _type,
             amount: amount,
             date: _date,
-            categoryId: _categoryId,
+            categoryId: categoryId,
             note: _note.text,
             sale: sale);
       } else {
@@ -258,7 +267,7 @@ class _CashFormState extends State<_CashForm> {
             type: _type,
             amount: amount,
             date: _date,
-            categoryId: _categoryId,
+            categoryId: categoryId,
             note: _note.text,
             sale: sale);
       }
@@ -286,15 +295,27 @@ class _CashFormState extends State<_CashForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              Expanded(
-                  child: _TypeTile('Pemasukan', Icons.south_west_rounded, true,
-                      _isIn, () => setState(() => _type = 'in'))),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: _TypeTile('Pengeluaran', Icons.north_east_rounded,
-                      false, !_isIn, () => setState(() => _type = 'out'))),
-            ]),
+            if (widget.lockType)
+              Row(children: [
+                IconBadge(
+                    _isIn ? Icons.south_west_rounded : Icons.north_east_rounded,
+                    color: _tone,
+                    size: 40),
+                const SizedBox(width: 12),
+                Text(_isIn ? 'Catat pemasukan' : 'Catat pengeluaran',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+              ])
+            else
+              Row(children: [
+                Expanded(
+                    child: _TypeTile('Pemasukan', Icons.south_west_rounded,
+                        true, _isIn, () => setState(() => _type = 'in'))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: _TypeTile('Pengeluaran', Icons.north_east_rounded,
+                        false, !_isIn, () => setState(() => _type = 'out'))),
+              ]),
             if (!_editing) ...[
               const SizedBox(height: 16),
               SegmentedButton<bool>(
@@ -325,43 +346,33 @@ class _CashFormState extends State<_CashForm> {
                 style: theme.textTheme.bodySmall?.copyWith(color: muted),
               ),
             ],
+            if (_isIn)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _sale,
+                onChanged: (v) => setState(() => _sale = v),
+                title: const Text('Penjualan barang'),
+                subtitle: const Text('Hitung harga modal dan keuntungan.'),
+              ),
             if (sale) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               _ProfitCard(profit: _profit),
             ],
             const SizedBox(height: 16),
-            Text(sale ? 'Total Penjualan' : 'Jumlah',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelLarge?.copyWith(color: muted)),
-            TextField(
+            _AmountBox(
               controller: _amount,
+              label: sale ? 'Total Penjualan' : 'Jumlah',
+              color: _tone,
               autofocus: !_editing,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                ThousandsFormatter(),
-              ],
-              style: theme.textTheme.headlineLarge
-                  ?.copyWith(fontWeight: FontWeight.w800, color: _tone),
-              decoration: InputDecoration(
-                hintText: '0',
-                prefixText: 'Rp ',
-                prefixStyle: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700, color: _tone),
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
+              onChanged: () => setState(() {}),
             ),
             if (sale) ...[
-              const SizedBox(height: 4),
-              _MoneyField(
+              const SizedBox(height: 12),
+              _AmountBox(
                 controller: _cost,
                 label: 'Harga Modal',
                 color: Brand.expense,
+                large: false,
                 onChanged: () => setState(() {}),
               ),
               const SizedBox(height: 4),
@@ -372,7 +383,7 @@ class _CashFormState extends State<_CashForm> {
                   initiallyExpanded: _discountValue > 0 || _feeValue > 0,
                   title: Text('Tambahan perhitungan (opsional)',
                       style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   children: [
                     _MoneyField(
                       controller: _discount,
@@ -405,20 +416,12 @@ class _CashFormState extends State<_CashForm> {
                   ),
                   Text(rupiah(_received < 0 ? 0 : _received),
                       style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w800)),
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                 ]),
               ),
             ],
             const SizedBox(height: 8),
             if (_credit) ...[
-              if (_isIn && !_editing)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: _creditSale,
-                  onChanged: (v) => setState(() => _creditSale = v),
-                  title: const Text('Penjualan barang'),
-                  subtitle: const Text('Hitung harga modal dan keuntungan.'),
-                ),
               ContactPicker(
                 controller: _contact,
                 contacts: _contacts,
@@ -438,12 +441,12 @@ class _CashFormState extends State<_CashForm> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Brand.profit.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(children: [
                       const Icon(Icons.swap_horiz_rounded,
                           size: 20, color: Brand.profit),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _isIn
@@ -552,7 +555,7 @@ class _ProfitCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(children: [
@@ -569,7 +572,7 @@ class _ProfitCard extends StatelessWidget {
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             Text(rupiah(profit.abs()),
                 style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800, color: color)),
+                    ?.copyWith(fontWeight: FontWeight.w600, color: color)),
           ]),
         ),
         Flexible(
@@ -580,6 +583,69 @@ class _ProfitCard extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+/// Kolom nominal yang tegas: label di atas, kotak berbingkai warna, angka besar.
+/// Dipakai untuk Jumlah / Total Penjualan dan Harga Modal.
+class _AmountBox extends StatelessWidget {
+  const _AmountBox({
+    required this.controller,
+    required this.label,
+    required this.color,
+    required this.onChanged,
+    this.large = true,
+    this.autofocus = false,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final Color color;
+  final VoidCallback onChanged;
+
+  /// Kolom utama berangka besar; kolom pendamping lebih kecil.
+  final bool large;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    OutlineInputBorder border(double width, Color c) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c, width: width),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 6),
+        child: Text(label,
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: theme.colorScheme.onSurface)),
+      ),
+      TextField(
+        controller: controller,
+        autofocus: autofocus,
+        keyboardType: TextInputType.number,
+        onChanged: (_) => onChanged(),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          ThousandsFormatter(),
+        ],
+        style: (large
+                ? theme.textTheme.headlineMedium
+                : theme.textTheme.titleLarge)
+            ?.copyWith(fontWeight: FontWeight.w600, color: color),
+        decoration: InputDecoration(
+          hintText: '0',
+          prefixText: 'Rp ',
+          prefixStyle: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600, color: color),
+          contentPadding:
+              EdgeInsets.symmetric(horizontal: 16, vertical: large ? 20 : 16),
+          enabledBorder: border(1.6, color.withValues(alpha: 0.55)),
+          focusedBorder: border(2.2, color),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -611,7 +677,7 @@ class _MoneyField extends StatelessWidget {
       style: Theme.of(context)
           .textTheme
           .titleMedium
-          ?.copyWith(fontWeight: FontWeight.w700, color: color),
+          ?.copyWith(fontWeight: FontWeight.w600, color: color),
       decoration: InputDecoration(
         labelText: label,
         hintText: '0',
@@ -639,7 +705,7 @@ class _TypeTile extends StatelessWidget {
     return Material(
       color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
             color: selected
                 ? color
@@ -647,7 +713,7 @@ class _TypeTile extends StatelessWidget {
             width: selected ? 1.6 : 1),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -656,7 +722,7 @@ class _TypeTile extends StatelessWidget {
             const SizedBox(width: 8),
             Text(label,
                 style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: selected
                         ? color
                         : Theme.of(context).colorScheme.onSurface)),

@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import '../common/widgets.dart';
 import 'home_prefs.dart';
 
-/// Pengaturan > Tampilan Beranda: pilih bagian Beranda yang tampil dan jenis
-/// aktivitas pada Aktivitas terbaru. Bawaannya menampilkan semuanya.
+/// Pengaturan > Tampilan Beranda: pilih bagian Beranda yang tampil, geser
+/// urutannya, dan pilih jenis aktivitas pada Aktivitas terbaru. Pilihan ini
+/// berlaku untuk usaha yang sedang dibuka; usaha lain punya pilihan sendiri.
 class HomePrefsPage extends StatelessWidget {
-  const HomePrefsPage({super.key});
+  const HomePrefsPage({super.key, this.businessName});
+
+  final String? businessName;
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +43,36 @@ class HomePrefsPage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                   child: Text(
-                    'Pilih apa yang ingin Anda lihat di Beranda. Pilihan tersimpan di akun Anda dan otomatis dipakai di semua perangkat.',
+                    businessName == null
+                        ? 'Pilihan ini berlaku untuk usaha yang sedang dibuka.'
+                        : 'Pilihan ini hanya berlaku untuk usaha "$businessName". Usaha lain punya pilihan sendiri. Tersimpan di akun Anda dan otomatis dipakai di semua perangkat.',
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted),
+                  ),
+                ),
+                const SectionTitle('Urutan bagian'),
+                SoftCard(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(children: [
+                    for (var i = 0; i < p.order.length; i++) ...[
+                      if (i > 0) const Divider(),
+                      _OrderTile(
+                        title: homeSectionTitles[p.order[i]] ?? p.order[i],
+                        shown: p.sectionShown(p.order[i]),
+                        canUp: i > 0,
+                        canDown: i < p.order.length - 1,
+                        onUp: () =>
+                            set(p.copyWith(order: _swap(p.order, i, i - 1))),
+                        onDown: () =>
+                            set(p.copyWith(order: _swap(p.order, i, i + 1))),
+                      ),
+                    ],
+                  ]),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                  child: Text(
+                    'Gunakan panah untuk menggeser. Bagian yang dimatikan di bawah tidak tampil, tetapi urutannya tetap diingat.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ),
                 const SectionTitle('Bagian Beranda'),
@@ -156,7 +187,7 @@ class HomePrefsPage extends StatelessWidget {
                       Text('Tampilkan sampai',
                           style: theme.textTheme.bodyMedium
                               ?.copyWith(color: muted)),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       SegmentedButton<int>(
                         showSelectedIcon: false,
                         segments: [
@@ -187,6 +218,65 @@ class HomePrefsPage extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+List<String> _swap(List<String> list, int a, int b) {
+  final next = [...list];
+  final tmp = next[a];
+  next[a] = next[b];
+  next[b] = tmp;
+  return next;
+}
+
+/// Satu baris urutan: nama bagian, penanda bila dimatikan, dan panah geser.
+class _OrderTile extends StatelessWidget {
+  const _OrderTile({
+    required this.title,
+    required this.shown,
+    required this.canUp,
+    required this.canDown,
+    required this.onUp,
+    required this.onDown,
+  });
+
+  final String title;
+  final bool shown;
+  final bool canUp;
+  final bool canDown;
+  final VoidCallback onUp;
+  final VoidCallback onDown;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+      child: Row(children: [
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600, color: shown ? null : muted)),
+            if (!shown)
+              Text('Dimatikan',
+                  style: theme.textTheme.bodySmall?.copyWith(color: muted)),
+          ]),
+        ),
+        IconButton(
+          tooltip: 'Naikkan',
+          onPressed: canUp ? onUp : null,
+          icon: const Icon(Icons.keyboard_arrow_up_rounded),
+        ),
+        IconButton(
+          tooltip: 'Turunkan',
+          onPressed: canDown ? onDown : null,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+        ),
+      ]),
     );
   }
 }

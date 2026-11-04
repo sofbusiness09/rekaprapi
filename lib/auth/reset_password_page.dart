@@ -84,8 +84,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     Text('Buat password baru',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
                     Text('Masukkan password baru untuk akun Anda.',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(

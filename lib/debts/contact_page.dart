@@ -277,7 +277,7 @@ class _ContactPageState extends State<ContactPage> {
                                         net == 0 ? 'Lunas' : rupiah(net.abs()),
                                         style: theme.textTheme.headlineSmall
                                             ?.copyWith(
-                                                fontWeight: FontWeight.w800,
+                                                fontWeight: FontWeight.w600,
                                                 color: tone)),
                                   ),
                                   Text(balanceHint,
@@ -297,7 +297,7 @@ class _ContactPageState extends State<ContactPage> {
                             child: const Text('LUNASKAN'),
                           ),
                         ]),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         FilledButton.icon(
                           onPressed: () => _manual(l),
                           icon: const Icon(Icons.edit_note_rounded),
@@ -452,7 +452,7 @@ class _EntryTile extends StatelessWidget {
     final amount = Text(rupiah(entry.amount),
         textAlign: TextAlign.right,
         style: theme.textTheme.titleSmall
-            ?.copyWith(fontWeight: FontWeight.w800, color: color));
+            ?.copyWith(fontWeight: FontWeight.w600, color: color));
 
     return SoftCard(
       onTap: onTap,
@@ -466,7 +466,7 @@ class _EntryTile extends StatelessWidget {
             const SizedBox(height: 2),
             Text(label,
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             if (status != null)
               Text(status,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -583,7 +583,7 @@ class _MoneySheetState extends State<_MoneySheet> {
           children: [
             Text(_title,
                 style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(
               widget.receive
@@ -603,7 +603,7 @@ class _MoneySheetState extends State<_MoneySheet> {
                 ThousandsFormatter(),
               ],
               style: theme.textTheme.headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.w800, color: color),
+                  ?.copyWith(fontWeight: FontWeight.w600, color: color),
               decoration: const InputDecoration(
                 hintText: '0',
                 prefixText: 'Rp ',

@@ -18,6 +18,7 @@ supabase/migrations/20261107000001_netting_patch.sql  tambalan aman-diulang untu
 supabase/migrations/20261108000000_user_settings.sql  pengaturan pribadi per akun (Tampilan Beranda ikut ke semua perangkat)
 supabase/tests/settings_test.sql              tes pengaturan pribadi
 supabase/migrations/20261109000000_backup_settings.sql  pengaturan Backup Google Sheet per usaha (alamat skrip + kode rahasia)
+supabase/migrations/20261110000000_business_settings.sql  tampilan Beranda dan Transaksi per usaha (tiap usaha punya pilihan sendiri)
 supabase/tests/backup_test.sql                tes pengaturan backup
 assets/backup_apps_script.gs                  skrip Google Apps Script yang ditempel pengguna di Google Sheet-nya
 tools/apps_script_harness.js                menguji skrip itu dengan tiruan Google Sheet (Node): node tools/apps_script_harness.js assets/backup_apps_script.gs [build/backup_test/payload.json]

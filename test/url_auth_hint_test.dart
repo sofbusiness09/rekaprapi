@@ -42,7 +42,7 @@ void main() {
   });
 
   test('tautan masuk biasa bukan pemulihan', () {
-    expect(hint('https://a.io/#access_token=abc&type=signup').recovery,
-        isFalse);
+    expect(
+        hint('https://a.io/#access_token=abc&type=signup').recovery, isFalse);
   });
 }

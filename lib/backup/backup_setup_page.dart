@@ -38,7 +38,7 @@ class _Rich extends StatelessWidget {
       for (var i = 0; i < parts.length; i++)
         TextSpan(
           text: parts[i],
-          style: i.isOdd ? base.copyWith(fontWeight: FontWeight.w700) : base,
+          style: i.isOdd ? base.copyWith(fontWeight: FontWeight.w600) : base,
         ),
     ]));
   }
@@ -350,14 +350,14 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
             ),
           ]),
           if (_showCode) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Container(
               constraints: const BoxConstraints(maxHeight: 260),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest
                     .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: SingleChildScrollView(
                 child: SelectableText(
@@ -426,13 +426,13 @@ class _StatusCard extends StatelessWidget {
           IconBadge(
               failed ? Icons.error_outline_rounded : Icons.cloud_done_rounded,
               color: failed ? Brand.expense : Brand.income),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Tersambung',
                   style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               Text(
                 never
                     ? 'Belum pernah dibackup.'
@@ -446,7 +446,7 @@ class _StatusCard extends StatelessWidget {
           ),
         ]),
         if (s.spreadsheetUrl != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           TextButton.icon(
             onPressed: () => openLink(s.spreadsheetUrl!),
             icon: const Icon(Icons.open_in_new_rounded, size: 18),
@@ -487,16 +487,16 @@ class _Step extends StatelessWidget {
             backgroundColor: theme.colorScheme.primaryContainer,
             child: Text('$number',
                 style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onPrimaryContainer)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title,
                   style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               for (final p in paragraphs)
                 Padding(
@@ -514,7 +514,7 @@ class _Step extends StatelessWidget {
                         child: Text('$number.${i + 1}',
                             style: body?.copyWith(
                                 color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w700)),
+                                fontWeight: FontWeight.w600)),
                       ),
                       Expanded(child: _Rich(items[i], style: body)),
                     ],
@@ -551,7 +551,7 @@ class _Troubleshooting extends StatelessWidget {
             leading: const Icon(Icons.help_outline_rounded),
             title: Text(title,
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             expandedCrossAxisAlignment: CrossAxisAlignment.start,
             children: [

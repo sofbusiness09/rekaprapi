@@ -19,15 +19,31 @@ class Brand {
 
   /// Aksen biru netral (undangan, kode, tombol cepat).
   static const info = Color(0xFF2F7DE1);
-  static const profit = Color(0xFF7C5CFC);
+  static const profit = Color(0xFF0B7A55);
 }
 
 /// Plus Jakarta Sans reguler terlihat tipis di layar ponsel; teks isi dan label
 /// dinaikkan satu tingkat ketebalan agar lebih terbaca.
 TextTheme _firmer(TextTheme t) {
-  TextStyle? weigh(TextStyle? s, FontWeight w) =>
-      s == null ? null : GoogleFonts.plusJakartaSans(textStyle: s, fontWeight: w);
+  // Angka tabular agar nominal rupiah di daftar dan laporan sejajar.
+  const figures = [FontFeature.tabularFigures()];
+  TextStyle? weigh(TextStyle? s, FontWeight w) => s == null
+      ? null
+      : GoogleFonts.plusJakartaSans(
+          textStyle: s, fontWeight: w, fontFeatures: figures);
+  TextStyle? same(TextStyle? s) => s == null
+      ? null
+      : GoogleFonts.plusJakartaSans(textStyle: s, fontFeatures: figures);
   return t.copyWith(
+    displayLarge: same(t.displayLarge),
+    displayMedium: same(t.displayMedium),
+    displaySmall: same(t.displaySmall),
+    headlineLarge: same(t.headlineLarge),
+    headlineMedium: same(t.headlineMedium),
+    headlineSmall: same(t.headlineSmall),
+    titleLarge: same(t.titleLarge),
+    titleMedium: same(t.titleMedium),
+    titleSmall: same(t.titleSmall),
     bodyLarge: weigh(t.bodyLarge, FontWeight.w500),
     bodyMedium: weigh(t.bodyMedium, FontWeight.w500),
     bodySmall: weigh(t.bodySmall, FontWeight.w500),
@@ -44,9 +60,10 @@ ThemeData buildTheme(Brightness brightness) {
   final base = ThemeData(
       colorScheme: scheme, useMaterial3: true, brightness: brightness);
   final text = _firmer(GoogleFonts.plusJakartaSansTextTheme(base.textTheme));
-  final bg = light ? const Color(0xFFF3F7F5) : const Color(0xFF0E1311);
-  final surface = light ? Colors.white : const Color(0xFF171E1B);
-  final outline = light ? const Color(0xFFE3EAE6) : const Color(0xFF26302C);
+  // Permukaan netral; warna merek hanya muncul di aksen dan angka.
+  final bg = light ? const Color(0xFFF5F6F5) : const Color(0xFF101211);
+  final surface = light ? Colors.white : const Color(0xFF1A1C1B);
+  final outline = light ? const Color(0xFFE5E7E5) : const Color(0xFF2B2E2C);
 
   OutlineInputBorder border(Color c, [double w = 1]) => OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -63,7 +80,7 @@ ThemeData buildTheme(Brightness brightness) {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: text.titleLarge
-          ?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface),
+          ?.copyWith(fontWeight: FontWeight.w600, color: scheme.onSurface),
     ),
     cardTheme: CardThemeData(
       color: surface,
@@ -89,7 +106,7 @@ ThemeData buildTheme(Brightness brightness) {
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: text.labelLarge
-            ?.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+            ?.copyWith(fontWeight: FontWeight.w600, fontSize: 15),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -100,7 +117,7 @@ ThemeData buildTheme(Brightness brightness) {
       ),
     ),
     chipTheme: ChipThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       side: BorderSide(color: outline),
       backgroundColor: surface,
       labelStyle: text.labelLarge,
@@ -126,14 +143,14 @@ ThemeData buildTheme(Brightness brightness) {
     dialogTheme: DialogThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     dividerTheme: DividerThemeData(color: outline, space: 1),
   );

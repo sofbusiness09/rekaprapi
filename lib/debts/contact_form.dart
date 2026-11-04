@@ -105,7 +105,7 @@ class _ContactFormState extends State<_ContactForm> {
           children: [
             Text(_editing ? 'Ubah kontak' : 'Kontak baru',
                 style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
             TextField(
               controller: _name,

@@ -192,7 +192,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
               const SizedBox(height: 4),
               Text(debt.settled ? 'Lunas' : 'Sisa ${rupiah(debt.remaining)}',
                   style: theme.textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Text(
                   'Total ${rupiah(debt.amount)} · Dibayar ${rupiah(debt.paid)}'),

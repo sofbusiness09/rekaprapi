@@ -17,8 +17,8 @@ Future<void> main() async {
     publishableKey: supabaseAnonKey,
     // Tautan reset dari email sering dibuka di peramban atau perangkat lain
     // daripada yang meminta; alur PKCE gagal di sana, alur implisit tidak.
-    authOptions: const FlutterAuthClientOptions(
-        authFlowType: AuthFlowType.implicit),
+    authOptions:
+        const FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
   );
   runApp(const RekapRapiApp());
 }

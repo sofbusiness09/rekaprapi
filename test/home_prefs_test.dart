@@ -145,6 +145,42 @@ void main() {
       expect(broken.showFlow, isTrue);
       expect(HomePrefs.fromJson(const {}).showActivity, isTrue);
     });
+
+    test('urutan bagian: bawaan, geser, dan data rusak dirapikan', () {
+      expect(const HomePrefs().order, homeSections);
+
+      final moved = const HomePrefs()
+          .copyWith(order: ['profit', 'hero', 'quick', 'debt', 'activity']);
+      final back = HomePrefs.fromJson(moved.toJson());
+      expect(back.order.first, 'profit');
+
+      // id asing dibuang, ganda dihapus, yang kurang ditaruh di akhir.
+      expect(HomePrefs.normalizeOrder(['debt', 'x', 'debt', 'hero']),
+          ['debt', 'hero', 'profit', 'quick', 'activity']);
+      expect(HomePrefs.normalizeOrder('bukan daftar'), homeSections);
+      expect(HomePrefs.normalizeOrder(null), homeSections);
+    });
+
+    test('bawaan Transaksi: hanya pemasukan dan pengeluaran', () {
+      const p = HomePrefs();
+      expect(p.txIn && p.txOut, isTrue);
+      expect(p.txCredit, isFalse);
+      expect(p.txDebtCash, isFalse);
+
+      // Pengaturan lama yang belum punya kunci Transaksi ikut bawaan baru.
+      final old = HomePrefs.fromJson(const {'showBalance': false});
+      expect(old.txCredit, isFalse);
+      expect(old.txDebtCash, isFalse);
+      expect(old.txIn, isTrue);
+    });
+
+    test('sectionShown mengikuti pilihan tiap bagian', () {
+      final p = const HomePrefs().copyWith(showProfit: false, showFlow: false);
+      expect(p.sectionShown('profit'), isFalse);
+      expect(p.sectionShown('hero'), isTrue); // saldo masih tampil
+      expect(p.copyWith(showBalance: false).sectionShown('hero'), isFalse);
+      expect(p.sectionShown('tidak-ada'), isFalse);
+    });
   });
 
   group('HomePrefsController', () {

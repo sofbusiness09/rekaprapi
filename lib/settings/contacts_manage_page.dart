@@ -154,7 +154,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                     onTap: () => _edit(c),
                     child: Row(children: [
                       InitialAvatar(c.name),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +163,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w700)),
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                               Text(c.phone ?? 'Belum ada nomor telepon',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -189,7 +189,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                       ),
                     ]),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                 ],
               ],
             ),

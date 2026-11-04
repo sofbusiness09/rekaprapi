@@ -215,7 +215,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                 for (final c in matches)
                   ListTile(
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                        borderRadius: BorderRadius.circular(14)),
                     selected: c.id == widget.selectedId,
                     leading: InitialAvatar(c.name, size: 42),
                     title: Text(c.name,
@@ -237,7 +237,7 @@ class _SearchSheetState extends State<_SearchSheet> {
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
               child: ListTile(
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(14)),
                 leading: const IconBadge(Icons.person_add_alt_1_rounded,
                     color: Colors.green, size: 42),
                 title: Text(
@@ -246,7 +246,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                       : 'Tambah "${_query.text.trim()}" sebagai kontak baru',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 onTap: () => Navigator.pop(context,
                     (_newContact, q.isEmpty ? null : _query.text.trim())),

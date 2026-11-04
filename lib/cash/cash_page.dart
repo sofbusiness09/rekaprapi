@@ -8,6 +8,7 @@ import '../common/widgets.dart';
 import '../debts/debt_detail_page.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
+import '../settings/home_prefs.dart';
 import '../theme/app_theme.dart';
 import 'cash_form.dart';
 import 'cash_models.dart';
@@ -132,14 +133,64 @@ class _CashPageState extends State<CashPage> {
       !t.isAuto && (widget.business.canManage || t.createdBy == _uid);
 
   Future<void> _openForm(_Loaded d,
-      {CashTx? existing, String type = 'in'}) async {
+      {CashTx? existing, String type = 'in', bool lockType = false}) async {
     final saved = await showCashForm(context,
         repo: widget.repo,
         debtRepo: widget.debtRepo,
         categories: d.categories,
         existing: existing,
-        initialType: type);
+        initialType: type,
+        lockType: lockType);
     if (saved) widget.changes.value++;
+  }
+
+  /// Tombol Catat: langsung tanya pemasukan atau pengeluaran, lalu buka formulirnya.
+  Future<void> _choose(_Loaded d) async {
+    final type = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Catat apa?',
+                    style: Theme.of(sheetContext)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              leading: const IconBadge(Icons.south_west_rounded,
+                  color: Brand.income, size: 42),
+              title: const Text('Pemasukan',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Penjualan atau uang masuk lainnya'),
+              onTap: () => Navigator.pop(sheetContext, 'in'),
+            ),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              leading: const IconBadge(Icons.north_east_rounded,
+                  color: Brand.expense, size: 42),
+              title: const Text('Pengeluaran',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Belanja stok, gaji, sewa, dan lainnya'),
+              onTap: () => Navigator.pop(sheetContext, 'out'),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (type == null || !mounted) return;
+    await _openForm(d, type: type, lockType: true);
   }
 
   Future<void> _confirmDelete(CashTx t) async {
@@ -195,6 +246,10 @@ class _CashPageState extends State<CashPage> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(listenable: homePrefs, builder: _buildList);
+  }
+
+  Widget _buildList(BuildContext context, Widget? _) {
     return FutureBuilder<_Loaded>(
       future: _future,
       builder: (context, snap) {
@@ -206,10 +261,18 @@ class _CashPageState extends State<CashPage> {
         }
         final d = snap.data!;
         final catName = {for (final c in d.categories) c.id: c.name};
+        // Isi Transaksi mengikuti Pengaturan > Tampilan Transaksi; bawaannya hanya
+        // pemasukan dan pengeluaran, tanpa catatan utang piutang.
+        final p = homePrefs.value;
         final rows = <_Row>[
-          for (final c in d.credits) _Row.credit(c),
-          for (final t in d.txs) _Row.cash(t),
-        ].where((r) => _typeFilter == null || r.type == _typeFilter).toList();
+          if (p.txCredit)
+            for (final c in d.credits) _Row.credit(c),
+          for (final t in d.txs)
+            if (t.isAuto ? p.txDebtCash : true) _Row.cash(t),
+        ]
+            .where((r) => r.type == 'in' ? p.txIn : p.txOut)
+            .where((r) => _typeFilter == null || r.type == _typeFilter)
+            .toList();
 
         // Kelompokkan per hari, terbaru dulu. Dalam satu hari, transaksi hutang
         // tampil sebelum transaksi kas.
@@ -243,7 +306,7 @@ class _CashPageState extends State<CashPage> {
                       ),
                       const SizedBox(height: 12),
                       _SummaryCard(summary: d.summary),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Wrap(spacing: 8, children: [
                         for (final f in const <(String?, String)>[
                           (null, 'Semua'),
@@ -257,7 +320,7 @@ class _CashPageState extends State<CashPage> {
                                 setState(() => _typeFilter = f.$1),
                           ),
                       ]),
-                      if (d.credits.isNotEmpty)
+                      if (p.txCredit && d.credits.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
                           child: Text(
@@ -278,7 +341,7 @@ class _CashPageState extends State<CashPage> {
                           subtitle:
                               'Catat kas masuk dan keluar bulan ini agar saldo selalu rapi.',
                           actionLabel: 'Catat sekarang',
-                          onAction: () => _openForm(d),
+                          onAction: () => _choose(d),
                         ),
                       for (final entry in groups.entries) ...[
                         _DayHeader(
@@ -326,7 +389,7 @@ class _CashPageState extends State<CashPage> {
             ),
           ]),
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _openForm(d),
+            onPressed: () => _choose(d),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Catat'),
           ),
@@ -348,8 +411,6 @@ class _CreditTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
     final tone = debt.isReceivable ? Brand.receivable : Brand.payable;
     final title =
         debt.isSale ? 'Penjualan' : (debt.isReceivable ? 'Piutang' : 'Utang');
@@ -366,38 +427,16 @@ class _CreditTile extends StatelessWidget {
         ? Brand.income
         : (debt.overdue ? Brand.expense : Brand.pending);
 
-    return InkWell(
+    return EntryRow(
+      icon: Icons.schedule_rounded,
+      iconColor: tone,
+      title: title,
+      amount: rupiah(debt.amount),
+      amountColor: tone,
+      sub: sub,
+      status: status,
+      statusColor: statusColor,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(children: [
-          IconBadge(Icons.schedule_rounded, color: tone),
-          const SizedBox(width: 14),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              Text(sub,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: muted)),
-            ]),
-          ),
-          const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(rupiah(debt.amount),
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800, color: tone)),
-            Text(status,
-                style: theme.textTheme.labelSmall?.copyWith(
-                    color: statusColor, fontWeight: FontWeight.w700)),
-          ]),
-        ]),
-      ),
     );
   }
 }
@@ -416,7 +455,7 @@ class _MonthPill extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(28),
           border: Border.all(
               color: Theme.of(context).dividerTheme.color ?? Colors.grey),
         ),
@@ -430,7 +469,7 @@ class _MonthPill extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
           ),
           IconButton(
               onPressed: onNext, icon: const Icon(Icons.chevron_right_rounded)),
@@ -485,7 +524,7 @@ class _Metric extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .titleSmall
-                  ?.copyWith(color: color, fontWeight: FontWeight.w800)),
+                  ?.copyWith(color: color, fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -510,7 +549,7 @@ class _DayHeader extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, color: muted)),
+                  ?.copyWith(fontWeight: FontWeight.w600, color: muted)),
         ),
         Text('${net >= 0 ? '+' : '-'}${rupiah(net.abs())}',
             style: Theme.of(context)
@@ -537,7 +576,6 @@ class _TxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = amountColor(tx.isIn);
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final sub = [
       if (tx.isSale)
         '${tx.profit >= 0 ? 'Untung' : 'Rugi'} ${rupiah(tx.profit.abs())}',
@@ -545,41 +583,14 @@ class _TxTile extends StatelessWidget {
       if (who != null) who!,
       if (tx.isAuto) 'otomatis',
     ].join(' · ');
-    return InkWell(
+    return EntryRow(
+      icon: categoryIcon(category, income: tx.isIn),
+      iconColor: color,
+      title: category ?? 'Tanpa kategori',
+      amount: '${tx.isIn ? '+' : '-'}${rupiah(tx.amount)}',
+      amountColor: color,
+      sub: sub,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(children: [
-          IconBadge(categoryIcon(category, income: tx.isIn), color: color),
-          const SizedBox(width: 14),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(category ?? 'Tanpa kategori',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              if (sub.isNotEmpty)
-                Text(sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: muted)),
-            ]),
-          ),
-          const SizedBox(width: 12),
-          Text('${tx.isIn ? '+' : '-'}${rupiah(tx.amount)}',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w800, color: color)),
-        ]),
-      ),
     );
   }
 }

@@ -136,9 +136,17 @@ class BusinessController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Pengguna keluar dari / menghapus usaha aktif: pilih usaha lain bila ada.
+  /// Pengguna keluar dari / menghapus usaha aktif: usaha itu langsung hilang dari
+  /// daftar dan layar berpindah ke usaha lain (atau layar "belum ada usaha"),
+  /// lalu daftar dimuat ulang dari server untuk memastikan.
   Future<void> afterLeft() async {
-    current = null;
-    await load();
+    final gone = current?.id;
+    businesses = [
+      for (final b in businesses)
+        if (b.id != gone) b,
+    ];
+    current = businesses.firstOrNull;
+    notifyListeners();
+    await load(preferId: current?.id);
   }
 }

@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
-import '../settings/home_prefs.dart';
 import 'business_controller.dart';
 import 'business_home.dart';
 import 'business_switcher.dart';
@@ -24,8 +23,6 @@ class _BusinessGateState extends State<BusinessGate> {
   void initState() {
     super.initState();
     _controller.load();
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid != null) homePrefs.load(uid);
   }
 
   @override
@@ -119,14 +116,14 @@ class _NoBusinessPage extends StatelessWidget {
                         Row(children: [
                           const IconBadge(Icons.mail_rounded,
                               color: Brand.info),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(i.businessName,
                                     style: theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w700)),
+                                        fontWeight: FontWeight.w600)),
                                 Text(
                                     'Diundang sebagai ${roleNames[i.role] ?? i.role}',
                                     style: theme.textTheme.bodySmall
@@ -135,7 +132,7 @@ class _NoBusinessPage extends StatelessWidget {
                             ),
                           ),
                         ]),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
                         Row(children: [
                           Expanded(
                             child: OutlinedButton(
@@ -146,7 +143,7 @@ class _NoBusinessPage extends StatelessWidget {
                               child: const Text('Tolak'),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: FilledButton(
                               style: FilledButton.styleFrom(
