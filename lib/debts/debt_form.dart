@@ -6,7 +6,6 @@ import '../common/format.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
-import '../common/glass.dart';
 
 /// Formulir tambah/ubah utang piutang. Mengembalikan true bila tersimpan.
 /// Saat mengubah, jenis dan pilihan "uang berpindah" tidak bisa diganti.
@@ -18,7 +17,7 @@ Future<bool> showDebtForm(
   bool lockKind = false,
   Debt? existing,
 }) async {
-  final saved = await showGlassSheet<bool>(
+  final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -155,9 +154,9 @@ class _DebtFormState extends State<_DebtForm> {
                 selected: {_kind},
                 onSelectionChanged: (s) => setState(() => _kind = s.first),
               ),
-            if (!_editing)
+            if (!_editing && !widget.lockKind)
               Padding(
-                padding: EdgeInsets.only(top: widget.lockKind ? 0 : 6),
+                padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   _receivable
                       ? 'Piutang: orang lain berutang kepada Anda.'
@@ -188,13 +187,6 @@ class _DebtFormState extends State<_DebtForm> {
                 title: Text(_receivable
                     ? 'Uang dipinjamkan sekarang'
                     : 'Uang diterima sekarang'),
-                subtitle: Text(_cashMoved
-                    ? (_receivable
-                        ? 'Kas keluar otomatis tercatat.'
-                        : 'Kas masuk otomatis tercatat.')
-                    : (_receivable
-                        ? 'Barang dijual kredit. Kas tidak berubah sampai dibayar.'
-                        : 'Barang dibeli kredit. Kas tidak berubah sampai dibayar.')),
               ),
             ],
             const SizedBox(height: 8),
@@ -260,7 +252,7 @@ Future<bool> showPaymentForm(
   required bool receivable,
   Payment? existing,
 }) async {
-  final saved = await showGlassSheet<bool>(
+  final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -351,8 +343,7 @@ class _PaymentFormState extends State<_PaymentForm> {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              '${widget.receivable ? 'Kas masuk' : 'Kas keluar'} otomatis tercatat. '
-              'Maksimal ${rupiah(widget.maxAmount)}.',
+              'Maksimal ${rupiah(widget.maxAmount)}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),

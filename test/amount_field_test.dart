@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rekap_rapi/common/amount_field.dart';
+import 'package:rekap_rapi/settings/input_prefs.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<TextEditingController> _open(WidgetTester tester) async {
   final controller = TextEditingController();
@@ -123,5 +125,37 @@ void main() {
     await tester.enterText(find.byType(TextField), '1250000');
     expect(c.text, '1.250.000');
     expect(find.text('000'), findsNothing);
+  });
+
+  platformTest('dimatikan di Pengaturan: keyboard bawaan ponsel dipakai',
+      TargetPlatform.android, (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await inputPrefs.setCalcKeypad(false);
+    try {
+      final c = TextEditingController();
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: AmountField(controller: c)),
+      ));
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.readOnly, isFalse);
+      expect(field.keyboardType, TextInputType.number);
+
+      await tester.enterText(find.byType(TextField), '2500000');
+      expect(c.text, '2.500.000');
+      expect(find.text('000'), findsNothing);
+    } finally {
+      await inputPrefs.setCalcKeypad(true);
+    }
+  });
+
+  platformTest('pilihan tersimpan dan dimuat kembali', TargetPlatform.android,
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'calc_keypad': false});
+    await inputPrefs.load();
+    expect(inputPrefs.calcKeypad, isFalse);
+
+    SharedPreferences.setMockInitialValues({});
+    await inputPrefs.load();
+    expect(inputPrefs.calcKeypad, isTrue, reason: 'bawaan: kalkulator aktif');
   });
 }

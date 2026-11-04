@@ -6,7 +6,6 @@ import '../cash/cash_models.dart';
 import '../cash/cash_page.dart';
 import '../cash/cash_repository.dart';
 import '../common/format.dart';
-import '../common/glass.dart';
 import '../common/widgets.dart';
 import '../debts/debt_detail_page.dart';
 import '../debts/debt_repository.dart';
@@ -210,43 +209,26 @@ class _BusinessHomeState extends State<BusinessHome> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) setState(() => _settingsOpen = false);
       },
-      // Header dan tab bawah berefek kaca: isi halaman bergulir di bawahnya
-      // (extendBody), jadi setiap halaman menambah jarak atas dan bawah dari
-      // MediaQuery agar baris pertama dan terakhir tidak tertutup.
       child: Scaffold(
-        extendBody: true,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          flexibleSpace: const GlassBar(top: true),
-          leading: _settingsOpen
-              ? BackButton(
-                  onPressed: () => setState(() => _settingsOpen = false))
-              : null,
-          automaticallyImplyLeading: false,
-          title: _settingsOpen ? const Text('Pengaturan') : title,
-          titleSpacing: _settingsOpen ? null : 8,
-        ),
+        appBar: _settingsOpen
+            ? AppBar(
+                leading: BackButton(
+                    onPressed: () => setState(() => _settingsOpen = false)),
+                title: const Text('Pengaturan'),
+              )
+            : AppBar(title: title, titleSpacing: 8),
         body: _settingsOpen ? _settingsPage() : _body(wide: false),
-        bottomNavigationBar: GlassBar(
-          child: NavigationBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            selectedIndex: _tab.clamp(0, _tabs.length - 2),
-            onDestinationSelected: (i) => setState(() {
-              _tab = i;
-              _settingsOpen = false;
-            }),
-            destinations: [
-              for (final t in phoneTabs)
-                NavigationDestination(
-                    icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
-            ],
-          ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _tab.clamp(0, _tabs.length - 2),
+          onDestinationSelected: (i) => setState(() {
+            _tab = i;
+            _settingsOpen = false;
+          }),
+          destinations: [
+            for (final t in phoneTabs)
+              NavigationDestination(
+                  icon: Icon(t.$1), selectedIcon: Icon(t.$2), label: t.$3),
+          ],
         ),
       ),
     );
@@ -409,7 +391,6 @@ class _DashboardState extends State<_Dashboard> {
               Expanded(
                 child: _DebtCard(
                   label: 'Piutang belum lunas',
-                  hint: 'Yang harus Anda tagih',
                   value: s.receivableOpen,
                   color: Brand.receivable,
                   icon: Icons.call_received_rounded,
@@ -420,7 +401,6 @@ class _DashboardState extends State<_Dashboard> {
               Expanded(
                 child: _DebtCard(
                   label: 'Utang belum lunas',
-                  hint: 'Yang harus Anda bayar',
                   value: s.payableOpen,
                   color: Brand.payable,
                   icon: Icons.call_made_rounded,
@@ -439,8 +419,7 @@ class _DashboardState extends State<_Dashboard> {
                 child: EmptyState(
                   icon: Icons.filter_alt_off_rounded,
                   title: 'Semua jenis aktivitas disembunyikan',
-                  subtitle:
-                      'Pilih jenis yang ingin tampil di Pengaturan > Tampilan Beranda.',
+                  subtitle: 'Atur di Pengaturan > Tampilan Beranda.',
                 ),
               )
             else if (activities.isEmpty)
@@ -477,22 +456,16 @@ class _DashboardState extends State<_Dashboard> {
     ];
 
     return RefreshIndicator(
-      edgeOffset: MediaQuery.paddingOf(context).top,
       onRefresh: () async => _reload(),
       child: ContentWidth(
         child: ListView(
-          padding: EdgeInsets.fromLTRB(
-              14,
-              4 + MediaQuery.paddingOf(context).top,
-              14,
-              24 + MediaQuery.paddingOf(context).bottom),
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
           children: [
             if (sections.isEmpty)
               const EmptyState(
                 icon: Icons.dashboard_customize_rounded,
                 title: 'Beranda kosong',
-                subtitle:
-                    'Semua bagian Beranda disembunyikan. Pilih yang ingin tampil di Pengaturan > Tampilan Beranda.',
+                subtitle: 'Atur di Pengaturan > Tampilan Beranda.',
               ),
             for (var i = 0; i < sections.length; i++) ...[
               if (i > 0) const SizedBox(height: 12),
@@ -676,7 +649,7 @@ class _ProfitStrip extends StatelessWidget {
         Text(
           hasSales
               ? 'dari penjualan ${rupiah(summary.salesTotal)}'
-              : 'Catat penjualan dan isi Harga Modal untuk melihat keuntungan.',
+              : 'Belum ada penjualan bulan ini.',
           style: theme.textTheme.bodySmall?.copyWith(color: muted),
         ),
       ]),
@@ -719,7 +692,6 @@ class _QuickAction extends StatelessWidget {
 class _DebtCard extends StatelessWidget {
   const _DebtCard({
     required this.label,
-    required this.hint,
     required this.value,
     required this.color,
     required this.icon,
@@ -727,7 +699,6 @@ class _DebtCard extends StatelessWidget {
   });
 
   final String label;
-  final String hint;
   final int value;
   final Color color;
   final IconData icon;
@@ -753,11 +724,6 @@ class _DebtCard extends StatelessWidget {
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w600, color: color)),
         ),
-        const SizedBox(height: 4),
-        FitText(hint,
-            maxLines: 2,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       ]),
     );
   }

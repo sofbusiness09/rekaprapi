@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'font_controller.dart';
-import '../common/glass.dart';
 
 /// Lembar pilihan jenis huruf, tiap pilihan tampil dengan hurufnya sendiri.
 Future<void> showFontPicker(BuildContext context) {
-  return showGlassSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -41,8 +40,7 @@ class _FontSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                    'Berlaku di seluruh aplikasi dan tersimpan di perangkat ini. Huruf diunduh sekali, jadi butuh internet saat pertama dipakai.',
+                child: Text('Berlaku di seluruh aplikasi.',
                     style: theme.textTheme.bodySmall?.copyWith(color: muted)),
               ),
             ),
@@ -84,9 +82,7 @@ class _FontTile extends StatelessWidget {
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
       title: Text(font.name, style: sample),
-      subtitle: Text('${font.note}\nRp 1.250.000  ·  Penjualan hari ini',
-          style: small),
-      isThreeLine: true,
+      subtitle: Text('Rp 1.250.000  ·  Penjualan hari ini', style: small),
       trailing: selected
           ? Icon(Icons.check_circle_rounded, color: scheme.primary)
           : null,

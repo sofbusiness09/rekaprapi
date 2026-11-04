@@ -10,7 +10,6 @@ import '../debts/debt_repository.dart';
 import '../theme/app_theme.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
-import '../common/glass.dart';
 
 /// Lembar formulir catat transaksi.
 ///
@@ -30,7 +29,7 @@ Future<bool> showCashForm(
   String initialType = 'in',
   bool lockType = false,
 }) async {
-  final saved = await showGlassSheet<bool>(
+  final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -334,18 +333,6 @@ class _CashFormState extends State<_CashForm> {
                 selected: {_credit},
                 onSelectionChanged: (s) => setState(() => _credit = s.first),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _credit
-                    ? (_isIn
-                        ? 'Pelanggan belum membayar. Dicatat sebagai piutang; kas bertambah saat ia membayar.'
-                        : 'Anda belum membayar. Dicatat sebagai utang; kas berkurang saat Anda membayar.')
-                    : (_isIn
-                        ? 'Uang sudah diterima. Kas langsung bertambah.'
-                        : 'Sudah dibayar. Kas langsung berkurang.'),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(color: muted),
-              ),
             ],
             if (_isIn)
               SwitchListTile(
@@ -353,7 +340,6 @@ class _CashFormState extends State<_CashForm> {
                 value: _sale,
                 onChanged: (v) => setState(() => _sale = v),
                 title: const Text('Penjualan barang'),
-                subtitle: const Text('Hitung harga modal dan keuntungan.'),
               ),
             if (sale) ...[
               const SizedBox(height: 8),
@@ -390,7 +376,6 @@ class _CashFormState extends State<_CashForm> {
                       controller: _discount,
                       label: 'Diskon',
                       color: Brand.expense,
-                      helper: 'Potongan penjualan, akan mengurangi keuntungan.',
                       onChanged: () => setState(() {}),
                     ),
                     const SizedBox(height: 12),
@@ -398,8 +383,6 @@ class _CashFormState extends State<_CashForm> {
                       controller: _fee,
                       label: 'Biaya Tambahan',
                       color: theme.colorScheme.onSurface,
-                      helper:
-                          'Di luar penjualan, tidak berpengaruh pada keuntungan. Contoh: biaya pengiriman.',
                       onChanged: () => setState(() {}),
                     ),
                     const SizedBox(height: 8),
@@ -451,10 +434,8 @@ class _CashFormState extends State<_CashForm> {
                       Expanded(
                         child: Text(
                           _isIn
-                              ? 'Anda berutang ${rupiah(-_contactNet!)} kepada kontak ini. '
-                                  'Piutang baru akan otomatis mengurangi utang itu tanpa mengubah kas.'
-                              : 'Kontak ini punya piutang ${rupiah(_contactNet!)} kepada Anda. '
-                                  'Utang baru akan otomatis dikompensasi dengan piutang itu tanpa mengubah kas.',
+                              ? 'Utang Anda ke kontak ini ${rupiah(-_contactNet!)} akan berkurang otomatis.'
+                              : 'Piutang kontak ini ${rupiah(_contactNet!)} akan berkurang otomatis.',
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -576,12 +557,6 @@ class _ProfitCard extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w600, color: color)),
           ]),
         ),
-        Flexible(
-          child: Text('Total − Diskon − Modal',
-              textAlign: TextAlign.right,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ),
       ]),
     );
   }
@@ -652,13 +627,11 @@ class _MoneyField extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onChanged,
-    this.helper,
   });
 
   final TextEditingController controller;
   final String label;
   final Color color;
-  final String? helper;
   final VoidCallback onChanged;
 
   @override
@@ -675,8 +648,6 @@ class _MoneyField extends StatelessWidget {
         labelText: label,
         hintText: '0',
         prefixText: 'Rp ',
-        helperText: helper,
-        helperMaxLines: 3,
       ),
     );
   }

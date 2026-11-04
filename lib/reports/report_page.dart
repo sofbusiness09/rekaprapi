@@ -196,16 +196,11 @@ class _ReportPageState extends State<ReportPage> {
         final hasProfit = buckets.any((b) => b.profit != 0);
 
         return RefreshIndicator(
-          edgeOffset: MediaQuery.paddingOf(context).top,
           onRefresh: () async => _reload(),
           child: ContentWidth(
             maxWidth: 900,
             child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                  16,
-                  8 + MediaQuery.paddingOf(context).top,
-                  16,
-                  32 + MediaQuery.paddingOf(context).bottom),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
                 if (snap.connectionState == ConnectionState.waiting)
                   const LinearProgressIndicator(minHeight: 3),
@@ -243,8 +238,7 @@ class _ReportPageState extends State<ReportPage> {
                       : const EmptyState(
                           icon: Icons.trending_up_rounded,
                           title: 'Belum ada data keuntungan',
-                          subtitle:
-                              'Catat transaksi dengan kategori Penjualan dan isi Harga Modal agar keuntungan tampil di sini.',
+                          subtitle: 'Catat penjualan dan isi Harga Modal.',
                         ),
                 ),
                 const SectionTitle('Per kategori'),
@@ -480,8 +474,6 @@ class _CashFlowChart extends StatelessWidget {
       return const EmptyState(
         icon: Icons.bar_chart_rounded,
         title: 'Belum ada arus kas',
-        subtitle:
-            'Grafik muncul setelah ada kas masuk atau keluar pada periode ini.',
       );
     }
     final dense = buckets.length > 16;
@@ -640,8 +632,6 @@ class _CategoryBreakdown extends StatelessWidget {
         const EmptyState(
           icon: Icons.pie_chart_rounded,
           title: 'Belum ada data',
-          subtitle:
-              'Belum ada transaksi pada kategori ini di periode terpilih.',
         )
       else ...[
         SizedBox(

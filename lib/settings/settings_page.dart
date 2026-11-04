@@ -6,6 +6,7 @@ import '../backup/backup_setup_page.dart';
 import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
+import '../common/amount_field.dart' show isMobilePlatform;
 import '../theme/font_controller.dart';
 import '../theme/font_picker.dart';
 import '../theme/theme_picker.dart';
@@ -13,6 +14,7 @@ import 'activity_page.dart';
 import 'categories_page.dart';
 import 'contacts_manage_page.dart';
 import 'home_prefs_page.dart';
+import 'input_prefs.dart';
 import 'members_page.dart';
 import 'settings_repository.dart';
 import 'tx_prefs_page.dart';
@@ -166,15 +168,12 @@ class SettingsPage extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.group_outlined),
           title: const Text('Anggota'),
-          subtitle: Text(
-              business.canManage ? 'Undang dan atur peran' : 'Lihat anggota'),
           onTap: () =>
               _push(context, MembersPage(business: business, repo: repo)),
         ),
         ListTile(
           leading: const Icon(Icons.contacts_outlined),
           title: const Text('Kontak Pelanggan'),
-          subtitle: const Text('Ubah nomor telepon, alamat, dan catatan'),
           onTap: () => _push(
               context,
               ContactsManagePage(
@@ -189,7 +188,6 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.cloud_upload_outlined),
             title: const Text('Backup Google Sheet'),
-            subtitle: const Text('Simpan salinan data ke Google Sheet Anda'),
             onTap: () => _push(
                 context,
                 BackupSetupPage(
@@ -217,17 +215,26 @@ class SettingsPage extends StatelessWidget {
             onTap: () => showFontPicker(context),
           ),
         ),
+        // Hanya relevan di perangkat sentuh.
+        if (isMobilePlatform)
+          ListenableBuilder(
+            listenable: inputPrefs,
+            builder: (context, _) => SwitchListTile(
+              secondary: const Icon(Icons.calculate_outlined),
+              title: const Text('Keyboard kalkulator'),
+              value: inputPrefs.calcKeypad,
+              onChanged: inputPrefs.setCalcKeypad,
+            ),
+          ),
         ListTile(
           leading: const Icon(Icons.dashboard_customize_outlined),
           title: const Text('Tampilan Beranda'),
-          subtitle: const Text('Pilih, dan geser urutan bagian Beranda'),
           onTap: () =>
               _push(context, HomePrefsPage(businessName: business.name)),
         ),
         ListTile(
           leading: const Icon(Icons.receipt_long_outlined),
           title: const Text('Tampilan Transaksi'),
-          subtitle: const Text('Pilih apa yang tampil di tab Transaksi'),
           onTap: () => _push(context, TxPrefsPage(businessName: business.name)),
         ),
         const Divider(),

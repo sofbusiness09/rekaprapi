@@ -4,13 +4,17 @@ import 'package:flutter/services.dart';
 
 import 'calc_expression.dart';
 import 'format.dart';
-import 'glass.dart';
+import '../settings/input_prefs.dart';
 
-/// Di ponsel kolom nominal membuka keyboard kalkulator (angka, 00, 000, +, −, ×
-/// dan "="), bukan keyboard biasa. Di komputer tetap kolom ketik biasa.
-bool get useCalcKeypad =>
+/// Perangkat sentuh (Android dan iPhone, termasuk web di ponsel).
+bool get isMobilePlatform =>
     defaultTargetPlatform == TargetPlatform.android ||
     defaultTargetPlatform == TargetPlatform.iOS;
+
+/// Di ponsel kolom nominal membuka keyboard kalkulator (angka, 00, 000, +, −, ×
+/// dan "="), kecuali pengguna mematikannya di Pengaturan sehingga keyboard bawaan
+/// ponsel yang dipakai. Di komputer tetap kolom ketik biasa.
+bool get useCalcKeypad => isMobilePlatform && inputPrefs.calcKeypad;
 
 /// Kolom nominal rupiah. Isinya tetap teks berpemisah ribuan di [controller],
 /// jadi dibaca dengan `parseAmount` seperti sebelumnya.
@@ -68,7 +72,12 @@ class _AmountFieldState extends State<AmountField> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: inputPrefs,
+        builder: (context, _) => _field(),
+      );
+
+  Widget _field() {
     if (!useCalcKeypad) {
       return TextField(
         controller: widget.controller,
@@ -105,7 +114,7 @@ Future<int?> showCalcKeypad(
   String title = 'Jumlah',
   int? initial,
 }) {
-  return showGlassSheet<int>(
+  return showModalBottomSheet<int>(
     context: context,
     // Tanpa ini tinggi lembar dibatasi 9/16 layar dan tombol bawah terpotong.
     isScrollControlled: true,

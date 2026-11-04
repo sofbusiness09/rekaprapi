@@ -13,7 +13,6 @@ import '../theme/app_theme.dart';
 import 'cash_form.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
-import '../common/glass.dart';
 
 class CashPage extends StatefulWidget {
   const CashPage({
@@ -147,7 +146,7 @@ class _CashPageState extends State<CashPage> {
 
   /// Tombol Catat: langsung tanya pemasukan atau pengeluaran, lalu buka formulirnya.
   Future<void> _choose(_Loaded d) async {
-    final type = await showGlassSheet<String>(
+    final type = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 480),
@@ -173,7 +172,6 @@ class _CashPageState extends State<CashPage> {
                   color: Brand.income, size: 42),
               title: const Text('Pemasukan',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Penjualan atau uang masuk lainnya'),
               onTap: () => Navigator.pop(sheetContext, 'in'),
             ),
             ListTile(
@@ -183,7 +181,6 @@ class _CashPageState extends State<CashPage> {
                   color: Brand.expense, size: 42),
               title: const Text('Pengeluaran',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Belanja stok, gaji, sewa, dan lainnya'),
               onTap: () => Navigator.pop(sheetContext, 'out'),
             ),
           ]),
@@ -217,7 +214,7 @@ class _CashPageState extends State<CashPage> {
       _toast('Staf hanya bisa mengubah transaksi yang ia catat sendiri.');
       return;
     }
-    showGlassSheet<void>(
+    showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 560),
@@ -295,15 +292,10 @@ class _CashPageState extends State<CashPage> {
               const LinearProgressIndicator(minHeight: 3),
             Expanded(
               child: RefreshIndicator(
-                edgeOffset: MediaQuery.paddingOf(context).top,
                 onRefresh: () async => _reload(),
                 child: ContentWidth(
                   child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                        16,
-                        4 + MediaQuery.paddingOf(context).top,
-                        16,
-                        110 + MediaQuery.paddingOf(context).bottom),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
                     children: [
                       _MonthPill(
                         label: monthId(_month),
@@ -326,26 +318,10 @@ class _CashPageState extends State<CashPage> {
                                 setState(() => _typeFilter = f.$1),
                           ),
                       ]),
-                      if (p.txCredit && d.credits.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-                          child: Text(
-                            'Transaksi hutang tampil di daftar, tetapi baru dihitung sebagai kas saat dibayar.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant),
-                          ),
-                        ),
                       if (rows.isEmpty)
                         EmptyState(
                           icon: Icons.receipt_long_rounded,
                           title: 'Belum ada transaksi',
-                          subtitle:
-                              'Catat kas masuk dan keluar bulan ini agar saldo selalu rapi.',
                           actionLabel: 'Catat sekarang',
                           onAction: () => _choose(d),
                         ),
@@ -394,15 +370,10 @@ class _CashPageState extends State<CashPage> {
               ),
             ),
           ]),
-          floatingActionButton: Padding(
-            // Naik setinggi tab bawah berkaca yang melayang di atas isi.
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-            child: FloatingActionButton.extended(
-              onPressed: () => _choose(d),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Catat'),
-            ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _choose(d),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Catat'),
           ),
         );
       },

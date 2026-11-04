@@ -137,8 +137,6 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                   EmptyState(
                     icon: Icons.people_alt_rounded,
                     title: 'Belum ada kontak',
-                    subtitle:
-                        'Tambahkan pelanggan dan pemasok Anda beserta nomor teleponnya.',
                     actionLabel: 'Tambah kontak',
                     onAction: _edit,
                   )

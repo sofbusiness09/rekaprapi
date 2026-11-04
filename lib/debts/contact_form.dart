@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'debt_models.dart';
 import 'debt_repository.dart';
-import '../common/glass.dart';
 
 /// Lembar tambah/ubah kontak (nama, telepon, alamat, catatan).
 /// Mengembalikan kontak yang tersimpan (dengan data terbaru), atau null bila dibatalkan.
@@ -12,7 +11,7 @@ Future<Contact?> showContactForm(
   required DebtRepository repo,
   Contact? existing,
 }) {
-  return showGlassSheet<Contact>(
+  return showModalBottomSheet<Contact>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

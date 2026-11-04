@@ -6,7 +6,6 @@ import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'business.dart';
 import 'business_controller.dart';
-import '../common/glass.dart';
 
 const roleNames = {'owner': 'Pemilik', 'admin': 'Admin', 'staff': 'Staf'};
 
@@ -54,7 +53,7 @@ Future<void> showBusinessSwitcher(
   BusinessController controller, {
   VoidCallback? onOpenSettings,
 }) {
-  return showGlassSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -159,8 +158,7 @@ class _SwitcherSheet extends StatelessWidget {
                       color: Brand.income, size: 42),
                   title: const Text('Tambah usaha',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text(
-                      'Catatan usaha Anda sendiri, terpisah dari usaha yang dibagikan. Maksimal 5.'),
+                  subtitle: const Text('Maksimal 5 usaha milik Anda'),
                   onTap: () {
                     Navigator.pop(context);
                     promptCreateBusiness(parentContext, controller);
@@ -171,7 +169,6 @@ class _SwitcherSheet extends StatelessWidget {
                       color: Brand.info, size: 42),
                   title: const Text('Gabung dengan kode',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Masuk ke usaha lain lewat undangan'),
                   onTap: () {
                     Navigator.pop(context);
                     promptJoinByCode(parentContext, controller);
@@ -184,8 +181,6 @@ class _SwitcherSheet extends StatelessWidget {
                         color: Brand.profit, size: 42),
                     title: const Text('Pengaturan',
                         style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle:
-                        const Text('Usaha, tim, kategori, tampilan, backup'),
                     onTap: () {
                       Navigator.pop(context);
                       onOpenSettings!();

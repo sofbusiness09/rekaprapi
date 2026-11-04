@@ -12,7 +12,6 @@ import 'contact_form.dart';
 import 'debt_detail_page.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
-import '../common/glass.dart';
 
 /// Halaman satu kontak: data kontak yang bisa diubah (telepon, alamat, catatan),
 /// saldo bersih (piutang dan utang digabung), tombol **Lunaskan** dan
@@ -119,7 +118,7 @@ class _ContactPageState extends State<ContactPage> {
 
   Future<void> _manual(Ledger l) async {
     final net = l.net;
-    final choice = await showGlassSheet<bool>(
+    final choice = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 560),
@@ -129,18 +128,12 @@ class _ContactPageState extends State<ContactPage> {
             leading:
                 const IconBadge(Icons.south_west_rounded, color: Brand.income),
             title: Text(_receiveTitle(net)),
-            subtitle: Text(net > 0
-                ? 'Melunasi piutang dari yang terlama. Kelebihannya menjadi utang Anda kepada ${_contact.name}.'
-                : 'Uang masuk dari ${_contact.name}, dicatat sebagai utang/modal (Anda berutang kepadanya).'),
             onTap: () => Navigator.pop(context, true),
           ),
           ListTile(
             leading:
                 const IconBadge(Icons.north_east_rounded, color: Brand.expense),
             title: Text(_giveTitle(net)),
-            subtitle: Text(net < 0
-                ? 'Membayar utang dari yang terlama. Kelebihannya menjadi piutang (Anda memberi hutang).'
-                : 'Uang keluar untuk ${_contact.name}, dicatat sebagai piutang (Anda memberi hutang). Di luar penjualan.'),
             onTap: () => Navigator.pop(context, false),
           ),
           const SizedBox(height: 8),
@@ -149,7 +142,7 @@ class _ContactPageState extends State<ContactPage> {
     );
     if (choice == null || !mounted) return;
 
-    final r = await showGlassSheet<_MoneyResult>(
+    final r = await showModalBottomSheet<_MoneyResult>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -340,8 +333,6 @@ class _ContactPageState extends State<ContactPage> {
                   const EmptyState(
                     icon: Icons.history_rounded,
                     title: 'Belum ada catatan',
-                    subtitle:
-                        'Catatan muncul saat ada transaksi hutang atau uang yang diterima/diberikan.',
                   ),
                 for (final e in entries) ...[
                   _EntryTile(
@@ -541,19 +532,15 @@ class _MoneySheetState extends State<_MoneySheet> {
     final s = _settleable;
     if (v <= 0) return ' ';
     if (widget.receive) {
-      if (s == 0) {
-        return 'Dicatat sebagai utang/modal ${rupiah(v)}. Anda berutang ${rupiah(v)} kepada ${widget.contactName}.';
-      }
-      if (v < s) return 'Piutang berkurang. Sisa piutang ${rupiah(s - v)}.';
+      if (s == 0) return 'Dicatat sebagai utang/modal.';
+      if (v < s) return 'Sisa piutang ${rupiah(s - v)}.';
       if (v == s) return 'Piutang lunas.';
-      return 'Piutang lunas, kelebihan ${rupiah(v - s)} menjadi utang Anda kepada ${widget.contactName}.';
+      return 'Lunas. Kelebihan ${rupiah(v - s)} menjadi utang.';
     }
-    if (s == 0) {
-      return 'Dicatat sebagai piutang ${rupiah(v)}. ${widget.contactName} berutang ${rupiah(v)} kepada Anda.';
-    }
-    if (v < s) return 'Utang berkurang. Sisa utang ${rupiah(s - v)}.';
+    if (s == 0) return 'Dicatat sebagai piutang.';
+    if (v < s) return 'Sisa utang ${rupiah(s - v)}.';
     if (v == s) return 'Utang lunas.';
-    return 'Utang lunas, kelebihan ${rupiah(v - s)} menjadi piutang.';
+    return 'Lunas. Kelebihan ${rupiah(v - s)} menjadi piutang.';
   }
 
   String get _title {
@@ -589,13 +576,6 @@ class _MoneySheetState extends State<_MoneySheet> {
             Text(_title,
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(
-              widget.receive
-                  ? 'Kas masuk otomatis tercatat.'
-                  : 'Kas keluar otomatis tercatat.',
-              style: theme.textTheme.bodySmall?.copyWith(color: muted),
-            ),
             const SizedBox(height: 16),
             AmountField(
               controller: _amount,

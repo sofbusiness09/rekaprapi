@@ -30,7 +30,7 @@ class HomePrefsPage extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Text(title,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(subtitle),
+                subtitle: subtitle.isEmpty ? null : Text(subtitle),
                 value: value,
                 onChanged: onChanged,
               );
@@ -44,8 +44,8 @@ class HomePrefsPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                   child: Text(
                     businessName == null
-                        ? 'Pilihan ini berlaku untuk usaha yang sedang dibuka.'
-                        : 'Pilihan ini hanya berlaku untuk usaha "$businessName". Usaha lain punya pilihan sendiri. Tersimpan di akun Anda dan otomatis dipakai di semua perangkat.',
+                        ? 'Berlaku untuk usaha yang sedang dibuka.'
+                        : 'Berlaku untuk usaha "$businessName".',
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                   ),
                 ),
@@ -68,48 +68,26 @@ class HomePrefsPage extends StatelessWidget {
                     ],
                   ]),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
-                  child: Text(
-                    'Gunakan panah untuk menggeser. Bagian yang dimatikan di bawah tidak tampil, tetapi urutannya tetap diingat.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
-                  ),
-                ),
                 const SectionTitle('Bagian Beranda'),
                 SoftCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(children: [
-                    toggle('Saldo kas', 'Angka saldo kas saat ini',
-                        p.showBalance, (v) => set(p.copyWith(showBalance: v))),
+                    toggle('Saldo kas', '', p.showBalance,
+                        (v) => set(p.copyWith(showBalance: v))),
                     const Divider(),
-                    toggle(
-                        'Kas masuk dan keluar bulan ini',
-                        'Total uang masuk dan keluar bulan berjalan',
-                        p.showFlow,
+                    toggle('Kas masuk dan keluar bulan ini', '', p.showFlow,
                         (v) => set(p.copyWith(showFlow: v))),
                     const Divider(),
-                    toggle(
-                        'Keuntungan bulan ini',
-                        'Keuntungan dari transaksi penjualan',
-                        p.showProfit,
+                    toggle('Keuntungan bulan ini', '', p.showProfit,
                         (v) => set(p.copyWith(showProfit: v))),
                     const Divider(),
-                    toggle(
-                        'Tombol cepat',
-                        'Kas masuk, kas keluar, dan Utang',
-                        p.showQuickActions,
+                    toggle('Tombol cepat', '', p.showQuickActions,
                         (v) => set(p.copyWith(showQuickActions: v))),
                     const Divider(),
-                    toggle(
-                        'Piutang dan utang belum lunas',
-                        'Total yang harus ditagih dan harus dibayar',
-                        p.showDebtCards,
+                    toggle('Piutang dan utang belum lunas', '', p.showDebtCards,
                         (v) => set(p.copyWith(showDebtCards: v))),
                     const Divider(),
-                    toggle(
-                        'Aktivitas terbaru',
-                        'Daftar perputaran uang terakhir',
-                        p.showActivity,
+                    toggle('Aktivitas terbaru', '', p.showActivity,
                         (v) => set(p.copyWith(showActivity: v))),
                   ]),
                 ),
@@ -130,7 +108,7 @@ class HomePrefsPage extends StatelessWidget {
                     child: Column(children: [
                       toggle(
                           'Kas masuk',
-                          'Pemasukan dan penjualan yang sudah lunas',
+                          '',
                           p.actCashIn,
                           p.showActivity
                               ? (v) => set(p.copyWith(actCashIn: v))
@@ -138,7 +116,7 @@ class HomePrefsPage extends StatelessWidget {
                       const Divider(),
                       toggle(
                           'Kas keluar',
-                          'Pengeluaran yang sudah dibayar',
+                          '',
                           p.actCashOut,
                           p.showActivity
                               ? (v) => set(p.copyWith(actCashOut: v))
@@ -146,7 +124,7 @@ class HomePrefsPage extends StatelessWidget {
                       const Divider(),
                       toggle(
                           'Transaksi hutang',
-                          'Penjualan atau pembelian kredit yang belum dibayar',
+                          '',
                           p.actCredit,
                           p.showActivity
                               ? (v) => set(p.copyWith(actCredit: v))
@@ -154,15 +132,15 @@ class HomePrefsPage extends StatelessWidget {
                       const Divider(),
                       toggle(
                           'Pelunasan dan pembayaran',
-                          'Piutang yang diterima dan utang yang dibayar',
+                          '',
                           p.actPayments,
                           p.showActivity
                               ? (v) => set(p.copyWith(actPayments: v))
                               : null),
                       const Divider(),
                       toggle(
-                          'Utang dan piutang berupa uang',
-                          'Uang yang dipinjamkan atau diterima sebagai utang/modal',
+                          'Pemberian dan penerimaan utang',
+                          '',
                           p.actLoans,
                           p.showActivity
                               ? (v) => set(p.copyWith(actLoans: v))

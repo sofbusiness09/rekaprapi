@@ -30,7 +30,7 @@ class TxPrefsPage extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 title: Text(title,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(subtitle),
+                subtitle: subtitle.isEmpty ? null : Text(subtitle),
                 value: value,
                 onChanged: onChanged,
               );
@@ -44,8 +44,8 @@ class TxPrefsPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                   child: Text(
                     businessName == null
-                        ? 'Pilih apa yang tampil di daftar Transaksi.'
-                        : 'Pilih apa yang tampil di daftar Transaksi usaha "$businessName". Usaha lain punya pilihan sendiri.',
+                        ? 'Berlaku untuk usaha yang sedang dibuka.'
+                        : 'Berlaku untuk usaha "$businessName".',
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                   ),
                 ),
@@ -53,13 +53,10 @@ class TxPrefsPage extends StatelessWidget {
                 SoftCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(children: [
-                    toggle('Pemasukan', 'Penjualan dan uang masuk lainnya',
-                        p.txIn, (v) => set(p.copyWith(txIn: v))),
+                    toggle('Pemasukan', '', p.txIn,
+                        (v) => set(p.copyWith(txIn: v))),
                     const Divider(),
-                    toggle(
-                        'Pengeluaran',
-                        'Belanja stok, gaji, sewa, dan lainnya',
-                        p.txOut,
+                    toggle('Pengeluaran', '', p.txOut,
                         (v) => set(p.copyWith(txOut: v))),
                   ]),
                 ),
@@ -67,15 +64,12 @@ class TxPrefsPage extends StatelessWidget {
                 SoftCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(children: [
-                    toggle(
-                        'Transaksi hutang',
-                        'Penjualan atau pembelian kredit yang belum dibayar',
-                        p.txCredit,
+                    toggle('Transaksi hutang', '', p.txCredit,
                         (v) => set(p.copyWith(txCredit: v))),
                     const Divider(),
                     toggle(
                         'Kas dari utang piutang',
-                        'Pelunasan, pembayaran, pemberian, dan penerimaan utang yang otomatis masuk kas',
+                        'Pelunasan, pembayaran, pemberian, penerimaan',
                         p.txDebtCash,
                         (v) => set(p.copyWith(txDebtCash: v))),
                   ]),
@@ -92,7 +86,7 @@ class TxPrefsPage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
                   child: Text(
-                    'Menyembunyikan tidak menghapus apa pun. Saldo, laporan, dan menu Utang tetap menghitung semuanya.',
+                    'Saldo dan laporan tetap menghitung semuanya.',
                     style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ),

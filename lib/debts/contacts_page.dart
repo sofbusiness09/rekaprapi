@@ -9,7 +9,6 @@ import 'contact_page.dart';
 import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
-import '../common/glass.dart';
 
 enum _Filter { all, receivable, payable, settled }
 
@@ -104,7 +103,7 @@ class _ContactsPageState extends State<ContactsPage> {
 
   /// Tombol Catat: pilih piutang atau utang, lalu isi formulir (siapa, berapa).
   Future<void> _record(List<Contact> contacts) async {
-    final kind = await showGlassSheet<String>(
+    final kind = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       constraints: const BoxConstraints(maxWidth: 480),
@@ -130,7 +129,6 @@ class _ContactsPageState extends State<ContactsPage> {
                   color: Brand.receivable, size: 42),
               title: const Text('Catat piutang',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Orang lain berutang kepada Anda'),
               onTap: () => Navigator.pop(sheetContext, 'receivable'),
             ),
             ListTile(
@@ -140,7 +138,6 @@ class _ContactsPageState extends State<ContactsPage> {
                   color: Brand.payable, size: 42),
               title: const Text('Catat utang',
                   style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Anda berutang kepada orang lain'),
               onTap: () => Navigator.pop(sheetContext, 'payable'),
             ),
           ]),
@@ -223,21 +220,16 @@ class _ContactsPageState extends State<ContactsPage> {
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: RefreshIndicator(
-            edgeOffset: MediaQuery.paddingOf(context).top,
             onRefresh: () async => _reload(),
             child: ContentWidth(
               child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                    16,
-                    8 + MediaQuery.paddingOf(context).top,
-                    16,
-                    110 + MediaQuery.paddingOf(context).bottom),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
                 children: [
                   Row(children: [
                     Expanded(
                       child: _Total(
                         label: 'Piutang',
-                        hint: 'Harus ditagih',
+                        hint: '',
                         value: totalReceivable,
                         color: Brand.receivable,
                         icon: Icons.call_received_rounded,
@@ -252,7 +244,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     Expanded(
                       child: _Total(
                         label: 'Utang',
-                        hint: 'Harus dibayar',
+                        hint: '',
                         value: totalPayable,
                         color: Brand.payable,
                         icon: Icons.call_made_rounded,
@@ -307,8 +299,6 @@ class _ContactsPageState extends State<ContactsPage> {
                     EmptyState(
                       icon: Icons.people_alt_rounded,
                       title: 'Belum ada kontak',
-                      subtitle:
-                          'Simpan pelanggan dan pemasok Anda, lengkap dengan nomor telepon dan saldo utang piutangnya.',
                       actionLabel: 'Tambah kontak',
                       onAction: _add,
                     )
@@ -326,15 +316,10 @@ class _ContactsPageState extends State<ContactsPage> {
               ),
             ),
           ),
-          floatingActionButton: Padding(
-            // Naik setinggi tab bawah berkaca yang melayang di atas isi.
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-            child: FloatingActionButton.extended(
-              onPressed: () => _record(d.contacts),
-              icon: const Icon(Icons.edit_note_rounded),
-              label: const Text('Catat'),
-            ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _record(d.contacts),
+            icon: const Icon(Icons.edit_note_rounded),
+            label: const Text('Catat'),
           ),
         );
       },
@@ -398,9 +383,10 @@ class _Total extends StatelessWidget {
                   style: theme.textTheme.titleLarge
                       ?.copyWith(fontWeight: FontWeight.w600, color: color)),
             ),
-            Text(hint,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            if (hint.isNotEmpty)
+              Text(hint,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ]),
         ),
       ),

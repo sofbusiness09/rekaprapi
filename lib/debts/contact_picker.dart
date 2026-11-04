@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../common/widgets.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
-import '../common/glass.dart';
 
 const _newContact = '__new__';
 
@@ -61,7 +60,7 @@ class ContactPicker extends StatelessWidget {
   }
 
   Future<void> _open(BuildContext context) async {
-    final result = await showGlassSheet<(String, String?)>(
+    final result = await showModalBottomSheet<(String, String?)>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
