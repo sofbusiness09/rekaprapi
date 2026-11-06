@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Satu pilihan warna latar gradasi, dengan nada terang dan gelap.
 class BackgroundPreset {
-  const BackgroundPreset(this.id, this.name, this.light, this.dark);
+  const BackgroundPreset(
+      this.id, this.name, this.light, this.dark, this.accent);
 
   final String id;
   final String name;
@@ -12,15 +13,23 @@ class BackgroundPreset {
   final Color light;
   final Color dark;
 
+  /// Warna aksen tombol dan menu yang serasi dengan gradasi ini.
+  final Color accent;
+
   Color tint(Brightness b) => b == Brightness.dark ? dark : light;
 }
 
 const backgroundPresets = <BackgroundPreset>[
-  BackgroundPreset('hijau', 'Hijau', Color(0xFFBDE8D3), Color(0xFF0E4A34)),
-  BackgroundPreset('biru', 'Biru', Color(0xFFC4DBF7), Color(0xFF12315C)),
-  BackgroundPreset('ungu', 'Ungu', Color(0xFFD8CCF4), Color(0xFF2B1A5C)),
-  BackgroundPreset('oranye', 'Oranye', Color(0xFFF8D8B4), Color(0xFF5A3410)),
-  BackgroundPreset('merah', 'Merah muda', Color(0xFFF5CBDF), Color(0xFF5C1A3A)),
+  BackgroundPreset('hijau', 'Hijau', Color(0xFFBDE8D3), Color(0xFF0E4A34),
+      Color(0xFF0E9F6E)),
+  BackgroundPreset(
+      'biru', 'Biru', Color(0xFFC4DBF7), Color(0xFF12315C), Color(0xFF2F7DE1)),
+  BackgroundPreset(
+      'ungu', 'Ungu', Color(0xFFD8CCF4), Color(0xFF2B1A5C), Color(0xFF7C4DDB)),
+  BackgroundPreset('oranye', 'Oranye', Color(0xFFF8D8B4), Color(0xFF5A3410),
+      Color(0xFFE8821A)),
+  BackgroundPreset('merah', 'Merah muda', Color(0xFFF5CBDF), Color(0xFF5C1A3A),
+      Color(0xFFD6407F)),
 ];
 
 BackgroundPreset presetById(String? id) => backgroundPresets

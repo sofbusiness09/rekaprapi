@@ -336,7 +336,8 @@ class _CreditTile extends StatelessWidget {
         : (debt.overdue ? Brand.expense : Brand.pending);
 
     return EntryRow(
-      icon: categoryIcon(title, income: debt.isReceivable),
+      icon: categoryIcon(debt.isSale ? 'Penjualan' : title,
+          income: debt.isReceivable),
       iconColor: tone,
       title: title,
       amount: rupiah(debt.amount),
@@ -437,9 +438,11 @@ class _Metric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
+        FitText(label,
+            maxLines: 1,
+            minFontSize: 9,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 4),

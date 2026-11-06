@@ -35,12 +35,15 @@ class RekapRapiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([themeController, fontController]),
+      listenable: Listenable.merge(
+          [themeController, fontController, backgroundController]),
       builder: (context, _) => MaterialApp(
         title: 'RekapRapi',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light, fontController.font.family),
-        darkTheme: buildTheme(Brightness.dark, fontController.font.family),
+        theme: buildTheme(Brightness.light, fontController.font.family,
+            backgroundController.preset.accent),
+        darkTheme: buildTheme(Brightness.dark, fontController.font.family,
+            backgroundController.preset.accent),
         themeMode: themeController.mode,
         // Ukuran huruf sistem yang sangat besar membuat kartu dan bilah bawah
         // terpotong; dibatasi sedikit di atas normal.

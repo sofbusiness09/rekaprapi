@@ -505,7 +505,10 @@ class _BusinessHomeState extends State<BusinessHome> {
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     if (backupButton != null) backupButton,
                     const SizedBox(height: 8),
-                    const ThemeModeColumn(),
+                    // Terbuka: tiga tombol mendatar; ciut: tersusun atas-bawah.
+                    _railExtended
+                        ? const ThemeModePicker(compact: true)
+                        : const ThemeModeColumn(),
                   ]),
                 ),
               ),

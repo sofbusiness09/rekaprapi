@@ -160,21 +160,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
       builder: (context, snap) {
         final debt = snap.data?.debt;
         return Scaffold(
-          appBar: AppBar(
-            title: Text(widget.contactName),
-            actions: [
-              if (debt != null && _canModify(debt.createdBy)) ...[
-                IconButton(
-                    tooltip: 'Ubah',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _editDebt(debt)),
-                IconButton(
-                    tooltip: 'Hapus',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => _deleteDebt(debt)),
-              ],
-            ],
-          ),
+          appBar: AppBar(title: Text(widget.contactName)),
           body: _body(snap),
           floatingActionButton: (debt != null && !debt.settled)
               ? FloatingActionButton.extended(
@@ -251,6 +237,24 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
           if (data.recorder != null) DetailRow('Dicatat oleh', data.recorder!),
           if (debt.note != null) DetailRow('Catatan', debt.note!),
         ]),
+        if (_canModify(debt.createdBy)) ...[
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () => _editDebt(debt),
+            icon: const Icon(Icons.edit_rounded),
+            label: const Text('Ubah'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Brand.expense,
+              side: const BorderSide(color: Brand.expense),
+            ),
+            onPressed: () => _deleteDebt(debt),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Hapus'),
+          ),
+        ],
         const SizedBox(height: 8),
         const Divider(),
         Text('Riwayat pembayaran', style: theme.textTheme.titleMedium),

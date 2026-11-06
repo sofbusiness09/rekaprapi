@@ -11,6 +11,17 @@ import 'debt_repository.dart';
 
 enum _Filter { all, receivable, payable, settled }
 
+/// Urutan daftar: bawaannya yang terbaru (catatan utang terakhir) di atas.
+enum _Sort {
+  newest('Terbaru'),
+  oldest('Terlama'),
+  largest('Terbesar'),
+  smallest('Terkecil');
+
+  const _Sort(this.label);
+  final String label;
+}
+
 /// Tab Kontak: semua orang yang bertransaksi dengan usaha, lengkap dengan saldo
 /// bersih masing-masing (piutang dan utang digabung menjadi satu).
 class ContactsPage extends StatefulWidget {
@@ -62,12 +73,22 @@ class _Row {
   }
 
   bool get overdue => debts.any((d) => d.overdue);
+
+  /// Waktu catatan utang terakhir kontak ini; null bila belum ada catatan.
+  DateTime? get latest {
+    DateTime? best;
+    for (final d in debts) {
+      if (best == null || d.createdAt.isAfter(best)) best = d.createdAt;
+    }
+    return best;
+  }
 }
 
 class _ContactsPageState extends State<ContactsPage> {
   late Future<_Loaded> _future = _load();
   final _search = TextEditingController();
   _Filter _filter = _Filter.all;
+  _Sort _sort = _Sort.newest;
 
   @override
   void initState() {
@@ -153,15 +174,30 @@ class _ContactsPageState extends State<ContactsPage> {
           }
         }).toList()
           ..sort((a, b) {
-            // Yang punya saldo dulu (terbesar), lalu yang lunas menurut nama.
-            final ab = a.net.abs(), bb = b.net.abs();
-            if ((ab == 0) != (bb == 0)) return ab == 0 ? 1 : -1;
-            if (ab != bb) return bb.compareTo(ab);
-            return a.contact.name
+            int byName() => a.contact.name
                 .toLowerCase()
                 .compareTo(b.contact.name.toLowerCase());
+            switch (_sort) {
+              case _Sort.newest:
+              case _Sort.oldest:
+                final x = a.latest, y = b.latest;
+                // Kontak tanpa catatan selalu di bawah.
+                if ((x == null) != (y == null)) return x == null ? 1 : -1;
+                if (x == null || y == null) return byName();
+                final c =
+                    _sort == _Sort.newest ? y.compareTo(x) : x.compareTo(y);
+                return c != 0 ? c : byName();
+              case _Sort.largest:
+              case _Sort.smallest:
+                final ab = a.net.abs(), bb = b.net.abs();
+                // Yang sudah lunas selalu di bawah.
+                if ((ab == 0) != (bb == 0)) return ab == 0 ? 1 : -1;
+                final c = _sort == _Sort.largest
+                    ? bb.compareTo(ab)
+                    : ab.compareTo(bb);
+                return c != 0 ? c : byName();
+            }
           });
-
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: RefreshIndicator(
@@ -226,24 +262,40 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                   ]),
                   const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: [
-                      for (final f in const <(_Filter, String)>[
-                        (_Filter.all, 'Semua'),
-                        (_Filter.receivable, 'Piutang'),
-                        (_Filter.payable, 'Utang'),
-                        (_Filter.settled, 'Lunas'),
-                      ]) ...[
-                        ChoiceChip(
-                          label: Text(f.$2),
-                          selected: _filter == f.$1,
-                          onSelected: (_) => setState(() => _filter = f.$1),
-                        ),
-                        const SizedBox(width: 8),
+                  Row(children: [
+                    Expanded(
+                        child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        for (final f in const <(_Filter, String)>[
+                          (_Filter.all, 'Semua'),
+                          (_Filter.receivable, 'Piutang'),
+                          (_Filter.payable, 'Utang'),
+                          (_Filter.settled, 'Lunas'),
+                        ]) ...[
+                          ChoiceChip(
+                            label: Text(f.$2),
+                            selected: _filter == f.$1,
+                            onSelected: (_) => setState(() => _filter = f.$1),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ]),
+                    )),
+                    PopupMenuButton<_Sort>(
+                      tooltip: 'Urutkan',
+                      initialValue: _sort,
+                      onSelected: (v) => setState(() => _sort = v),
+                      itemBuilder: (_) => [
+                        for (final s in _Sort.values)
+                          PopupMenuItem(value: s, child: Text(s.label)),
                       ],
-                    ]),
-                  ),
+                      child: Chip(
+                        avatar: const Icon(Icons.swap_vert_rounded, size: 18),
+                        label: Text(_sort.label),
+                      ),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
                   if (d.contacts.isEmpty)
                     EmptyState(

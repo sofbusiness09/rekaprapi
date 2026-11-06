@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
 
 /// Satu tombol di bilah navigasi melayang.
 class FloatingNavItem {
@@ -90,13 +89,14 @@ class _NavButton extends StatelessWidget {
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            // Hijau tua dengan tulisan putih: kontras tinggi di tema terang dan gelap.
-            color: selected ? Brand.deep : Colors.transparent,
+            // Warna aksen tema (mengikuti gradasi yang dipilih), tulisan kontras.
+            color: selected ? theme.colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(26),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(selected ? item.selectedIcon : item.icon,
-                size: 22, color: selected ? Colors.white : muted),
+                size: 22,
+                color: selected ? theme.colorScheme.onPrimary : muted),
             if (selected) ...[
               const SizedBox(width: 6),
               Flexible(
@@ -104,7 +104,8 @@ class _NavButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelLarge?.copyWith(
-                        color: Colors.white, fontWeight: FontWeight.w600)),
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.w600)),
               ),
             ],
           ]),

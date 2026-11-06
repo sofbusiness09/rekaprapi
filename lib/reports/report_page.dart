@@ -370,15 +370,19 @@ class _Kpis extends StatelessWidget {
     final List<Widget> cards;
     if (business.isPersonal) {
       final net = summary.totalIn - summary.totalOut;
-      hero = _HeroKpi('Selisih periode', net,
-          net >= 0 ? Brand.income : Brand.expense, Icons.swap_vert_rounded);
+      // Saldo kas adalah kartu utama Pembukuan Pribadi.
+      hero = _HeroKpi(
+          'Saldo kas',
+          summary.balance,
+          summary.balance >= 0 ? Brand.deep : Brand.expense,
+          Icons.account_balance_wallet_rounded);
       cards = [
         _Kpi('Kas masuk', summary.totalIn, Brand.income,
             Icons.south_west_rounded),
         _Kpi('Kas keluar', summary.totalOut, Brand.expense,
             Icons.north_east_rounded),
-        _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
-            Icons.account_balance_wallet_rounded),
+        _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
+            Icons.swap_vert_rounded),
         _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
             Icons.call_received_rounded),
         _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
@@ -415,7 +419,7 @@ class _Kpis extends StatelessWidget {
       const gap = 12.0;
       final wide = c.maxWidth >= 720;
       // Lebar: semua kartu sebaris bila muat (maks. 4); sempit: dua per baris.
-      final cols = wide ? (cards.length <= 4 ? cards.length : 3) : 2;
+      final cols = wide ? (cards.length <= 5 ? cards.length : 3) : 2;
       final rows = <Widget>[];
       for (var i = 0; i < cards.length; i += cols) {
         final chunk = cards.sublist(i, (i + cols).clamp(0, cards.length));

@@ -61,9 +61,8 @@ Color profitColor(BuildContext context) =>
         : Brand.profit;
 
 ThemeData buildTheme(Brightness brightness,
-    [String fontFamily = 'Plus Jakarta Sans']) {
-  final scheme =
-      ColorScheme.fromSeed(seedColor: Brand.seed, brightness: brightness);
+    [String fontFamily = 'Plus Jakarta Sans', Color seed = Brand.seed]) {
+  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
   final light = brightness == Brightness.light;
   final base = ThemeData(
       colorScheme: scheme, useMaterial3: true, brightness: brightness);
