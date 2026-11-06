@@ -457,32 +457,67 @@ class _HeroKpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SoftCard(
-      padding: const EdgeInsets.all(20),
+    // Gradasi dari warna kartu: pekat di kiri atas, lebih terang di kanan bawah.
+    final deep = Color.lerp(color, Colors.black, 0.45)!;
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [deep, color],
+        ),
+        boxShadow: [
+          BoxShadow(
+              color: color.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 8)),
+        ],
+      ),
       child: Row(children: [
-        IconBadge(icon, color: color, size: 48),
-        const SizedBox(width: 16),
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label,
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 4),
+                style: theme.textTheme.titleSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(rupiah(value),
-                  style: theme.textTheme.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.w700, color: color)),
+                  style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 1.1)),
             ),
             if (sub != null) ...[
-              const SizedBox(height: 4),
-              Text(sub!,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(sub!,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: Colors.white)),
+              ),
             ],
           ]),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Icon(icon, color: Colors.white, size: 28),
         ),
       ]),
     );
@@ -500,8 +535,13 @@ class _Kpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SoftCard(
+    return Container(
       padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           IconBadge(icon, color: color, size: 32),

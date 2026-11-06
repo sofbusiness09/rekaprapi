@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 /// Satu tombol di bilah navigasi melayang.
 class FloatingNavItem {
   const FloatingNavItem(this.icon, this.selectedIcon, this.label);

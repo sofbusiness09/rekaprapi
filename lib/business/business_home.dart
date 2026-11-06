@@ -18,7 +18,7 @@ import '../settings/settings_page.dart';
 import '../settings/settings_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/background_controller.dart';
-import '../theme/theme_picker.dart';
+import 'app_sidebar.dart';
 import 'business.dart';
 import 'business_controller.dart';
 import 'business_switcher.dart';
@@ -426,103 +426,23 @@ class _BusinessHomeState extends State<BusinessHome> {
     final backupButton = _backupButton();
 
     if (wide) {
-      // Avatar menyembunyikan atau memperlihatkan nama menu; nama pembukuan
-      // (saat bilah terbuka) membuka daftar pembukuan.
-      final avatar = Tooltip(
-        message: _railExtended ? 'Ciutkan menu' : 'Perluas menu',
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => setState(() => _railExtended = !_railExtended),
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: InitialAvatar(_business.name, size: 40),
-          ),
-        ),
-      );
-      final railLeading = _railExtended
-          ? SizedBox(
-              width: 204,
-              child: Row(children: [
-                avatar,
-                const SizedBox(width: 4),
-                Expanded(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => _openSwitcher(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
-                      child: Row(children: [
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_business.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                                Text(
-                                    roleNames[_business.role] ?? _business.role,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                            color: scheme.onSurfaceVariant)),
-                              ]),
-                        ),
-                        Icon(Icons.unfold_more_rounded,
-                            color: scheme.onSurfaceVariant),
-                      ]),
-                    ),
-                  ),
-                ),
-              ]),
-            )
-          : avatar;
       return withBackground(Scaffold(
         backgroundColor: transparent,
         body: Row(children: [
-          NavigationRail(
+          AppSidebar(
             extended: _railExtended,
-            minWidth: 56,
-            minExtendedWidth: 220,
-            selectedIndex: _tab,
-            onDestinationSelected: (i) => setState(() => _tab = i),
-            leading: Padding(
-              padding: EdgeInsets.fromLTRB(
-                  _railExtended ? 8 : 0, 20, _railExtended ? 8 : 0, 16),
-              child: railLeading,
-            ),
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    if (backupButton != null) backupButton,
-                    const SizedBox(height: 8),
-                    // Terbuka: tiga tombol mendatar; ciut: tersusun atas-bawah.
-                    _railExtended
-                        ? const ThemeModePicker(compact: true)
-                        : const ThemeModeColumn(),
-                  ]),
-                ),
-              ),
-            ),
-            destinations: [
-              for (final t in _tabs)
-                NavigationRailDestination(
-                  icon: Icon(t.$1),
-                  selectedIcon: Icon(t.$2),
-                  label: Text(t.$3),
-                ),
+            onToggle: () => setState(() => _railExtended = !_railExtended),
+            businessName: _business.name,
+            roleLabel: roleNames[_business.role] ?? _business.role,
+            onOpenSwitcher: _openSwitcher,
+            accent: backgroundController.preset.accent,
+            items: [
+              for (final t in _tabs) SidebarItem(t.$1, t.$2, t.$3),
             ],
+            selected: _tab,
+            onSelected: (i) => setState(() => _tab = i),
+            backupButton: backupButton,
           ),
-          const VerticalDivider(width: 1),
           Expanded(
             // Tombol Catat di tengah bawah area isi.
             child: Stack(children: [

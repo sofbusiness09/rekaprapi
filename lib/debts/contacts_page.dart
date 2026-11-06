@@ -262,26 +262,37 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                   ]),
                   const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      for (final f in const <(_Filter, String)>[
+                        (_Filter.all, 'Semua'),
+                        (_Filter.receivable, 'Piutang'),
+                        (_Filter.payable, 'Utang'),
+                        (_Filter.settled, 'Lunas'),
+                      ]) ...[
+                        ChoiceChip(
+                          label: Text(f.$2),
+                          selected: _filter == f.$1,
+                          onSelected: (_) => setState(() => _filter = f.$1),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ]),
+                  ),
+                  const SizedBox(height: 4),
+                  // Urutan di baris sendiri, di kanan, agar tidak berdesakan dengan filter.
                   Row(children: [
                     Expanded(
-                        child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        for (final f in const <(_Filter, String)>[
-                          (_Filter.all, 'Semua'),
-                          (_Filter.receivable, 'Piutang'),
-                          (_Filter.payable, 'Utang'),
-                          (_Filter.settled, 'Lunas'),
-                        ]) ...[
-                          ChoiceChip(
-                            label: Text(f.$2),
-                            selected: _filter == f.$1,
-                            onSelected: (_) => setState(() => _filter = f.$1),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                      ]),
-                    )),
+                      child: Text('${items.length} kontak',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                    ),
                     PopupMenuButton<_Sort>(
                       tooltip: 'Urutkan',
                       initialValue: _sort,
@@ -290,9 +301,15 @@ class _ContactsPageState extends State<ContactsPage> {
                         for (final s in _Sort.values)
                           PopupMenuItem(value: s, child: Text(s.label)),
                       ],
-                      child: Chip(
-                        avatar: const Icon(Icons.swap_vert_rounded, size: 18),
-                        label: Text(_sort.label),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.swap_vert_rounded, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Urutkan: ${_sort.label}',
+                              style: Theme.of(context).textTheme.labelLarge),
+                        ]),
                       ),
                     ),
                   ]),
