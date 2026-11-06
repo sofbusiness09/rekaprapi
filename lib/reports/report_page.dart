@@ -365,16 +365,18 @@ class _Kpis extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Kartu utama selebar penuh; kartu lain seragam dan membagi lebar sama rata.
+    final Widget hero;
     final List<Widget> cards;
     if (business.isPersonal) {
       final net = summary.totalIn - summary.totalOut;
+      hero = _HeroKpi('Selisih periode', net,
+          net >= 0 ? Brand.income : Brand.expense, Icons.swap_vert_rounded);
       cards = [
         _Kpi('Kas masuk', summary.totalIn, Brand.income,
             Icons.south_west_rounded),
         _Kpi('Kas keluar', summary.totalOut, Brand.expense,
             Icons.north_east_rounded),
-        _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
-            Icons.swap_vert_rounded),
         _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
             Icons.account_balance_wallet_rounded),
         _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
@@ -384,26 +386,21 @@ class _Kpis extends StatelessWidget {
       ];
     } else {
       final profit = summary.net >= 0;
-      cards = [
-        // Laba hanya untuk Pemilik dan Admin.
-        if (business.canSeeProfit)
-          _Kpi(
+      // Laba hanya untuk Pemilik dan Admin.
+      hero = business.canSeeProfit
+          ? _HeroKpi(
               profit ? 'Laba' : 'Rugi',
               summary.net.abs(),
               profit ? profitColor(context) : Brand.expense,
               profit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-              sub: _compare()),
+              sub: _compare())
+          : const SizedBox.shrink();
+      cards = [
         _Kpi('Pemasukan', summary.incomeTotal, Brand.income,
-            Icons.south_west_rounded,
-            sub: summary.incomeOther > 0
-                ? 'termasuk lainnya ${rupiah(summary.incomeOther)}'
-                : null),
+            Icons.south_west_rounded),
         if (business.canSeeProfit)
           _Kpi('Pengeluaran', summary.expenseTotal, Brand.expense,
-              Icons.north_east_rounded,
-              sub: summary.expenseCost > 0
-                  ? 'termasuk modal ${rupiah(summary.expenseCost)}'
-                  : null),
+              Icons.north_east_rounded),
         _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
             Icons.call_received_rounded),
         _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
@@ -416,25 +413,85 @@ class _Kpis extends StatelessWidget {
     }
     return LayoutBuilder(builder: (context, c) {
       const gap = 12.0;
-      final cols = c.maxWidth >= 720 ? 4 : 2;
-      final w = (c.maxWidth - gap * (cols - 1)) / cols;
-      return Wrap(
-        spacing: gap,
-        runSpacing: gap,
-        children: [for (final k in cards) SizedBox(width: w, child: k)],
-      );
+      final wide = c.maxWidth >= 720;
+      // Lebar: semua kartu sebaris bila muat (maks. 4); sempit: dua per baris.
+      final cols = wide ? (cards.length <= 4 ? cards.length : 3) : 2;
+      final rows = <Widget>[];
+      for (var i = 0; i < cards.length; i += cols) {
+        final chunk = cards.sublist(i, (i + cols).clamp(0, cards.length));
+        rows.add(IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (var j = 0; j < chunk.length; j++) ...[
+              if (j > 0) const SizedBox(width: gap),
+              Expanded(child: chunk[j]),
+            ],
+          ]),
+        ));
+      }
+      final showHero = hero is! SizedBox;
+      return Column(children: [
+        if (showHero) ...[hero, const SizedBox(height: gap)],
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: gap),
+          rows[i],
+        ],
+      ]);
     });
   }
 }
 
-class _Kpi extends StatelessWidget {
-  const _Kpi(this.label, this.value, this.color, this.icon, {this.sub});
+/// Kartu utama (Laba): selebar penuh, angka besar, dengan perbandingan periode lalu.
+class _HeroKpi extends StatelessWidget {
+  const _HeroKpi(this.label, this.value, this.color, this.icon, {this.sub});
 
   final String label;
   final int value;
   final Color color;
   final IconData icon;
   final String? sub;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SoftCard(
+      padding: const EdgeInsets.all(20),
+      child: Row(children: [
+        IconBadge(icon, color: color, size: 48),
+        const SizedBox(width: 16),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label,
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(rupiah(value),
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w700, color: color)),
+            ),
+            if (sub != null) ...[
+              const SizedBox(height: 4),
+              Text(sub!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Kpi extends StatelessWidget {
+  const _Kpi(this.label, this.value, this.color, this.icon);
+
+  final String label;
+  final int value;
+  final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -453,6 +510,7 @@ class _Kpi extends StatelessWidget {
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ),
         ]),
+        const Spacer(),
         const SizedBox(height: 12),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -461,12 +519,6 @@ class _Kpi extends StatelessWidget {
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w600, color: color)),
         ),
-        if (sub != null)
-          FitText(sub!,
-              maxLines: 2,
-              minFontSize: 10,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       ]),
     );
   }

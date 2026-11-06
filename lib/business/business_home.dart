@@ -66,6 +66,9 @@ class _BusinessHomeState extends State<BusinessHome> {
   RealtimeChannel? _channel;
   int _tab = 0;
 
+  /// Layar lebar: bilah samping memperlihatkan nama menu, atau hanya ikon.
+  bool _railExtended = true;
+
   /// Di ponsel Pengaturan tidak punya tab; dibuka dari lembar nama pembukuan dan
   /// menggantikan isi layar (bukan halaman baru) agar ikut berganti saat pembukuan berganti.
   bool _settingsOpen = false;
@@ -416,18 +419,74 @@ class _BusinessHomeState extends State<BusinessHome> {
     final backupButton = _backupButton();
 
     if (wide) {
+      // Avatar menyembunyikan atau memperlihatkan nama menu; nama pembukuan
+      // (saat bilah terbuka) membuka daftar pembukuan.
+      final avatar = Tooltip(
+        message: _railExtended ? 'Ciutkan menu' : 'Perluas menu',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => setState(() => _railExtended = !_railExtended),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: InitialAvatar(_business.name, size: 40),
+          ),
+        ),
+      );
+      final railLeading = _railExtended
+          ? SizedBox(
+              width: 204,
+              child: Row(children: [
+                avatar,
+                const SizedBox(width: 4),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _openSwitcher(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      child: Row(children: [
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_business.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w600)),
+                                Text(
+                                    roleNames[_business.role] ?? _business.role,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                            color: scheme.onSurfaceVariant)),
+                              ]),
+                        ),
+                        Icon(Icons.unfold_more_rounded,
+                            color: scheme.onSurfaceVariant),
+                      ]),
+                    ),
+                  ),
+                ),
+              ]),
+            )
+          : avatar;
       return withBackground(Scaffold(
         backgroundColor: transparent,
-        floatingActionButton: _tab < _phoneTabCount ? _catatButton() : null,
         body: Row(children: [
           NavigationRail(
-            extended: true,
+            extended: _railExtended,
             minExtendedWidth: 220,
             selectedIndex: _tab,
             onDestinationSelected: (i) => setState(() => _tab = i),
             leading: Padding(
               padding: const EdgeInsets.fromLTRB(8, 20, 8, 16),
-              child: SizedBox(width: 204, child: title),
+              child: railLeading,
             ),
             trailing: Expanded(
               child: Align(
@@ -452,11 +511,28 @@ class _BusinessHomeState extends State<BusinessHome> {
             ],
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: _body(wide: true)),
+          Expanded(
+            // Tombol Catat di tengah bawah area isi.
+            child: Stack(children: [
+              _body(wide: true),
+              if (_tab < _phoneTabCount)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 24,
+                  child: Center(
+                    child: FloatingActionButton.extended(
+                      onPressed: _catat,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Catat'),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
         ]),
       ));
     }
-
     final phoneTabs = _tabs.take(_phoneTabCount).toList();
     return PopScope(
       canPop: !_settingsOpen,
@@ -465,6 +541,7 @@ class _BusinessHomeState extends State<BusinessHome> {
       },
       child: withBackground(Scaffold(
         backgroundColor: transparent,
+        extendBody: true,
         appBar: _settingsOpen
             ? AppBar(
                 backgroundColor: transparent,
@@ -478,7 +555,11 @@ class _BusinessHomeState extends State<BusinessHome> {
                 titleSpacing: 8,
                 actions: [if (backupButton != null) backupButton],
               ),
-        body: _settingsOpen ? _settingsPage() : _body(wide: false),
+        body: _settingsOpen
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 84),
+                child: _settingsPage())
+            : _body(wide: false),
         floatingActionButton: _settingsOpen ? null : _catatButton(),
         // Panel bawah melayang seperti kapsul di atas isi layar.
         bottomNavigationBar: FloatingNavBar(
