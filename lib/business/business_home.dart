@@ -224,6 +224,16 @@ class _BusinessHomeState extends State<BusinessHome> {
     };
   }
 
+  List<(_CatatKind, IconData, Color, String)> _debtOptions() => const [
+        (_CatatKind.payable, Icons.call_made_rounded, Brand.payable, 'Utang'),
+        (
+          _CatatKind.receivable,
+          Icons.call_received_rounded,
+          Brand.receivable,
+          'Piutang'
+        ),
+      ];
+
   Future<_CatatKind?> _pick(
       List<(_CatatKind, IconData, Color, String)> options) {
     return showModalBottomSheet<_CatatKind>(
@@ -265,10 +275,7 @@ class _BusinessHomeState extends State<BusinessHome> {
     if (kind == null || !mounted) return;
     if (kind == _CatatKind.debtGroup) {
       // Dari tab Rekapan: "Utang piutang" membuka pilihan Utang atau Piutang.
-      kind = await _pick(_catatOptions()
-          .where((o) =>
-              o.$1 == _CatatKind.payable || o.$1 == _CatatKind.receivable)
-          .toList());
+      kind = await _pick(_debtOptions());
       if (kind == null || !mounted) return;
     }
     switch (kind) {
@@ -481,11 +488,13 @@ class _BusinessHomeState extends State<BusinessHome> {
         body: Row(children: [
           NavigationRail(
             extended: _railExtended,
+            minWidth: 56,
             minExtendedWidth: 220,
             selectedIndex: _tab,
             onDestinationSelected: (i) => setState(() => _tab = i),
             leading: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 20, 8, 16),
+              padding: EdgeInsets.fromLTRB(
+                  _railExtended ? 8 : 0, 20, _railExtended ? 8 : 0, 16),
               child: railLeading,
             ),
             trailing: Expanded(
@@ -496,7 +505,7 @@ class _BusinessHomeState extends State<BusinessHome> {
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     if (backupButton != null) backupButton,
                     const SizedBox(height: 8),
-                    const ThemeModePicker(compact: true),
+                    const ThemeModeColumn(),
                   ]),
                 ),
               ),

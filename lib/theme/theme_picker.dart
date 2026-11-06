@@ -50,3 +50,38 @@ class ThemeModePicker extends StatelessWidget {
     );
   }
 }
+
+/// Pilihan tema berupa tiga ikon tersusun atas-bawah (terang, gelap, ikuti perangkat),
+/// untuk bilah samping yang sempit.
+class ThemeModeColumn extends StatelessWidget {
+  const ThemeModeColumn({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const modes = <(ThemeMode, IconData, String)>[
+      (ThemeMode.light, Icons.light_mode_rounded, 'Terang'),
+      (ThemeMode.dark, Icons.dark_mode_rounded, 'Gelap'),
+      (ThemeMode.system, Icons.brightness_auto_rounded, 'Ikuti perangkat'),
+    ];
+    return ListenableBuilder(
+      listenable: themeController,
+      builder: (context, _) =>
+          Column(mainAxisSize: MainAxisSize.min, children: [
+        for (final m in modes)
+          IconButton(
+            tooltip: m.$3,
+            isSelected: themeController.mode == m.$1,
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+            icon: Icon(m.$2),
+            style: themeController.mode == m.$1
+                ? IconButton.styleFrom(
+                    backgroundColor:
+                        Theme.of(context).colorScheme.secondaryContainer)
+                : null,
+            onPressed: () => themeController.set(m.$1),
+          ),
+      ]),
+    );
+  }
+}
