@@ -10,7 +10,9 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'apps_script_client.dart';
+import 'backup_controller.dart';
 import 'backup_guide.dart';
+import 'restore_page.dart';
 import 'backup_settings.dart';
 
 /// Membuka alamat di browser/aplikasi lain; mengembalikan false bila gagal.
@@ -47,11 +49,22 @@ class _Rich extends StatelessWidget {
 /// Pengaturan > Backup Google Sheet: langkah menyambungkan Google Sheet Anda.
 /// Hanya Pemilik dan Admin (database menolak peran lain).
 class BackupSetupPage extends StatefulWidget {
-  const BackupSetupPage(
-      {super.key, required this.repo, required this.businessName});
+  const BackupSetupPage({
+    super.key,
+    required this.controller,
+    required this.businessName,
+    required this.canRestore,
+    required this.onRestored,
+  });
 
-  final BackupSettingsRepository repo;
+  final BackupController controller;
   final String businessName;
+
+  /// Pulihkan hanya untuk Pemilik.
+  final bool canRestore;
+
+  /// Dipanggil dengan id pembukuan baru setelah pemulihan berhasil.
+  final Future<void> Function(String businessId) onRestored;
 
   @override
   State<BackupSetupPage> createState() => _BackupSetupPageState();
@@ -69,6 +82,10 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
   bool _showCode = false;
   String? _error;
   Object? _loadError;
+
+  /// Versi skrip Google yang tersambung; null bila belum diperiksa atau skrip lama.
+  ScriptInfo? _scriptInfo;
+  bool _running = false;
 
   // Bahasa panduan mengikuti bahasa perangkat; bisa diganti agar cocok dengan akun Google.
   GuideLang _lang = PlatformDispatcher.instance.locale.languageCode == 'id'
@@ -92,7 +109,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
   Future<void> _load() async {
     try {
       final results = await Future.wait<Object?>([
-        widget.repo.load(),
+        widget.controller.repo.load(),
         rootBundle.loadString('assets/backup_apps_script.gs'),
       ]);
       final saved = results[0] as BackupSettings?;
@@ -106,6 +123,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
         }
         _loading = false;
       });
+      if (saved != null) _checkScript(saved);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -116,6 +134,43 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     }
   }
 
+  /// Memeriksa versi skrip Google yang tersambung; gagal diam-diam bila offline.
+  Future<void> _checkScript(BackupSettings s) async {
+    try {
+      final info = await AppsScriptClient().pingInfo(s.scriptUrl, s.token);
+      if (mounted) setState(() => _scriptInfo = info);
+    } catch (_) {
+      // Tidak bisa dijangkau sekarang; peringatan versi ditunda.
+    }
+  }
+
+  Future<void> _backupNow() async {
+    setState(() => _running = true);
+    final outcome = await widget.controller.run();
+    if (!mounted) return;
+    setState(() => _running = false);
+    if (outcome != null) _toast(outcome.message);
+    await _load();
+  }
+
+  Future<void> _toggleAuto(bool v) async {
+    try {
+      await widget.controller.repo.setAutoDaily(v);
+      await _load();
+    } on PostgrestException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  void _openRestore() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RestorePage(
+        connected: _saved,
+        onRestored: widget.onRestored,
+      ),
+    ));
+  }
+
   /// Kode skrip dengan kode rahasia akun ini sudah terisi, siap ditempel.
   String get _code =>
       (_scriptTemplate ?? '').replaceFirst(_placeholder, _token);
@@ -123,9 +178,28 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
   void _toast(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
+  /// Menyalin ke papan klip dan memastikan isinya benar-benar tersimpan. Bila gagal
+  /// atau terpotong (terjadi di sebagian perangkat dan peramban untuk teks panjang),
+  /// kode ditampilkan lengkap agar bisa ditekan lama lalu dipilih Salin.
   Future<void> _copy(String text, String done) async {
-    await Clipboard.setData(ClipboardData(text: text));
-    _toast(done);
+    var ok = false;
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      final back = await Clipboard.getData(Clipboard.kTextPlain);
+      // Di sebagian peramban papan klip tidak bisa dibaca; dianggap berhasil.
+      ok = back == null || back.text == null || back.text == text;
+    } catch (_) {
+      ok = false;
+    }
+    if (!mounted) return;
+    if (ok) {
+      _toast(done);
+      return;
+    }
+    setState(() => _showCode = true);
+    _toast(_id
+        ? 'Penyalinan otomatis gagal. Kode ditampilkan: tekan lama lalu pilih Salin.'
+        : 'Auto-copy failed. The code is shown: long-press and choose Copy.');
   }
 
   Future<void> _connect() async {
@@ -142,7 +216,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     });
     try {
       final spreadsheetUrl = await AppsScriptClient().ping(url, _token);
-      await widget.repo
+      await widget.controller.repo
           .save(scriptUrl: url, token: _token, spreadsheetUrl: spreadsheetUrl);
       await _load();
       _toast(
@@ -166,7 +240,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
         okLabel: 'Hapus');
     if (!ok) return;
     try {
-      await widget.repo.delete();
+      await widget.controller.repo.delete();
       if (!mounted) return;
       setState(() {
         _saved = null;
@@ -187,7 +261,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Backup Google Sheet')),
+      appBar: AppBar(title: const Text('Backup dan Pemulihan')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
@@ -211,7 +285,45 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                             theme.textTheme.bodyMedium?.copyWith(color: muted),
                       ),
                       const SizedBox(height: 16),
-                      if (_saved != null) _StatusCard(settings: _saved!),
+                      if (_saved != null) ...[
+                        _StatusCard(settings: _saved!),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          onPressed: _running ? null : _backupNow,
+                          icon: const Icon(Icons.cloud_upload_rounded),
+                          label: Text(_running
+                              ? widget.controller.step
+                              : 'Backup sekarang'),
+                        ),
+                        if (_running)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: LinearProgressIndicator(),
+                          ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Backup otomatis harian'),
+                          subtitle: const Text(
+                              'Dijalankan saat aplikasi dibuka bila backup terakhir lebih dari 24 jam'),
+                          value: _saved!.autoDaily,
+                          onChanged: _toggleAuto,
+                        ),
+                        if (_scriptInfo != null && !_scriptInfo!.current)
+                          _ScriptUpdateCard(
+                              id: _id,
+                              onCopy: () => _copy(
+                                  _code,
+                                  _id
+                                      ? 'Kode skrip disalin.'
+                                      : 'Script code copied.')),
+                        if (widget.canRestore)
+                          OutlinedButton.icon(
+                            onPressed: _openRestore,
+                            icon: const Icon(Icons.restore_rounded),
+                            label: const Text('Pulihkan dari Google Sheet'),
+                          ),
+                        const SizedBox(height: 16),
+                      ],
                       ..._guide(theme),
                       const SizedBox(height: 4),
                       SoftCard(
@@ -404,6 +516,73 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
             ]);
     }
     return null;
+  }
+}
+
+/// Peringatan: skrip Google yang tersambung masih versi lama, sehingga backup tetap
+/// berjalan tetapi tidak menyimpan data untuk pemulihan.
+class _ScriptUpdateCard extends StatelessWidget {
+  const _ScriptUpdateCard({required this.id, required this.onCopy});
+
+  final bool id;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final steps = id
+        ? const [
+            'Buka Google Sheet Anda: Ekstensi > Apps Script.',
+            'Hapus semua kode lama, lalu tempel kode terbaru (tombol di bawah; kode rahasia sudah terisi).',
+            'Simpan, lalu Terapkan > Kelola penerapan > ikon pensil > Versi: Versi baru > Terapkan.',
+            'Alamat tidak berubah. Kembali ke sini dan tekan Backup sekarang.',
+          ]
+        : const [
+            'Open your Google Sheet: Extensions > Apps Script.',
+            'Delete the old code and paste the latest code (button below; the secret code is already filled in).',
+            'Save, then Deploy > Manage deployments > pencil icon > Version: New version > Deploy.',
+            'The address stays the same. Come back here and tap Backup now.',
+          ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SoftCard(
+        color: Brand.pending.withValues(alpha: 0.12),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            const Icon(Icons.system_update_alt_rounded, color: Brand.pending),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                  id
+                      ? 'Skrip Google perlu diperbarui'
+                      : 'Your Google script needs an update',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+              id
+                  ? 'Backup tetap berjalan, tetapi data belum bisa dipulihkan sebelum skrip diperbarui.'
+                  : 'Backups still run, but the data cannot be restored until the script is updated.',
+              style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 8),
+          for (var i = 0; i < steps.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text('${i + 1}. ${steps[i]}'),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onCopy,
+            icon: const Icon(Icons.copy_rounded),
+            label: Text(
+                id ? 'Salin kode skrip terbaru' : 'Copy latest script code'),
+          ),
+        ]),
+      ),
+    );
   }
 }
 

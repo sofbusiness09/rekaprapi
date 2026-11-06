@@ -65,7 +65,7 @@ class _BusinessGateState extends State<BusinessGate> {
   }
 }
 
-/// Tampil hanya bila pengguna belum punya usaha: buat usaha pertama atau terima undangan.
+/// Tampil hanya bila pengguna belum punya usaha: buat pembukuan pertama atau terima undangan.
 class _NoBusinessPage extends StatelessWidget {
   const _NoBusinessPage({required this.controller});
 
@@ -95,8 +95,8 @@ class _NoBusinessPage extends StatelessWidget {
               icon: Icons.storefront_rounded,
               title: 'Selamat datang!',
               subtitle:
-                  'Buat usaha pertama Anda, atau gabung ke usaha lain dengan kode undangan.',
-              actionLabel: 'Buat usaha',
+                  'Buat pembukuan pertama Anda, atau gabung dengan kode undangan.',
+              actionLabel: 'Buat pembukuan',
               onAction: () => promptCreateBusiness(context, controller),
             ),
             OutlinedButton.icon(

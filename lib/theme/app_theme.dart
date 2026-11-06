@@ -53,6 +53,13 @@ TextTheme _firmer(TextTheme t, String family) {
   );
 }
 
+/// Warna keuntungan: hijau tua di tema terang, hijau terang di tema gelap, agar
+/// angka dan tulisannya mudah terbaca di atas kotak berwarna.
+Color profitColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF4ADE9F)
+        : Brand.profit;
+
 ThemeData buildTheme(Brightness brightness,
     [String fontFamily = 'Plus Jakarta Sans']) {
   final scheme =

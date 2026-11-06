@@ -6,6 +6,7 @@ import 'auth/url_auth_hint.dart';
 import 'config.dart';
 import 'theme/app_theme.dart';
 import 'settings/input_prefs.dart';
+import 'theme/background_controller.dart';
 import 'theme/font_controller.dart';
 import 'theme/theme_controller.dart';
 
@@ -14,6 +15,7 @@ Future<void> main() async {
   await themeController.load();
   await fontController.load();
   await inputPrefs.load();
+  await backgroundController.load();
   // Dibaca sebelum Supabase menghapus parameter tautan email dari alamat.
   UrlAuthHint.read(Uri.base);
   await Supabase.initialize(

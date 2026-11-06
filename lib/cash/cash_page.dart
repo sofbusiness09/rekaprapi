@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import 'cash_form.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
+import 'tx_detail_page.dart';
 
 class CashPage extends StatefulWidget {
   const CashPage({
@@ -56,6 +57,9 @@ class _Row {
   final Debt? credit;
 
   DateTime get date => tx?.date ?? credit!.debtDate;
+
+  /// Waktu dicatat, untuk mengurutkan dalam satu hari.
+  DateTime get time => tx?.createdAt ?? credit?.createdAt ?? date;
 
   /// 'in' | 'out' untuk filter Masuk/Keluar.
   String get type => tx?.type ?? (credit!.isReceivable ? 'in' : 'out');
@@ -140,55 +144,10 @@ class _CashPageState extends State<CashPage> {
         categories: d.categories,
         existing: existing,
         initialType: type,
-        lockType: lockType);
+        lockType: lockType,
+        allowSale: !widget.business.isPersonal,
+        showProfit: widget.business.canSeeProfit);
     if (saved) widget.changes.value++;
-  }
-
-  /// Tombol Catat: langsung tanya pemasukan atau pengeluaran, lalu buka formulirnya.
-  Future<void> _choose(_Loaded d) async {
-    final type = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 480),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Catat apa?',
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ),
-            ),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              leading: const IconBadge(Icons.south_west_rounded,
-                  color: Brand.income, size: 42),
-              title: const Text('Pemasukan',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(sheetContext, 'in'),
-            ),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              leading: const IconBadge(Icons.north_east_rounded,
-                  color: Brand.expense, size: 42),
-              title: const Text('Pengeluaran',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(sheetContext, 'out'),
-            ),
-          ]),
-        ),
-      ),
-    );
-    if (type == null || !mounted) return;
-    await _openForm(d, type: type, lockType: true);
   }
 
   Future<void> _confirmDelete(CashTx t) async {
@@ -205,41 +164,20 @@ class _CashPageState extends State<CashPage> {
     }
   }
 
-  void _showActions(_Loaded d, CashTx t) {
-    if (t.isAuto) {
-      _toast('Dibuat otomatis dari Utang Piutang. Ubah lewat menu Utang.');
-      return;
-    }
-    if (!_canEdit(t)) {
-      _toast('Staf hanya bisa mengubah transaksi yang ia catat sendiri.');
-      return;
-    }
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 560),
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.edit_rounded),
-            title: const Text('Ubah'),
-            onTap: () {
-              Navigator.pop(context);
-              _openForm(d, existing: t);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_rounded, color: Brand.expense),
-            title: const Text('Hapus', style: TextStyle(color: Brand.expense)),
-            onTap: () {
-              Navigator.pop(context);
-              _confirmDelete(t);
-            },
-          ),
-          const SizedBox(height: 8),
-        ]),
+  /// Membuka rincian transaksi. Ubah dan Hapus ada di dalam rincian, bukan di daftar.
+  Future<void> _openTx(_Loaded d, CashTx t, String? category) async {
+    final action = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (_) => TxDetailPage(
+        tx: t,
+        category: category,
+        recorder: d.names[t.createdBy],
+        canEdit: _canEdit(t),
+        showProfit: widget.business.canSeeProfit,
       ),
-    );
+    ));
+    if (!mounted) return;
+    if (action == 'edit') await _openForm(d, existing: t);
+    if (action == 'delete') await _confirmDelete(t);
   }
 
   @override
@@ -272,8 +210,8 @@ class _CashPageState extends State<CashPage> {
             .where((r) => _typeFilter == null || r.type == _typeFilter)
             .toList();
 
-        // Kelompokkan per hari, terbaru dulu. Dalam satu hari, transaksi hutang
-        // tampil sebelum transaksi kas.
+        // Kelompokkan per hari, terbaru dulu. Dalam satu hari, semua jenis transaksi
+        // (lunas maupun hutang) diurutkan menurut jam dicatat, yang terbaru di atas.
         final days = {for (final r in rows) r.date}.toList()
           ..sort((a, b) => b.compareTo(a));
         final groups = <DateTime, List<_Row>>{
@@ -281,7 +219,7 @@ class _CashPageState extends State<CashPage> {
             day: [
               for (final r in rows)
                 if (r.date == day) r
-            ],
+            ]..sort((a, b) => b.time.compareTo(a.time)),
         };
 
         return Scaffold(
@@ -303,7 +241,8 @@ class _CashPageState extends State<CashPage> {
                         onNext: () => _shiftMonth(1),
                       ),
                       const SizedBox(height: 12),
-                      _SummaryCard(summary: d.summary),
+                      _SummaryCard(
+                          summary: d.summary, business: widget.business),
                       const SizedBox(height: 16),
                       Wrap(spacing: 8, children: [
                         for (final f in const <(String?, String)>[
@@ -319,11 +258,9 @@ class _CashPageState extends State<CashPage> {
                           ),
                       ]),
                       if (rows.isEmpty)
-                        EmptyState(
+                        const EmptyState(
                           icon: Icons.receipt_long_rounded,
                           title: 'Belum ada transaksi',
-                          actionLabel: 'Catat sekarang',
-                          onAction: () => _choose(d),
                         ),
                       for (final entry in groups.entries) ...[
                         _DayHeader(
@@ -356,9 +293,8 @@ class _CashPageState extends State<CashPage> {
                                   tx: entry.value[i].tx!,
                                   category:
                                       catName[entry.value[i].tx!.categoryId],
-                                  who: d.names[entry.value[i].tx!.createdBy],
-                                  onTap: () =>
-                                      _showActions(d, entry.value[i].tx!),
+                                  onTap: () => _openTx(d, entry.value[i].tx!,
+                                      catName[entry.value[i].tx!.categoryId]),
                                 ),
                             ],
                           ]),
@@ -370,11 +306,6 @@ class _CashPageState extends State<CashPage> {
               ),
             ),
           ]),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _choose(d),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Catat'),
-          ),
         );
       },
     );
@@ -394,14 +325,9 @@ class _CreditTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = debt.isReceivable ? Brand.receivable : Brand.payable;
-    final title =
-        debt.isSale ? 'Penjualan' : (debt.isReceivable ? 'Piutang' : 'Utang');
-    final sub = [
-      contact,
-      if (debt.isSale)
-        '${debt.profit >= 0 ? 'Untung' : 'Rugi'} ${rupiah(debt.profit.abs())}',
-      if (debt.note != null) debt.note!,
-    ].join(' · ');
+    final title = debt.isSale
+        ? 'Penjualan utang'
+        : (debt.isReceivable ? 'Piutang' : 'Utang');
     final status = debt.settled
         ? 'Lunas'
         : (debt.paid > 0 ? 'Sisa ${rupiah(debt.remaining)}' : 'Belum lunas');
@@ -415,7 +341,7 @@ class _CreditTile extends StatelessWidget {
       title: title,
       amount: rupiah(debt.amount),
       amountColor: tone,
-      sub: sub,
+      sub: clockId(debt.createdAt),
       status: status,
       statusColor: statusColor,
       onTap: onTap,
@@ -461,23 +387,41 @@ class _MonthPill extends StatelessWidget {
   }
 }
 
+/// Ringkasan bulan di atas daftar Transaksi.
+/// Pembukuan Usaha: Pemasukan, Pengeluaran, Laba (Staf hanya Pemasukan).
+/// Pembukuan Pribadi: Masuk, Keluar, Selisih.
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.summary});
+  const _SummaryCard({required this.summary, required this.business});
 
   final Summary summary;
+  final Business business;
 
   @override
   Widget build(BuildContext context) {
-    final net = summary.totalIn - summary.totalOut;
+    final List<Widget> metrics;
+    if (business.isPersonal) {
+      final net = summary.totalIn - summary.totalOut;
+      metrics = [
+        _Metric('Masuk', summary.totalIn, Brand.income),
+        _Metric('Keluar', summary.totalOut, Brand.expense),
+        _Metric('Selisih', net, net >= 0 ? Brand.income : Brand.expense),
+      ];
+    } else if (business.canSeeProfit) {
+      metrics = [
+        _Metric('Pemasukan', summary.incomeTotal, Brand.income),
+        _Metric('Pengeluaran', summary.expenseTotal, Brand.expense),
+        _Metric(summary.net >= 0 ? 'Laba' : 'Rugi', summary.net.abs(),
+            summary.net >= 0 ? profitColor(context) : Brand.expense),
+      ];
+    } else {
+      metrics = [_Metric('Pemasukan', summary.incomeTotal, Brand.income)];
+    }
     return SoftCard(
       child: Row(children: [
-        Expanded(child: _Metric('Masuk', summary.totalIn, Brand.income)),
-        const SizedBox(height: 36, child: VerticalDivider()),
-        Expanded(child: _Metric('Keluar', summary.totalOut, Brand.expense)),
-        const SizedBox(height: 36, child: VerticalDivider()),
-        Expanded(
-            child: _Metric(
-                'Selisih', net, net >= 0 ? Brand.income : Brand.expense)),
+        for (var i = 0; i < metrics.length; i++) ...[
+          if (i > 0) const SizedBox(height: 36, child: VerticalDivider()),
+          Expanded(child: metrics[i]),
+        ],
       ]),
     );
   }
@@ -545,33 +489,23 @@ class _DayHeader extends StatelessWidget {
 
 class _TxTile extends StatelessWidget {
   const _TxTile(
-      {required this.tx,
-      required this.category,
-      required this.who,
-      required this.onTap});
+      {required this.tx, required this.category, required this.onTap});
 
   final CashTx tx;
   final String? category;
-  final String? who;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = amountColor(tx.isIn);
-    final sub = [
-      if (tx.isSale)
-        '${tx.profit >= 0 ? 'Untung' : 'Rugi'} ${rupiah(tx.profit.abs())}',
-      if (tx.note != null) tx.note!,
-      if (who != null) who!,
-      if (tx.isAuto) 'otomatis',
-    ].join(' · ');
+    // Daftar hanya menampilkan jenis dan jam; rincian ada di halaman detail.
     return EntryRow(
       icon: categoryIcon(category, income: tx.isIn),
       iconColor: color,
       title: category ?? 'Tanpa kategori',
       amount: '${tx.isIn ? '+' : '-'}${rupiah(tx.amount)}',
       amountColor: color,
-      sub: sub,
+      sub: tx.createdAt == null ? null : clockId(tx.createdAt!),
       onTap: onTap,
     );
   }

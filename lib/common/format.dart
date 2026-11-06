@@ -91,6 +91,13 @@ String dateId(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
 String timeId(DateTime d) =>
     '${d.day} ${_months[d.month - 1].substring(0, 3)} ${d.year} ${_two(d.hour)}:${_two(d.minute)}';
 
+/// "14:05"
+String clockId(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
+
+/// "3 November 2026, 14:05" bila jam diketahui, selain itu hanya tanggalnya.
+String dateTimeId(DateTime date, [DateTime? at]) =>
+    at == null ? dateId(date) : '${dateId(date)}, ${clockId(at)}';
+
 /// "Hari ini", "Kemarin", atau "Senin, 3 Nov".
 String dayLabel(DateTime d) {
   final now = DateTime.now();

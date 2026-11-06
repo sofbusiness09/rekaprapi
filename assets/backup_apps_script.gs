@@ -20,12 +20,19 @@
 
 const TOKEN = '__KODE_RAHASIA__';
 
+// Versi skrip. RekapRapi memeriksanya dan mengajak memperbarui bila skrip Anda lebih lama.
+// 1 = backup saja; 2 = backup + data pemulihan (untuk Pulihkan dari Google Sheet).
+const SCRIPT_VERSION = 2;
+
+// Lembar tersembunyi berisi data lengkap untuk pemulihan. Jangan diubah atau dihapus.
+const RECOVERY_SHEET = '_Pemulihan';
+
 // Batas Google Sheets adalah 10 juta sel per spreadsheet; sisakan ruang untuk lembar lain.
 const MAX_CELLS = 5000000;
 
 // Dibuka dari browser untuk memeriksa bahwa penerapan berhasil.
 function doGet() {
-  return json_({ ok: true, app: 'RekapRapi Backup', message: 'Siap menerima backup.' });
+  return json_({ ok: true, app: 'RekapRapi Backup', version: SCRIPT_VERSION, message: 'Siap menerima backup.' });
 }
 
 function doPost(e) {
@@ -40,11 +47,15 @@ function doPost(e) {
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (body.ping) {
-      return json_({ ok: true, ping: true, spreadsheetUrl: ss.getUrl() });
+      return json_({ ok: true, ping: true, version: SCRIPT_VERSION, spreadsheetUrl: ss.getUrl() });
+    }
+    if (body.read) {
+      return readRecovery_(ss);
     }
 
     const sheets = body.sheets || [];
-    let cells = 0;
+    const recovery = body.recovery && Array.isArray(body.recovery.chunks) ? body.recovery : null;
+    let cells = recovery ? recovery.chunks.length * 2 + 2 : 0;
     sheets.forEach(function (s) {
       const rows = s.rows || [];
       const cols = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
@@ -62,11 +73,15 @@ function doPost(e) {
       sheets.forEach(function (s) {
         counts[sheetName_(s.name)] = writeSheet_(ss, s);
       });
+      // Data pemulihan ditulis terakhir; bila gagal di sini, lembar biasa sudah tersimpan.
+      const recoveryChunks = recovery ? writeRecovery_(ss, recovery) : 0;
       SpreadsheetApp.flush();
       return json_({
         ok: true,
+        version: SCRIPT_VERSION,
         spreadsheetUrl: ss.getUrl(),
         sheets: counts,
+        recoveryChunks: recoveryChunks,
         at: new Date().toISOString(),
       });
     } finally {
@@ -120,6 +135,49 @@ function writeSheet_(ss, spec) {
   sh.getRange(1, 1, 1, cols).setFontWeight('bold');
   if (grid.length <= 1000) sh.autoResizeColumns(1, cols);
   return grid.length - 1;
+}
+
+// Menulis data pemulihan: satu potongan teks per baris (batas satu sel ~50.000 karakter,
+// jadi aplikasi memotongnya). Lembar disembunyikan agar tidak mengganggu.
+function writeRecovery_(ss, rec) {
+  const sh = ss.getSheetByName(RECOVERY_SHEET) || ss.insertSheet(RECOVERY_SHEET);
+  sh.clear();
+  const chunks = rec.chunks.map(function (c) { return String(c); });
+  const grid = [['RekapRapi pemulihan (jangan diubah)', String(rec.format || 1), new Date().toISOString()]];
+  chunks.forEach(function (c, i) { grid.push([i + 1, c, '']); });
+
+  if (sh.getMaxRows() < grid.length) {
+    sh.insertRowsAfter(sh.getMaxRows(), grid.length - sh.getMaxRows());
+  }
+  if (sh.getMaxColumns() < 3) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), 3 - sh.getMaxColumns());
+  }
+  sh.getRange(1, 1, grid.length, 3).setNumberFormat('@');
+  sh.getRange(1, 1, grid.length, 3).setValues(grid);
+  sh.hideSheet();
+  return chunks.length;
+}
+
+// Membaca data pemulihan untuk fitur Pulihkan dari Google Sheet.
+function readRecovery_(ss) {
+  const sh = ss.getSheetByName(RECOVERY_SHEET);
+  if (!sh || sh.getLastRow() < 2) {
+    return json_({
+      ok: false,
+      code: 'no_recovery',
+      error: 'Belum ada data pemulihan di Google Sheet ini. Jalankan Backup sekali dengan skrip terbaru.',
+    });
+  }
+  const head = sh.getRange(1, 1, 1, 3).getValues()[0];
+  const rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
+  return json_({
+    ok: true,
+    version: SCRIPT_VERSION,
+    format: Number(head[1]) || 1,
+    savedAt: String(head[2] || ''),
+    spreadsheetUrl: ss.getUrl(),
+    chunks: rows.map(function (r) { return String(r[1]); }),
+  });
 }
 
 function json_(obj) {

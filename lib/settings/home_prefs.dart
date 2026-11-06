@@ -41,6 +41,7 @@ class HomePrefs {
     this.txOut = true,
     this.txCredit = false,
     this.txDebtCash = false,
+    this.showCashBalance = false,
   });
 
   /// Saldo kas (angka besar).
@@ -83,6 +84,10 @@ class HomePrefs {
 
   /// Kas otomatis dari utang piutang: pemberian, pelunasan, penerimaan, pembayaran.
   final bool txDebtCash;
+
+  /// Pembukuan Usaha: tampilkan Saldo Kas (uang di tangan). Bawaannya disembunyikan;
+  /// yang utama adalah Pemasukan, Pengeluaran, dan Laba.
+  final bool showCashBalance;
 
   static const countOptions = [5, 8, 10, 15];
 
@@ -143,6 +148,7 @@ class HomePrefs {
     bool? txOut,
     bool? txCredit,
     bool? txDebtCash,
+    bool? showCashBalance,
   }) =>
       HomePrefs(
         showBalance: showBalance ?? this.showBalance,
@@ -162,6 +168,7 @@ class HomePrefs {
         txOut: txOut ?? this.txOut,
         txCredit: txCredit ?? this.txCredit,
         txDebtCash: txDebtCash ?? this.txDebtCash,
+        showCashBalance: showCashBalance ?? this.showCashBalance,
       );
 
   Map<String, dynamic> toJson() => {
@@ -182,6 +189,7 @@ class HomePrefs {
         'txOut': txOut,
         'txCredit': txCredit,
         'txDebtCash': txDebtCash,
+        'showCashBalance': showCashBalance,
       };
 
   /// Nilai yang hilang atau tidak dikenal memakai bawaan.
@@ -210,6 +218,7 @@ class HomePrefs {
       txOut: b('txOut'),
       txCredit: b('txCredit', false),
       txDebtCash: b('txDebtCash', false),
+      showCashBalance: b('showCashBalance', false),
     );
   }
 

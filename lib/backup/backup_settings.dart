@@ -13,6 +13,7 @@ class BackupSettings {
     this.lastBackupAt,
     this.lastStatus,
     this.lastSummary,
+    this.autoDaily = true,
   });
 
   final String scriptUrl;
@@ -25,6 +26,10 @@ class BackupSettings {
 
   /// Nama lembar -> jumlah baris pada backup terakhir.
   final Map<String, int>? lastSummary;
+
+  /// Backup otomatis harian: dijalankan aplikasi saat dibuka bila backup terakhir
+  /// sudah lebih dari 24 jam.
+  final bool autoDaily;
 
   bool get lastOk => lastStatus == 'ok';
 
@@ -39,6 +44,7 @@ class BackupSettings {
             ? null
             : DateTime.parse(m['last_backup_at'] as String).toLocal(),
         lastStatus: m['last_status'] as String?,
+        autoDaily: (m['auto_daily'] as bool?) ?? true,
         lastSummary: m['last_summary'] == null
             ? null
             : {
@@ -84,6 +90,13 @@ class BackupSettingsRepository {
       'spreadsheet_url': spreadsheetUrl,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'business_id');
+  }
+
+  Future<void> setAutoDaily(bool value) async {
+    await _db.from('backup_settings').update({
+      'auto_daily': value,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('business_id', businessId);
   }
 
   Future<void> recordSuccess(BackupResult r) async {

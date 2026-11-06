@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../business/business.dart';
+import '../cash/cash_repository.dart';
+import '../common/detail_rows.dart';
 import '../common/format.dart';
+import '../theme/app_theme.dart';
 import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
@@ -28,9 +31,13 @@ class DebtDetailPage extends StatefulWidget {
 }
 
 class _Loaded {
-  _Loaded(this.debt, this.payments);
+  _Loaded(this.debt, this.payments, this.contact, this.recorder);
   final Debt? debt;
   final List<Payment> payments;
+  final Contact? contact;
+
+  /// Nama pencatat, bila diketahui.
+  final String? recorder;
 }
 
 class _DebtDetailPageState extends State<DebtDetailPage> {
@@ -54,7 +61,20 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     final debt = await widget.repo.debt(widget.debtId);
     final payments =
         debt == null ? <Payment>[] : await widget.repo.payments(widget.debtId);
-    return _Loaded(debt, payments);
+    Contact? contact;
+    String? recorder;
+    if (debt != null) {
+      try {
+        for (final c in await widget.repo.contacts()) {
+          if (c.id == debt.contactId) contact = c;
+        }
+        final names = await CashRepository(widget.business.id).memberNames();
+        recorder = names[debt.createdBy];
+      } catch (_) {
+        // Data pelengkap; rincian utang tetap tampil tanpa nomor dan pencatat.
+      }
+    }
+    return _Loaded(debt, payments, contact, recorder);
   }
 
   void _reload() {
@@ -176,7 +196,8 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
     if (debt == null) {
       return const Center(child: Text('Catatan ini sudah dihapus.'));
     }
-    final payments = snap.data!.payments;
+    final data = snap.data!;
+    final payments = data.payments;
     final theme = Theme.of(context);
 
     return ListView(
@@ -199,34 +220,38 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
             ]),
           ),
         ),
+        const SizedBox(height: 12),
+        DetailCard(rows: [
+          if (data.contact?.phone != null)
+            DetailRow('Nomor telepon', data.contact!.phone!),
+          if (debt.isSale) ...[
+            DetailRow('Total penjualan',
+                rupiah(debt.amount + debt.discountAmount - debt.extraFee)),
+            if (debt.discountAmount > 0)
+              DetailRow('Diskon', '-${rupiah(debt.discountAmount)}'),
+            if (debt.extraFee > 0)
+              DetailRow('Biaya tambahan', rupiah(debt.extraFee)),
+            if (widget.business.canSeeProfit) ...[
+              DetailRow('Modal', rupiah(debt.costAmount), color: Brand.expense),
+              DetailRow(debt.profit >= 0 ? 'Keuntungan' : 'Kerugian',
+                  rupiah(debt.profit.abs()),
+                  color:
+                      debt.profit >= 0 ? profitColor(context) : Brand.expense,
+                  bold: true),
+            ],
+          ],
+          DetailRow('Status', debt.settled ? 'Lunas' : 'Belum lunas',
+              color: debt.settled ? Brand.income : Brand.pending, bold: true),
+          DetailRow(
+              'Tanggal dan jam', dateTimeId(debt.debtDate, debt.createdAt)),
+          if (debt.dueDate != null)
+            DetailRow(debt.overdue ? 'Lewat tempo' : 'Jatuh tempo',
+                dateId(debt.dueDate!),
+                color: debt.overdue ? Brand.expense : null),
+          if (data.recorder != null) DetailRow('Dicatat oleh', data.recorder!),
+          if (debt.note != null) DetailRow('Catatan', debt.note!),
+        ]),
         const SizedBox(height: 8),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.event_outlined),
-          title: Text('Tanggal ${dateId(debt.debtDate)}'),
-          subtitle: debt.dueDate == null
-              ? null
-              : Text(
-                  '${debt.overdue ? 'Lewat tempo' : 'Jatuh tempo'} ${dateId(debt.dueDate!)}',
-                  style: TextStyle(
-                      color: debt.overdue ? Colors.red.shade700 : null),
-                ),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.account_balance_wallet_outlined),
-          title: Text(debt.cashMoved
-              ? (debt.isReceivable
-                  ? 'Uang dipinjamkan (kas keluar tercatat)'
-                  : 'Uang diterima (kas masuk tercatat)')
-              : 'Tanpa perpindahan uang saat dicatat'),
-        ),
-        if (debt.note != null)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.notes),
-            title: Text(debt.note!),
-          ),
         const Divider(),
         Text('Riwayat pembayaran', style: theme.textTheme.titleMedium),
         if (payments.isEmpty)

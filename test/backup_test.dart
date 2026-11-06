@@ -228,7 +228,7 @@ void main() {
       final sale = kas[1];
       expect(sale.sublist(0, 4), ['2026-11-01', 'Masuk', 'Penjualan', 95000]);
       // Total penjualan 100.000, modal 60.000, diskon 10.000, ongkir 5.000, untung 30.000.
-      expect(sale.sublist(7), [100000, 60000, 10000, 5000, 30000]);
+      expect(sale.sublist(7), [100000, 60000, 10000, 5000, 35000]);
       expect(sale[6], 'Manual');
 
       final plain = kas[2];

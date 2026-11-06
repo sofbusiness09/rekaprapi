@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/amount_field.dart';
+import '../common/dialogs.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/contact_picker.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
+import '../settings/settings_repository.dart';
 import '../theme/app_theme.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
@@ -28,6 +31,8 @@ Future<bool> showCashForm(
   CashTx? existing,
   String initialType = 'in',
   bool lockType = false,
+  bool allowSale = true,
+  bool showProfit = true,
 }) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
@@ -41,6 +46,8 @@ Future<bool> showCashForm(
       existing: existing,
       initialType: existing?.type ?? initialType,
       lockType: lockType && existing == null,
+      allowSale: allowSale,
+      showProfit: showProfit,
     ),
   );
   return saved ?? false;
@@ -54,6 +61,8 @@ class _CashForm extends StatefulWidget {
     required this.existing,
     required this.initialType,
     required this.lockType,
+    required this.allowSale,
+    required this.showProfit,
   });
 
   final CashRepository repo;
@@ -64,6 +73,12 @@ class _CashForm extends StatefulWidget {
 
   /// Jenis (pemasukan/pengeluaran) sudah dipilih sebelumnya, jadi tidak ditanyakan lagi.
   final bool lockType;
+
+  /// false di pembukuan pribadi: tanpa penjualan, harga modal, dan keuntungan.
+  final bool allowSale;
+
+  /// Staf mengisi modal tetapi tidak melihat keuntungan.
+  final bool showProfit;
 
   @override
   State<_CashForm> createState() => _CashFormState();
@@ -95,9 +110,12 @@ class _CashFormState extends State<_CashForm> {
   String? _netFor;
   bool _credit = false;
 
-  /// Pemasukan = penjualan barang (ada harga modal dan keuntungan). Bawaannya aktif,
-  /// baik Lunas maupun Hutang; matikan untuk pemasukan biasa.
-  late bool _sale = widget.existing?.isSale ?? true;
+  /// Pemasukan berupa Penjualan (modal wajib, ada keuntungan) atau Penjualan lainnya
+  /// (tanpa modal; seluruhnya menjadi keuntungan). Bawaannya Penjualan.
+  late bool _sale = widget.allowSale && (widget.existing?.isSale ?? true);
+
+  /// Diskon diisi sebagai persen (true) atau nominal rupiah (false).
+  bool _discountPercent = false;
   DateTime? _due;
   bool _busy = false;
 
@@ -107,22 +125,53 @@ class _CashFormState extends State<_CashForm> {
   bool get _editing => widget.existing != null;
   Color get _tone => amountColor(_isIn);
 
+  // Kategori bisa bertambah dari formulir ini (chip + Kategori).
+  late List<Category> _categories = widget.categories;
+
   List<Category> get _options =>
-      widget.categories.where((c) => c.type == _type).toList();
+      _categories.where((c) => c.type == _type).toList();
+
+  Future<void> _addCategory() async {
+    final name = await askText(context, title: 'Kategori baru', label: 'Nama');
+    if (name == null || name.isEmpty || !mounted) return;
+    try {
+      await SettingsRepository(widget.repo.businessId).addCategory(name, _type);
+      final all = await widget.repo.categories();
+      if (!mounted) return;
+      setState(() {
+        _categories = all.where((c) => !c.isSystem).toList();
+        for (final c in _categories) {
+          if (c.type == _type && c.name == name.trim()) _categoryId = c.id;
+        }
+      });
+    } on PostgrestException catch (e) {
+      _toast(e.message);
+    }
+  }
 
   /// Mode penjualan: ada harga modal, diskon, biaya tambahan, dan keuntungan.
-  bool get _saleMode => _isIn && _sale;
+  bool get _saleMode => widget.allowSale && _isIn && _sale;
 
   int get _gross => parseAmount(_amount.text) ?? 0;
   int get _costValue => parseAmount(_cost.text) ?? 0;
-  int get _discountValue => parseAmount(_discount.text) ?? 0;
+
+  /// Persen yang diketik (0 sampai 100); koma atau titik desimal sama-sama diterima.
+  double get _percent {
+    final v = double.tryParse(_discount.text.trim().replaceAll(',', '.')) ?? 0;
+    return v.clamp(0, 100).toDouble();
+  }
+
+  /// Diskon dalam rupiah, dari nominal atau dari persen Total Penjualan.
+  int get _discountValue => _discountPercent
+      ? (_gross * _percent / 100).round()
+      : (parseAmount(_discount.text) ?? 0);
   int get _feeValue => parseAmount(_fee.text) ?? 0;
 
   /// Uang yang diterima = Total Penjualan - Diskon + Biaya Tambahan.
   int get _received => _gross - _discountValue + _feeValue;
 
-  /// Keuntungan = Total Penjualan - Diskon - Harga Modal.
-  int get _profit => _gross - _discountValue - _costValue;
+  /// Keuntungan = uang diterima - Harga Modal (biaya tambahan ikut sebagai pemasukan).
+  int get _profit => _received - _costValue;
 
   @override
   void initState() {
@@ -207,6 +256,9 @@ class _CashFormState extends State<_CashForm> {
         return 'Diskon tidak boleh melebihi total penjualan.';
       }
       if (_received <= 0) return 'Jumlah yang diterima harus lebih dari 0.';
+      if (_costValue <= 0) {
+        return 'Isi Harga Modal lebih dari 0. Tanpa modal, pilih Penjualan lainnya.';
+      }
     }
     if (_credit) return _contact.validate();
     return null;
@@ -334,15 +386,20 @@ class _CashFormState extends State<_CashForm> {
                 onSelectionChanged: (s) => setState(() => _credit = s.first),
               ),
             ],
-            if (_isIn)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _sale,
-                onChanged: (v) => setState(() => _sale = v),
-                title: const Text('Penjualan barang'),
+            if (widget.allowSale && _isIn) ...[
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: true, label: Text('Penjualan')),
+                  ButtonSegment(value: false, label: Text('Penjualan lainnya')),
+                ],
+                selected: {_sale},
+                onSelectionChanged: (s) => setState(() => _sale = s.first),
               ),
-            if (sale) ...[
-              const SizedBox(height: 8),
+            ],
+            if (sale && widget.showProfit) ...[
+              const SizedBox(height: 12),
               _ProfitCard(profit: _profit),
             ],
             const SizedBox(height: 16),
@@ -372,10 +429,14 @@ class _CashFormState extends State<_CashForm> {
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   children: [
-                    _MoneyField(
+                    _DiscountField(
                       controller: _discount,
-                      label: 'Diskon',
-                      color: Brand.expense,
+                      percent: _discountPercent,
+                      amount: _discountValue,
+                      onModeChanged: (p) => setState(() {
+                        _discountPercent = p;
+                        _discount.clear();
+                      }),
                       onChanged: () => setState(() {}),
                     ),
                     const SizedBox(height: 12),
@@ -393,8 +454,7 @@ class _CashFormState extends State<_CashForm> {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(children: [
                   Expanded(
-                    child: Text(
-                        _credit ? 'Total piutang' : 'Uang diterima (kas masuk)',
+                    child: Text(_credit ? 'Total piutang' : 'Pemasukan',
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted)),
                   ),
@@ -462,11 +522,11 @@ class _CashFormState extends State<_CashForm> {
                   child: Text(_due == null ? '-' : dateId(_due!)),
                 ),
               ),
-            ] else ...[
+            ] else if (!sale) ...[
               Text('Kategori', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in _options)
+                for (final c in _options.where((c) => !c.isSale))
                   ChoiceChip(
                     label: Text(c.name),
                     avatar: Icon(categoryIcon(c.name, income: _isIn), size: 18),
@@ -474,6 +534,11 @@ class _CashFormState extends State<_CashForm> {
                     onSelected: (s) =>
                         setState(() => _categoryId = s ? c.id : null),
                   ),
+                ActionChip(
+                  avatar: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Kategori'),
+                  onPressed: _addCategory,
+                ),
               ]),
             ],
             const SizedBox(height: 16),
@@ -617,6 +682,67 @@ class _AmountBox extends StatelessWidget {
           focusedBorder: border(2.2, color),
         ),
       ),
+    ]);
+  }
+}
+
+/// Diskon: pilih nominal (Rp) atau persen (%) dari Total Penjualan.
+class _DiscountField extends StatelessWidget {
+  const _DiscountField({
+    required this.controller,
+    required this.percent,
+    required this.amount,
+    required this.onModeChanged,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final bool percent;
+
+  /// Diskon dalam rupiah (hasil hitungan bila persen).
+  final int amount;
+  final ValueChanged<bool> onModeChanged;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SegmentedButton<bool>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: false, label: Text('Diskon Rp')),
+          ButtonSegment(value: true, label: Text('Diskon %')),
+        ],
+        selected: {percent},
+        onSelectionChanged: (s) => onModeChanged(s.first),
+      ),
+      const SizedBox(height: 12),
+      if (percent)
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+          ],
+          onChanged: (_) => onChanged(),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600, color: Brand.expense),
+          decoration: InputDecoration(
+            labelText: 'Diskon',
+            hintText: '0',
+            suffixText: '%',
+            helperText: amount > 0 ? '= ${rupiah(amount)}' : null,
+          ),
+        )
+      else
+        _MoneyField(
+          controller: controller,
+          label: 'Diskon',
+          color: Brand.expense,
+          onChanged: onChanged,
+        ),
     ]);
   }
 }

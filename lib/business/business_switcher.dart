@@ -26,12 +26,61 @@ Future<void> runWithToast(
   }
 }
 
+/// Tambah pembukuan: pilih jenisnya (Usaha atau Pribadi), lalu beri nama.
 Future<void> promptCreateBusiness(
     BuildContext context, BusinessController controller) async {
-  final name = await askText(context, title: 'Usaha baru', label: 'Nama usaha');
+  final kind = await showModalBottomSheet<BusinessKind>(
+    context: context,
+    showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 480),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Jenis pembukuan',
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+          ),
+          ListTile(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            leading: const IconBadge(Icons.storefront_rounded,
+                color: Brand.income, size: 42),
+            title: const Text('Pembukuan Usaha',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Penjualan, modal, keuntungan, utang piutang'),
+            onTap: () => Navigator.pop(sheetContext, BusinessKind.business),
+          ),
+          ListTile(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            leading: const IconBadge(Icons.account_balance_wallet_rounded,
+                color: Brand.info, size: 42),
+            title: const Text('Pembukuan Pribadi',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Pemasukan dan pengeluaran pribadi'),
+            onTap: () => Navigator.pop(sheetContext, BusinessKind.personal),
+          ),
+        ]),
+      ),
+    ),
+  );
+  if (kind == null || !context.mounted) return;
+  final name = await askText(context,
+      title: kind == BusinessKind.personal
+          ? 'Pembukuan pribadi'
+          : 'Pembukuan usaha',
+      label: 'Nama pembukuan');
   if (name == null || name.isEmpty || !context.mounted) return;
-  await runWithToast(context, () => controller.create(name),
-      done: 'Usaha dibuat.');
+  await runWithToast(context, () => controller.create(name, kind: kind),
+      done: 'Pembukuan dibuat.');
 }
 
 Future<void> promptJoinByCode(
@@ -105,12 +154,12 @@ class _SwitcherSheet extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text('Pindah usaha',
+                  child: Text('Pindah pembukuan',
                       style: theme.textTheme.titleLarge
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ),
                 if (mine.isNotEmpty) ...[
-                  _SectionLabel('Usaha saya', muted),
+                  _SectionLabel('Pembukuan Saya', muted),
                   for (final b in mine) _businessTile(context, theme, b),
                 ],
                 if (shared.isNotEmpty) ...[
@@ -156,9 +205,9 @@ class _SwitcherSheet extends StatelessWidget {
                 ListTile(
                   leading: const IconBadge(Icons.add_rounded,
                       color: Brand.income, size: 42),
-                  title: const Text('Tambah usaha',
+                  title: const Text('Tambah pembukuan',
                       style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Maksimal 5 usaha milik Anda'),
+                  subtitle: const Text('Maksimal 5 pembukuan milik Anda'),
                   onTap: () {
                     Navigator.pop(context);
                     promptCreateBusiness(parentContext, controller);
@@ -207,7 +256,7 @@ class _SwitcherSheet extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(roleNames[b.role] ?? b.role),
+      subtitle: Text('${b.kind.label} · ${roleNames[b.role] ?? b.role}'),
       trailing: selected
           ? const Icon(Icons.check_circle_rounded, color: Brand.income)
           : null,

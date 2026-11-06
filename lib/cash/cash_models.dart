@@ -41,6 +41,7 @@ class CashTx {
     this.costAmount = 0,
     this.discountAmount = 0,
     this.extraFee = 0,
+    this.createdAt,
   });
 
   final String id;
@@ -60,6 +61,9 @@ class CashTx {
   final int discountAmount;
   final int extraFee;
 
+  /// Saat dicatat (jam), dipakai mengurutkan transaksi dalam satu hari.
+  final DateTime? createdAt;
+
   bool get isIn => type == 'in';
 
   /// Dibuat otomatis oleh utang piutang; tidak bisa diubah langsung.
@@ -68,13 +72,13 @@ class CashTx {
   /// Total Penjualan sebelum diskon dan tanpa biaya tambahan.
   int get saleTotal => amount + discountAmount - extraFee;
 
-  /// Keuntungan = Total Penjualan - Diskon - Harga Modal.
-  int get profit => amount - extraFee - costAmount;
+  /// Keuntungan = uang diterima - Harga Modal. Biaya tambahan ikut sebagai pemasukan.
+  int get profit => amount - costAmount;
 
   /// Kolom yang dibaca dari tabel cash_transactions.
   static const columns =
       'id, type, amount, note, txn_date, category_id, debt_id, debt_payment_id, created_by, '
-      'is_sale, cost_amount, discount_amount, extra_fee';
+      'is_sale, cost_amount, discount_amount, extra_fee, created_at';
 
   factory CashTx.fromMap(Map<String, dynamic> m) => CashTx(
         id: m['id'] as String,
@@ -90,6 +94,9 @@ class CashTx {
         costAmount: ((m['cost_amount'] as num?) ?? 0).toInt(),
         discountAmount: ((m['discount_amount'] as num?) ?? 0).toInt(),
         extraFee: ((m['extra_fee'] as num?) ?? 0).toInt(),
+        createdAt: m['created_at'] == null
+            ? null
+            : DateTime.parse(m['created_at'] as String).toLocal(),
       );
 }
 
@@ -102,6 +109,14 @@ class Summary {
     required this.payableOpen,
     this.salesTotal = 0,
     this.profit = 0,
+    this.incomeSales = 0,
+    this.incomeOther = 0,
+    this.incomeTotal = 0,
+    this.expenseCost = 0,
+    this.expenseOther = 0,
+    this.expenseCredit = 0,
+    this.expenseTotal = 0,
+    this.net = 0,
   });
 
   final int totalIn;
@@ -113,8 +128,23 @@ class Summary {
   /// Total penjualan bersih pada periode (setelah diskon, tanpa biaya tambahan).
   final int salesTotal;
 
-  /// Keuntungan penjualan pada periode.
+  /// Keuntungan penjualan pada periode (penjualan - modal).
   final int profit;
+
+  // Pembukuan Usaha: Pemasukan = penjualan + penjualan lainnya; Pengeluaran = modal
+  // barang + pengeluaran biasa (lunas dan hutang); Laba = Pemasukan - Pengeluaran.
+  final int incomeSales;
+  final int incomeOther;
+  final int incomeTotal;
+  final int expenseCost;
+  final int expenseOther;
+
+  /// Bagian pengeluaran biasa yang berstatus hutang (sudah termasuk di [expenseOther]).
+  final int expenseCredit;
+  final int expenseTotal;
+
+  /// Laba (positif) atau rugi (negatif) periode.
+  final int net;
 
   factory Summary.fromMap(Map<String, dynamic> m) => Summary(
         totalIn: (m['total_in'] as num).toInt(),
@@ -124,6 +154,14 @@ class Summary {
         payableOpen: (m['payable_open'] as num).toInt(),
         salesTotal: ((m['sales_total'] as num?) ?? 0).toInt(),
         profit: ((m['profit'] as num?) ?? 0).toInt(),
+        incomeSales: ((m['income_sales'] as num?) ?? 0).toInt(),
+        incomeOther: ((m['income_other'] as num?) ?? 0).toInt(),
+        incomeTotal: ((m['income_total'] as num?) ?? 0).toInt(),
+        expenseCost: ((m['expense_cost'] as num?) ?? 0).toInt(),
+        expenseOther: ((m['expense_other'] as num?) ?? 0).toInt(),
+        expenseCredit: ((m['expense_credit'] as num?) ?? 0).toInt(),
+        expenseTotal: ((m['expense_total'] as num?) ?? 0).toInt(),
+        net: ((m['net'] as num?) ?? 0).toInt(),
       );
 }
 

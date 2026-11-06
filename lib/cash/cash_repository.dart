@@ -125,6 +125,37 @@ class CashRepository {
     return Summary.fromMap(Map<String, dynamic>.from(res as Map));
   }
 
+  /// Rekap per kategori untuk Pembukuan Usaha: totalnya sama dengan Pemasukan dan
+  /// Pengeluaran, termasuk irisan Modal barang dan pengeluaran hutang.
+  Future<List<Map<String, dynamic>>> plByCategory(
+      DateTime from, DateTime to) async {
+    final res = await _db.rpc('report_pl_by_category', params: {
+      'p_business': businessId,
+      'p_from': ymd(from),
+      'p_to': ymd(to),
+    });
+    return [for (final r in res as List) Map<String, dynamic>.from(r as Map)];
+  }
+
+  /// Pembukuan Usaha: pemasukan, pengeluaran, dan laba per hari, dipetakan ke
+  /// DailyPoint (cashIn = pemasukan, cashOut = pengeluaran, profit = laba).
+  Future<List<DailyPoint>> dailyPl(DateTime from, DateTime to) async {
+    final res = await _db.rpc('report_daily_pl', params: {
+      'p_business': businessId,
+      'p_from': ymd(from),
+      'p_to': ymd(to),
+    });
+    return [
+      for (final r in res as List)
+        DailyPoint(
+          parseYmd((r as Map)['day'] as String),
+          (r['income'] as num).toInt(),
+          (r['expense'] as num).toInt(),
+          (r['net'] as num).toInt(),
+        )
+    ];
+  }
+
   /// Satu titik per hari (hari tanpa transaksi bernilai 0) untuk grafik.
   Future<List<DailyPoint>> daily(DateTime from, DateTime to) async {
     final res = await _db.rpc('report_daily', params: {

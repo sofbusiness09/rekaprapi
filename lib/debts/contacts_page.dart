@@ -6,7 +6,6 @@ import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'contact_form.dart';
 import 'contact_page.dart';
-import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
 
@@ -99,60 +98,6 @@ class _ContactsPageState extends State<ContactsPage> {
   Future<void> _add() async {
     final c = await showContactForm(context, repo: widget.repo);
     if (c != null) widget.changes.value++;
-  }
-
-  /// Tombol Catat: pilih piutang atau utang, lalu isi formulir (siapa, berapa).
-  Future<void> _record(List<Contact> contacts) async {
-    final kind = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 480),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Catat apa?',
-                    style: Theme.of(sheetContext)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ),
-            ),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              leading: const IconBadge(Icons.call_received_rounded,
-                  color: Brand.receivable, size: 42),
-              title: const Text('Catat piutang',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(sheetContext, 'receivable'),
-            ),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              leading: const IconBadge(Icons.call_made_rounded,
-                  color: Brand.payable, size: 42),
-              title: const Text('Catat utang',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(sheetContext, 'payable'),
-            ),
-          ]),
-        ),
-      ),
-    );
-    if (kind == null || !mounted) return;
-    final saved = await showDebtForm(
-      context,
-      repo: widget.repo,
-      contacts: contacts,
-      initialKind: kind,
-      lockKind: true,
-    );
-    if (saved) widget.changes.value++;
   }
 
   Future<void> _open(Contact c) async {
@@ -281,19 +226,24 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                   ]),
                   const SizedBox(height: 12),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (final f in const <(_Filter, String)>[
-                      (_Filter.all, 'Semua'),
-                      (_Filter.receivable, 'Piutang'),
-                      (_Filter.payable, 'Utang'),
-                      (_Filter.settled, 'Lunas'),
-                    ])
-                      ChoiceChip(
-                        label: Text(f.$2),
-                        selected: _filter == f.$1,
-                        onSelected: (_) => setState(() => _filter = f.$1),
-                      ),
-                  ]),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      for (final f in const <(_Filter, String)>[
+                        (_Filter.all, 'Semua'),
+                        (_Filter.receivable, 'Piutang'),
+                        (_Filter.payable, 'Utang'),
+                        (_Filter.settled, 'Lunas'),
+                      ]) ...[
+                        ChoiceChip(
+                          label: Text(f.$2),
+                          selected: _filter == f.$1,
+                          onSelected: (_) => setState(() => _filter = f.$1),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ]),
+                  ),
                   const SizedBox(height: 12),
                   if (d.contacts.isEmpty)
                     EmptyState(
@@ -315,11 +265,6 @@ class _ContactsPageState extends State<ContactsPage> {
                 ],
               ),
             ),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _record(d.contacts),
-            icon: const Icon(Icons.edit_note_rounded),
-            label: const Text('Catat'),
           ),
         );
       },
@@ -409,12 +354,13 @@ class _ContactTile extends StatelessWidget {
         ? Brand.receivable
         : (net < 0 ? Brand.payable : theme.colorScheme.primary);
 
-    var sub = row.contact.phone ?? 'Belum ada nomor telepon';
+    // Nomor telepon ada di halaman kontak; daftar hanya menandai jatuh tempo.
+    var sub = '';
     Color? subColor;
     if (net != 0) {
       final due = row.nextDue;
       if (due != null) {
-        sub += ' · ${row.overdue ? 'lewat tempo' : 'tempo'} ${dateId(due)}';
+        sub = '${row.overdue ? 'Lewat tempo' : 'Tempo'} ${dateId(due)}';
         if (row.overdue) subColor = Brand.expense;
       }
     }
@@ -432,12 +378,13 @@ class _ContactTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
-            Text(sub,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: subColor ?? muted,
-                    fontWeight: subColor == null ? null : FontWeight.w600)),
+            if (sub.isNotEmpty)
+              Text(sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: subColor ?? muted,
+                      fontWeight: subColor == null ? null : FontWeight.w600)),
           ]),
         ),
         const SizedBox(width: 12),

@@ -14,7 +14,9 @@ function makeEnv() {
 
   class Sheet {
     constructor(name) { this.name = name; this.maxRows = 1000; this.maxCols = 26; this.reset(); }
-    reset() { this.cells = new Map(); this.textCols = new Set(); this.frozen = 0; this.boldRow = false; }
+    reset() { this.cells = new Map(); this.textCols = new Set(); this.frozen = 0; this.boldRow = false; this.hidden = false; }
+    hideSheet() { this.hidden = true; return this; }
+    getLastRow() { return this.lastRow; }
     clear() { this.reset(); return this; }
     getMaxRows() { return this.maxRows; }
     getMaxColumns() { return this.maxCols; }
@@ -29,6 +31,15 @@ function makeEnv() {
       }
       return {
         setNumberFormat(fmt) { if (fmt === '@') for (let i = 0; i < nc; i++) sheet.textCols.add(c + i); return this; },
+        getValues() {
+          const out = [];
+          for (let i = 0; i < nr; i++) {
+            const row = [];
+            for (let j = 0; j < nc; j++) { const v = sheet.cells.get((r + i) + ',' + (c + j)); row.push(v === undefined ? '' : v); }
+            out.push(row);
+          }
+          return out;
+        },
         setFontWeight(w) { if (r === 1 && w === 'bold') sheet.boldRow = true; return this; },
         setValues(v) {
           assert.strictEqual(v.length, nr, 'jumlah baris tidak sama');
@@ -181,6 +192,70 @@ test('data melebihi batas sel ditolak sebelum menulis', () => {
   assert.strictEqual(r.ok, false);
   assert(/terlalu besar/i.test(r.error));
   assert.strictEqual(store.sheets.size, 0);
+});
+
+test('doGet dan ping menyebut versi skrip', () => {
+  const { post, get } = load();
+  assert.strictEqual(get().version, 2);
+  assert.strictEqual(post({ token: TOKEN, ping: true }).version, 2);
+});
+
+test('backup dengan data pemulihan: lembar tersembunyi, potongan tersimpan, tidak dihitung sebagai baris', () => {
+  const { store, post } = load();
+  const chunks = ['{"format":1,"a":', '"b"}', 'x'.repeat(40000)];
+  const r = post({ token: TOKEN, sheets: [{ name: 'Kas', rows: [['T'], ['a']] }], recovery: { format: 1, chunks } });
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  assert.strictEqual(r.version, 2);
+  assert.strictEqual(r.recoveryChunks, 3);
+  assert.deepStrictEqual(Object.keys(r.sheets), ['Kas'], 'lembar pemulihan tidak masuk hitungan baris');
+  const sh = store.sheets.get('_Pemulihan');
+  assert(sh && sh.hidden === true, 'lembar pemulihan harus tersembunyi');
+  assert.strictEqual(sh.value(2, 2), chunks[0]);
+  assert.strictEqual(sh.value(4, 2).length, 40000);
+});
+
+test('membaca data pemulihan mengembalikan potongan sesuai urutan', () => {
+  const { post } = load();
+  const chunks = ['satu', 'dua', 'tiga'];
+  post({ token: TOKEN, sheets: [], recovery: { format: 1, chunks } });
+  const r = post({ token: TOKEN, read: true });
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  assert.deepStrictEqual(r.chunks, chunks);
+  assert.strictEqual(r.version, 2);
+  assert.strictEqual(r.format, 1);
+  assert(r.savedAt.length > 0);
+});
+
+test('membaca tanpa backup berdata pemulihan memberi galat yang jelas', () => {
+  const { post } = load();
+  const r = post({ token: TOKEN, read: true });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, 'no_recovery');
+});
+
+test('membaca dengan token salah ditolak dan tidak membocorkan data', () => {
+  const { post } = load();
+  post({ token: TOKEN, sheets: [], recovery: { format: 1, chunks: ['rahasia'] } });
+  const r = post({ token: 'salah', read: true });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.chunks, undefined);
+});
+
+test('backup ulang menimpa data pemulihan lama, bukan menambah', () => {
+  const { store, post } = load();
+  post({ token: TOKEN, sheets: [], recovery: { format: 1, chunks: ['a', 'b', 'c', 'd'] } });
+  post({ token: TOKEN, sheets: [], recovery: { format: 1, chunks: ['z'] } });
+  const r = post({ token: TOKEN, read: true });
+  assert.deepStrictEqual(r.chunks, ['z']);
+  assert.strictEqual(store.sheets.get('_Pemulihan').lastRow, 2);
+});
+
+test('data pemulihan yang sangat besar tidak menembus batas sel', () => {
+  const { post } = load();
+  const chunks = Array.from({ length: 3000 }, () => 'x'.repeat(30000));
+  const r = post({ token: TOKEN, sheets: [], recovery: { format: 1, chunks } });
+  assert.strictEqual(r.ok, true, JSON.stringify(r).slice(0, 200));
+  assert.strictEqual(post({ token: TOKEN, read: true }).chunks.length, 3000);
 });
 
 if (payloadPath) {

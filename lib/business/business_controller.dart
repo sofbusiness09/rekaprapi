@@ -40,7 +40,7 @@ class BusinessController extends ChangeNotifier {
       final results = await Future.wait(<Future<dynamic>>[
         _db
             .from('business_members')
-            .select('role, businesses(id, name)')
+            .select('role, businesses(id, name, kind)')
             .eq('user_id', user.id),
         _db
             .from('invitations')
@@ -66,6 +66,7 @@ class BusinessController extends ChangeNotifier {
               id: m['businesses']['id'] as String,
               name: m['businesses']['name'] as String,
               role: m['role'] as String,
+              kind: BusinessKind.parse(m['businesses']['kind'] as String?),
             ),
       ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -101,9 +102,11 @@ class BusinessController extends ChangeNotifier {
     }
   }
 
-  /// Membuat usaha baru dan langsung membukanya. Batas 5 usaha dijaga database.
-  Future<void> create(String name) async {
-    final id = await _db.rpc('create_business', params: {'p_name': name});
+  /// Membuat pembukuan baru dan langsung membukanya. Batas 5 pembukuan dijaga database.
+  Future<void> create(String name,
+      {BusinessKind kind = BusinessKind.business}) async {
+    final id = await _db.rpc('create_business',
+        params: {'p_name': name, 'p_kind': kind.apiValue});
     await load(preferId: id as String);
   }
 
@@ -124,11 +127,13 @@ class BusinessController extends ChangeNotifier {
     await load();
   }
 
+  /// Pembukuan baru hasil pemulihan dari Google Sheet: muat ulang dan langsung buka.
+  Future<void> afterRestore(String id) => load(preferId: id);
+
   /// Nama usaha berubah di Pengaturan.
   void rename(String id, String name) {
     businesses = [
-      for (final b in businesses)
-        b.id == id ? Business(id: b.id, name: name, role: b.role) : b,
+      for (final b in businesses) b.id == id ? b.copyWith(name: name) : b,
     ];
     if (current?.id == id) {
       current = businesses.firstWhere((b) => b.id == id);

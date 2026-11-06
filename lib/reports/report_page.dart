@@ -1,13 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../backup/backup_card.dart';
 import '../business/business.dart';
 import '../cash/cash_models.dart';
 import '../cash/cash_repository.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/debt_repository.dart';
+import '../settings/home_prefs.dart';
 import '../theme/app_theme.dart';
 import 'report_exporter.dart';
 
@@ -44,8 +44,11 @@ class ReportPage extends StatefulWidget {
 }
 
 class _Loaded {
-  _Loaded(this.summary, this.daily, this.byCategory);
+  _Loaded(this.summary, this.daily, this.byCategory, [this.previous]);
   final Summary summary;
+
+  /// Ringkasan periode sebelumnya, untuk perbandingan laba (null bila tidak dipakai).
+  final Summary? previous;
   final List<DailyPoint> daily;
   final List<Map<String, dynamic>> byCategory;
 }
@@ -81,13 +84,39 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   Future<_Loaded> _load() async {
+    final usaha = !widget.business.isPersonal;
+    final (pf, pt) = _previousRange();
     final r = await Future.wait([
       widget.cash.summary(_from, _to),
-      widget.cash.daily(_from, _to),
-      widget.cash.byCategory(_from, _to),
+      usaha ? widget.cash.dailyPl(_from, _to) : widget.cash.daily(_from, _to),
+      usaha
+          ? widget.cash.plByCategory(_from, _to)
+          : widget.cash.byCategory(_from, _to),
+      if (widget.business.canSeeProfit) widget.cash.summary(pf, pt),
     ]);
-    return _Loaded(r[0] as Summary, r[1] as List<DailyPoint>,
-        r[2] as List<Map<String, dynamic>>);
+    return _Loaded(
+        r[0] as Summary,
+        r[1] as List<DailyPoint>,
+        r[2] as List<Map<String, dynamic>>,
+        r.length > 3 ? r[3] as Summary : null);
+  }
+
+  /// Rentang tepat sebelum periode yang dipilih: bulan lalu, tahun lalu, atau rentang sama panjang.
+  (DateTime, DateTime) _previousRange() {
+    switch (_preset) {
+      case _Preset.thisMonth:
+      case _Preset.lastMonth:
+        final prev = DateTime(_from.year, _from.month - 1);
+        return (firstOfMonth(prev), lastOfMonth(prev));
+      case _Preset.thisYear:
+        return (DateTime(_from.year - 1), DateTime(_from.year - 1, 12, 31));
+      case _Preset.custom:
+        final days = _to.difference(_from).inDays + 1;
+        return (
+          _from.subtract(Duration(days: days)),
+          _from.subtract(const Duration(days: 1))
+        );
+    }
   }
 
   void _reload() {
@@ -141,7 +170,7 @@ class _ReportPageState extends State<ReportPage> {
       } else {
         await exporter.exportCsv(_from, _to);
       }
-      _toast('Berkas laporan dibuat.');
+      _toast('Berkas rekapan dibuat.');
     } catch (e) {
       _toast('Gagal ekspor: $e');
     } finally {
@@ -200,23 +229,29 @@ class _ReportPageState extends State<ReportPage> {
           child: ContentWidth(
             maxWidth: 900,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
               children: [
                 if (snap.connectionState == ConnectionState.waiting)
                   const LinearProgressIndicator(minHeight: 3),
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (final f in const <(_Preset, String)>[
-                    (_Preset.thisMonth, 'Bulan ini'),
-                    (_Preset.lastMonth, 'Bulan lalu'),
-                    (_Preset.thisYear, 'Tahun ini'),
-                    (_Preset.custom, 'Pilih tanggal'),
-                  ])
-                    ChoiceChip(
-                      label: Text(f.$2),
-                      selected: _preset == f.$1,
-                      onSelected: (_) => _setPreset(f.$1),
-                    ),
-                ]),
+                // Pilihan periode digeser ke kanan-kiri bila tidak muat, tidak turun ke baris baru.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final f in const <(_Preset, String)>[
+                      (_Preset.thisMonth, 'Bulan ini'),
+                      (_Preset.lastMonth, 'Bulan lalu'),
+                      (_Preset.thisYear, 'Tahun ini'),
+                      (_Preset.custom, 'Pilih tanggal'),
+                    ]) ...[
+                      ChoiceChip(
+                        label: Text(f.$2),
+                        selected: _preset == f.$1,
+                        onSelected: (_) => _setPreset(f.$1),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ]),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
                   child: Text('${dateId(_from)} – ${dateId(_to)}',
@@ -224,30 +259,52 @@ class _ReportPageState extends State<ReportPage> {
                           color:
                               Theme.of(context).colorScheme.onSurfaceVariant)),
                 ),
-                _Kpis(summary: d.summary),
-                const SectionTitle('Arus kas'),
-                SoftCard(
-                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
-                  child: _CashFlowChart(buckets: buckets),
+                ListenableBuilder(
+                  listenable: homePrefs,
+                  builder: (context, _) => _Kpis(
+                      summary: d.summary,
+                      previous: d.previous,
+                      business: widget.business),
                 ),
-                const SectionTitle('Keuntungan penjualan'),
-                SoftCard(
-                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
-                  child: hasProfit
-                      ? _ProfitChart(buckets: buckets)
-                      : const EmptyState(
-                          icon: Icons.trending_up_rounded,
-                          title: 'Belum ada data keuntungan',
-                          subtitle: 'Catat penjualan dan isi Harga Modal.',
-                        ),
-                ),
-                const SectionTitle('Per kategori'),
-                SoftCard(
-                    child: _CategoryBreakdown(
-                  rows: d.byCategory,
-                  income: _showIncome,
-                  onToggle: (v) => setState(() => _showIncome = v),
-                )),
+                // Staf hanya melihat kartu Pemasukan, Piutang, dan Utang; grafik dan
+                // rincian kategori memuat modal dan laba, jadi untuk Pemilik dan Admin.
+                if (widget.business.isPersonal ||
+                    widget.business.canSeeProfit) ...[
+                  SectionTitle(widget.business.isPersonal
+                      ? 'Arus kas'
+                      : 'Pemasukan dan pengeluaran'),
+                  SoftCard(
+                    padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
+                    child: _CashFlowChart(
+                      buckets: buckets,
+                      inLabel: widget.business.isPersonal
+                          ? 'Kas masuk'
+                          : 'Pemasukan',
+                      outLabel: widget.business.isPersonal
+                          ? 'Kas keluar'
+                          : 'Pengeluaran',
+                    ),
+                  ),
+                  if (!widget.business.isPersonal) ...[
+                    const SectionTitle('Laba'),
+                    SoftCard(
+                      padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
+                      child: hasProfit
+                          ? _ProfitChart(buckets: buckets, label: 'Laba')
+                          : const EmptyState(
+                              icon: Icons.trending_up_rounded,
+                              title: 'Belum ada data laba',
+                            ),
+                    ),
+                  ],
+                  const SectionTitle('Per kategori'),
+                  SoftCard(
+                      child: _CategoryBreakdown(
+                    rows: d.byCategory,
+                    income: _showIncome,
+                    onToggle: (v) => setState(() => _showIncome = v),
+                  )),
+                ],
                 if (widget.business.canManage) ...[
                   const SectionTitle('Ekspor'),
                   SoftCard(
@@ -273,17 +330,11 @@ class _ReportPageState extends State<ReportPage> {
                       ],
                     ),
                   ),
-                  const SectionTitle('Backup ke Google Sheet'),
-                  BackupCard(
-                    business: widget.business,
-                    cash: widget.cash,
-                    debts: widget.debts,
-                  ),
                 ] else
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
                     child: Text(
-                      'Ekspor laporan hanya untuk Pemilik dan Admin.',
+                      'Ekspor rekapan hanya untuk Pemilik dan Admin.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -297,35 +348,72 @@ class _ReportPageState extends State<ReportPage> {
 }
 
 class _Kpis extends StatelessWidget {
-  const _Kpis({required this.summary});
+  const _Kpis({required this.summary, required this.business, this.previous});
 
   final Summary summary;
+  final Summary? previous;
+  final Business business;
+
+  /// Selisih laba terhadap periode sebelumnya.
+  String? _compare() {
+    final p = previous;
+    if (p == null) return null;
+    final diff = summary.net - p.net;
+    if (diff == 0) return 'sama seperti periode lalu';
+    return '${diff > 0 ? 'naik' : 'turun'} ${rupiah(diff.abs())} dari periode lalu';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final net = summary.totalIn - summary.totalOut;
-    final cards = <Widget>[
-      _Kpi(
-          'Kas masuk', summary.totalIn, Brand.income, Icons.south_west_rounded),
-      _Kpi('Kas keluar', summary.totalOut, Brand.expense,
-          Icons.north_east_rounded),
-      _Kpi(
-          'Keuntungan',
-          summary.profit,
-          summary.profit >= 0 ? Brand.profit : Brand.expense,
-          Icons.trending_up_rounded,
-          sub: summary.salesTotal > 0
-              ? 'dari penjualan ${rupiah(summary.salesTotal)}'
-              : 'dari penjualan'),
-      _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
-          Icons.swap_vert_rounded),
-      _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
-          Icons.account_balance_wallet_rounded),
-      _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
-          Icons.call_received_rounded),
-      _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
-          Icons.call_made_rounded),
-    ];
+    final List<Widget> cards;
+    if (business.isPersonal) {
+      final net = summary.totalIn - summary.totalOut;
+      cards = [
+        _Kpi('Kas masuk', summary.totalIn, Brand.income,
+            Icons.south_west_rounded),
+        _Kpi('Kas keluar', summary.totalOut, Brand.expense,
+            Icons.north_east_rounded),
+        _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
+            Icons.swap_vert_rounded),
+        _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
+            Icons.account_balance_wallet_rounded),
+        _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
+            Icons.call_received_rounded),
+        _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
+            Icons.call_made_rounded),
+      ];
+    } else {
+      final profit = summary.net >= 0;
+      cards = [
+        // Laba hanya untuk Pemilik dan Admin.
+        if (business.canSeeProfit)
+          _Kpi(
+              profit ? 'Laba' : 'Rugi',
+              summary.net.abs(),
+              profit ? profitColor(context) : Brand.expense,
+              profit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+              sub: _compare()),
+        _Kpi('Pemasukan', summary.incomeTotal, Brand.income,
+            Icons.south_west_rounded,
+            sub: summary.incomeOther > 0
+                ? 'termasuk lainnya ${rupiah(summary.incomeOther)}'
+                : null),
+        if (business.canSeeProfit)
+          _Kpi('Pengeluaran', summary.expenseTotal, Brand.expense,
+              Icons.north_east_rounded,
+              sub: summary.expenseCost > 0
+                  ? 'termasuk modal ${rupiah(summary.expenseCost)}'
+                  : null),
+        _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
+            Icons.call_received_rounded),
+        _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
+            Icons.call_made_rounded),
+        // Saldo kas disembunyikan; dihidupkan di Pengaturan.
+        if (business.canSeeProfit && homePrefs.value.showCashBalance)
+          _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
+              Icons.account_balance_wallet_rounded),
+      ];
+    }
     return LayoutBuilder(builder: (context, c) {
       const gap = 12.0;
       final cols = c.maxWidth >= 720 ? 4 : 2;
@@ -462,9 +550,15 @@ class _Legend extends StatelessWidget {
 }
 
 class _CashFlowChart extends StatelessWidget {
-  const _CashFlowChart({required this.buckets});
+  const _CashFlowChart({
+    required this.buckets,
+    this.inLabel = 'Kas masuk',
+    this.outLabel = 'Kas keluar',
+  });
 
   final List<_Bucket> buckets;
+  final String inLabel;
+  final String outLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -478,10 +572,9 @@ class _CashFlowChart extends StatelessWidget {
     }
     final dense = buckets.length > 16;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.only(left: 16, bottom: 12),
-        child: _Legend(
-            [('Kas masuk', Brand.income), ('Kas keluar', Brand.expense)]),
+      Padding(
+        padding: const EdgeInsets.only(left: 16, bottom: 12),
+        child: _Legend([(inLabel, Brand.income), (outLabel, Brand.expense)]),
       ),
       SizedBox(
         height: 240,
@@ -537,9 +630,10 @@ class _CashFlowChart extends StatelessWidget {
 }
 
 class _ProfitChart extends StatelessWidget {
-  const _ProfitChart({required this.buckets});
+  const _ProfitChart({required this.buckets, this.label = 'Keuntungan'});
 
   final List<_Bucket> buckets;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -547,9 +641,9 @@ class _ProfitChart extends StatelessWidget {
     final minV = buckets.fold<int>(0, (m, b) => b.profit < m ? b.profit : m);
     final span = (maxV - minV) == 0 ? 1 : (maxV - minV);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
-        padding: EdgeInsets.only(left: 16, bottom: 12),
-        child: _Legend([('Keuntungan', Brand.profit)]),
+      Padding(
+        padding: const EdgeInsets.only(left: 16, bottom: 12),
+        child: _Legend([(label, Brand.profit)]),
       ),
       SizedBox(
         height: 220,

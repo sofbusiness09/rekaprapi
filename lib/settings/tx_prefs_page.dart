@@ -86,7 +86,7 @@ class TxPrefsPage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
                   child: Text(
-                    'Saldo dan laporan tetap menghitung semuanya.',
+                    'Saldo dan rekapan tetap menghitung semuanya.',
                     style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ),

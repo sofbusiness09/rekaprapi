@@ -65,8 +65,8 @@ class Debt {
   bool get isReceivable => kind == 'receivable';
   bool get settled => remaining <= 0;
 
-  /// Keuntungan penjualan kredit = jumlah - biaya tambahan - harga modal.
-  int get profit => amount - extraFee - costAmount;
+  /// Keuntungan penjualan kredit = jumlah - harga modal (biaya tambahan ikut sebagai pemasukan).
+  int get profit => amount - costAmount;
 
   bool get overdue {
     final d = dueDate;

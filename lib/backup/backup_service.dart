@@ -6,6 +6,7 @@ import '../debts/debt_repository.dart';
 import 'apps_script_client.dart';
 import 'backup_settings.dart';
 import 'backup_sheets.dart';
+import 'recovery.dart';
 
 /// Menjalankan satu kali backup: mengambil SEMUA data usaha, menyusunnya menjadi lembar,
 /// mengirimnya ke Google Sheet, lalu mencatat hasilnya.
@@ -69,8 +70,13 @@ class BackupService {
       final data = await gather();
       final sheets = buildBackupSheets(data);
 
+      // Data lengkap untuk fitur Pulihkan dari Google Sheet (lembar tersembunyi).
+      onStep?.call('Menyiapkan data pemulihan…');
+      final recovery = (await RecoveryExporter(business).export()).toChunks();
+
       onStep?.call('Mengirim ke Google Sheet…');
-      final result = await _client.send(config.scriptUrl, config.token, sheets);
+      final result = await _client.send(config.scriptUrl, config.token, sheets,
+          recovery: recovery);
 
       onStep?.call('Mencatat hasil…');
       await settings.recordSuccess(result);

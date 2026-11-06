@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../backup/backup_settings.dart';
+import '../backup/backup_controller.dart';
 import '../backup/backup_setup_page.dart';
 import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
 import '../common/amount_field.dart' show isMobilePlatform;
+import '../theme/background_controller.dart';
+import '../theme/background_picker.dart';
 import '../theme/font_controller.dart';
 import '../theme/font_picker.dart';
 import '../theme/theme_picker.dart';
 import 'activity_page.dart';
 import 'categories_page.dart';
 import 'contacts_manage_page.dart';
-import 'home_prefs_page.dart';
+import 'home_prefs.dart';
 import 'input_prefs.dart';
 import 'members_page.dart';
 import 'settings_repository.dart';
@@ -29,6 +31,8 @@ class SettingsPage extends StatelessWidget {
     required this.onRenamed,
     required this.onSwitchBusiness,
     required this.onBusinessGone,
+    required this.backup,
+    required this.onRestored,
   });
 
   final Business business;
@@ -47,6 +51,12 @@ class SettingsPage extends StatelessWidget {
   /// Dipanggil setelah pengguna keluar dari atau menghapus usaha ini.
   final VoidCallback onBusinessGone;
 
+  /// Status dan aksi Backup Google Sheet pembukuan ini.
+  final BackupController backup;
+
+  /// Dipanggil dengan id pembukuan baru setelah pemulihan berhasil.
+  final Future<void> Function(String businessId) onRestored;
+
   SupabaseClient get _db => Supabase.instance.client;
 
   void _toast(BuildContext context, String msg) =>
@@ -64,7 +74,7 @@ class SettingsPage extends StatelessWidget {
     try {
       await repo.updateBusiness(result.$1, result.$2, result.$3);
       onRenamed(result.$1.trim());
-      if (context.mounted) _toast(context, 'Profil usaha disimpan.');
+      if (context.mounted) _toast(context, 'Profil pembukuan disimpan.');
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
     }
@@ -115,7 +125,7 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _leave(BuildContext context) async {
     if (!await confirmDialog(context,
-        title: 'Keluar dari usaha?',
+        title: 'Keluar dari pembukuan?',
         body:
             'Anda tidak akan bisa mengakses "${business.name}" kecuali diundang lagi.',
         okLabel: 'Keluar')) {
@@ -135,8 +145,8 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _deleteBusiness(BuildContext context) async {
     final typed = await askText(context,
-        title: 'Hapus usaha?',
-        label: 'Ketik nama usaha untuk menghapus: ${business.name}');
+        title: 'Hapus pembukuan?',
+        label: 'Ketik nama pembukuan untuk menghapus: ${business.name}');
     if (typed == null || !context.mounted) return;
     if (typed != business.name) {
       _toast(context, 'Nama tidak cocok. Usaha tidak dihapus.');
@@ -158,19 +168,22 @@ class SettingsPage extends StatelessWidget {
     final email = _db.auth.currentUser?.email ?? '';
     return ListView(
       children: [
-        _Header('Usaha: ${business.name} (${roleLabel[business.role]})'),
+        _Header(
+            '${business.kind.label}: ${business.name} (${roleLabel[business.role]})'),
         if (business.canManage)
           ListTile(
             leading: const Icon(Icons.storefront_outlined),
-            title: const Text('Profil usaha'),
+            title: const Text('Profil pembukuan'),
             onTap: () => _editProfile(context),
           ),
-        ListTile(
-          leading: const Icon(Icons.group_outlined),
-          title: const Text('Anggota'),
-          onTap: () =>
-              _push(context, MembersPage(business: business, repo: repo)),
-        ),
+        // Pembukuan pribadi tidak dibagikan, jadi tanpa daftar anggota.
+        if (!business.isPersonal)
+          ListTile(
+            leading: const Icon(Icons.group_outlined),
+            title: const Text('Anggota'),
+            onTap: () =>
+                _push(context, MembersPage(business: business, repo: repo)),
+          ),
         ListTile(
           leading: const Icon(Icons.contacts_outlined),
           title: const Text('Kontak Pelanggan'),
@@ -187,12 +200,19 @@ class SettingsPage extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.cloud_upload_outlined),
-            title: const Text('Backup Google Sheet'),
-            onTap: () => _push(
-                context,
-                BackupSetupPage(
-                    repo: BackupSettingsRepository(business.id),
-                    businessName: business.name)),
+            title: const Text('Backup dan Pemulihan'),
+            onTap: () async {
+              await Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => BackupSetupPage(
+                  controller: backup,
+                  businessName: business.name,
+                  canRestore: business.role == 'owner',
+                  onRestored: onRestored,
+                ),
+              ));
+              // Ikon backup di bilah atas ikut menyesuaikan.
+              await backup.load();
+            },
           ),
           ListTile(
             leading: const Icon(Icons.history),
@@ -215,6 +235,17 @@ class SettingsPage extends StatelessWidget {
             onTap: () => showFontPicker(context),
           ),
         ),
+        ListenableBuilder(
+          listenable: backgroundController,
+          builder: (context, _) => ListTile(
+            leading: const Icon(Icons.gradient_rounded),
+            title: const Text('Latar gradasi'),
+            subtitle: Text(backgroundController.enabled
+                ? backgroundController.preset.name
+                : 'Mati'),
+            onTap: () => showBackgroundPicker(context),
+          ),
+        ),
         // Hanya relevan di perangkat sentuh.
         if (isMobilePlatform)
           ListenableBuilder(
@@ -227,16 +258,22 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ListTile(
-          leading: const Icon(Icons.dashboard_customize_outlined),
-          title: const Text('Tampilan Beranda'),
-          onTap: () =>
-              _push(context, HomePrefsPage(businessName: business.name)),
-        ),
-        ListTile(
           leading: const Icon(Icons.receipt_long_outlined),
           title: const Text('Tampilan Transaksi'),
           onTap: () => _push(context, TxPrefsPage(businessName: business.name)),
         ),
+        // Pembukuan Usaha: Saldo Kas disembunyikan kecuali dihidupkan di sini.
+        if (business.canSeeProfit)
+          ListenableBuilder(
+            listenable: homePrefs,
+            builder: (context, _) => SwitchListTile(
+              secondary: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('Tampilkan saldo kas'),
+              value: homePrefs.value.showCashBalance,
+              onChanged: (v) => homePrefs
+                  .update(homePrefs.value.copyWith(showCashBalance: v)),
+            ),
+          ),
         const Divider(),
         _Header('Akun ($email)'),
         ListTile(
@@ -251,7 +288,7 @@ class SettingsPage extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.swap_horiz),
-          title: const Text('Pindah / tambah usaha'),
+          title: const Text('Pindah / tambah pembukuan'),
           onTap: onSwitchBusiness,
         ),
         ListTile(
@@ -264,14 +301,14 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading:
                 Icon(Icons.delete_forever_outlined, color: Colors.red.shade700),
-            title: Text('Hapus usaha',
+            title: Text('Hapus pembukuan',
                 style: TextStyle(color: Colors.red.shade700)),
             onTap: () => _deleteBusiness(context),
           )
         else
           ListTile(
             leading: Icon(Icons.exit_to_app, color: Colors.red.shade700),
-            title: Text('Keluar dari usaha ini',
+            title: Text('Keluar dari pembukuan ini',
                 style: TextStyle(color: Colors.red.shade700)),
             onTap: () => _leave(context),
           ),
@@ -320,12 +357,12 @@ class _ProfileDialogState extends State<_ProfileDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Profil usaha'),
+      title: const Text('Profil pembukuan'),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Nama usaha')),
+              decoration: const InputDecoration(labelText: 'Nama pembukuan')),
           const SizedBox(height: 12),
           TextField(
               controller: _address,

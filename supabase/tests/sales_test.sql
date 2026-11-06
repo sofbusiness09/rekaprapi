@@ -27,23 +27,24 @@ begin
   select id into cat from public.categories where business_id = bid and is_sale;
 
   -- Total 100.000, diskon 10.000, biaya tambahan 5.000 => kas masuk 95.000.
-  -- Modal 60.000 => keuntungan 100.000 - 10.000 - 60.000 = 30.000.
+  -- Modal 60.000 => keuntungan = jumlah (biaya tambahan ikut sebagai pemasukan) - modal
+  -- = 95.000 - 60.000 = 35.000.
   insert into public.cash_transactions
     (business_id, type, amount, category_id, created_by, is_sale, cost_amount, discount_amount, extra_fee)
   values (bid, 'in', 95000, cat, auth.uid(), true, 60000, 10000, 5000);
 
   s := public.report_summary(bid, current_date, current_date);
-  if (s ->> 'profit')::bigint <> 30000 then raise exception 'GAGAL: keuntungan tunai salah (%)', s; end if;
-  if (s ->> 'sales_total')::bigint <> 90000 then raise exception 'GAGAL: total penjualan salah (%)', s; end if;
+  if (s ->> 'profit')::bigint <> 35000 then raise exception 'GAGAL: keuntungan tunai salah (%)', s; end if;
+  if (s ->> 'sales_total')::bigint <> 95000 then raise exception 'GAGAL: total penjualan salah (%)', s; end if;
   if (s ->> 'balance')::bigint <> 95000 then raise exception 'GAGAL: saldo kas salah (%)', s; end if;
 
-  -- Penjualan kredit 50.000, modal 20.000 => untung 30.000; kas tidak berubah.
+  -- Penjualan kredit 50.000, modal 20.000 => untung 30.000 (total 65.000); kas tidak berubah.
   insert into public.contacts (business_id, name, created_by) values (bid, 'Pembeli', auth.uid())
   returning id into cid;
   perform public.create_debt(bid, cid, 'receivable', 50000, false, current_date, null, null,
                              true, 20000, 0, 0);
   s := public.report_summary(bid, current_date, current_date);
-  if (s ->> 'profit')::bigint <> 60000 then raise exception 'GAGAL: keuntungan kredit tidak terhitung (%)', s; end if;
+  if (s ->> 'profit')::bigint <> 65000 then raise exception 'GAGAL: keuntungan kredit tidak terhitung (%)', s; end if;
   if (s ->> 'balance')::bigint <> 95000 then raise exception 'GAGAL: penjualan kredit mengubah kas (%)', s; end if;
   if (s ->> 'receivable_open')::bigint <> 50000 then raise exception 'GAGAL: piutang salah (%)', s; end if;
 
@@ -74,7 +75,7 @@ begin
   select count(*) into n from public.report_daily(bid, current_date - 6, current_date);
   if n <> 7 then raise exception 'GAGAL: report_daily harus 7 baris, dapat %', n; end if;
   if (select cash_in from public.report_daily(bid, current_date, current_date)) <> 95000
-     or (select profit from public.report_daily(bid, current_date, current_date)) <> 60000 then
+     or (select profit from public.report_daily(bid, current_date, current_date)) <> 65000 then
     raise exception 'GAGAL: nilai report_daily salah';
   end if;
 
@@ -101,7 +102,7 @@ begin
     (business_id, type, amount, category_id, created_by, is_sale, cost_amount)
   values (bid, 'in', 10000, cat, auth.uid(), true, 4000);
   s := public.report_summary(bid, current_date, current_date);
-  if (s ->> 'profit')::bigint <> 66000 then raise exception 'GAGAL: keuntungan setelah penjualan staf salah (%)', s; end if;
+  if (s ->> 'profit')::bigint <> 71000 then raise exception 'GAGAL: keuntungan setelah penjualan staf salah (%)', s; end if;
 
   failed := false;
   begin insert into public.categories (business_id, name, type, is_sale) values (bid, 'Jual X', 'in', true);

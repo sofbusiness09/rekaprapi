@@ -1,7 +1,7 @@
 name: rekap_rapi
 description: RekapRapi - pencatatan kas dan utang piutang untuk usaha kecil.
 publish_to: none
-version: 1.0.7+8
+version: 1.0.10+11
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
