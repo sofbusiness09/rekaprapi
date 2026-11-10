@@ -128,7 +128,8 @@ await test('GET tanpa kunci setup tidak memasang apa pun', async () => {
 await test('setup mendaftarkan webhook dan menyimpan nama bot', async () => {
   calls.length = 0;
   const res = await handle(new Request('https://f/telegram-bot?setup=rahasia'));
-  assert.deepEqual(await res.json(), { ok: true, webhook: null, bot: 'UjiBot' });
+  assert.deepEqual(await res.json(),
+    { ok: true, webhook: null, bot: 'UjiBot', telegram: 'ok', database: 'ok' });
   const hook = calls.find((c) => c.tg === 'setWebhook');
   assert.equal(hook.body.url, 'https://x.supabase.co/functions/v1/telegram-bot');
   assert.equal(hook.body.secret_token, 'rahasia');

@@ -358,7 +358,20 @@ async function setup(): Promise<Response> {
     drop_pending_updates: true,
   });
   const me = await tg("getMe", {});
-  if (me?.ok) await rpc("tg_set_bot", { p_username: me.result.username });
+  // Galat database dilaporkan apa adanya supaya penyebabnya terlihat saat memasang.
+  let database = "ok";
+  if (me?.ok) {
+    const key = env("SUPABASE_SERVICE_ROLE_KEY") || env("SB_SECRET_KEY");
+    if (!key) {
+      database = "Kunci layanan tidak tersedia. Tambahkan rahasia SB_SECRET_KEY berisi kunci secret proyek.";
+    } else {
+      try {
+        await rpc("tg_set_bot", { p_username: me.result.username });
+      } catch (e) {
+        database = String((e as Error)?.message ?? e).slice(0, 300);
+      }
+    }
+  }
   await tg("setMyCommands", {
     commands: [
       { command: "bantuan", description: "Cara mencatat" },
@@ -368,9 +381,11 @@ async function setup(): Promise<Response> {
     ],
   });
   return Response.json({
-    ok: Boolean(hook?.ok && me?.ok),
+    ok: Boolean(hook?.ok && me?.ok && database === "ok"),
     webhook: hook?.description ?? null,
     bot: me?.result?.username ?? null,
+    telegram: me?.ok ? "ok" : (me?.description ?? "Token bot ditolak Telegram"),
+    database,
   });
 }
 
@@ -382,7 +397,11 @@ export async function handle(req: Request): Promise<Response> {
   if (req.method === "GET") {
     const given = new URL(req.url).searchParams.get("setup");
     if (given !== secret) return new Response("RekapRapi bot", { status: 200 });
-    return await setup();
+    try {
+      return await setup();
+    } catch (e) {
+      return Response.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 300) });
+    }
   }
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   if (req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== secret) {
