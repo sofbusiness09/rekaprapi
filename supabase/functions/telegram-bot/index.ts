@@ -64,7 +64,7 @@ function readAmount(tokens: string[], i: number): [number, number] | null {
   return single == null ? null : [single, i + 1];
 }
 
-export type Kind = "sale" | "income" | "expense" | "receivable" | "payable";
+export type Kind = "sale" | "income" | "expense" | "receivable" | "payable" | "settle";
 
 export type Entry =
   | { ok: true; kind: Kind; amount: number; cost?: number; note?: string; contact?: string }
@@ -75,6 +75,8 @@ const INCOME = ["masuk", "pemasukan", "terima", "+"];
 const EXPENSE = ["keluar", "pengeluaran", "bayar", "beli", "-"];
 const RECEIVABLE = ["piutang"];
 const PAYABLE = ["utang", "hutang"];
+/** Pelunasan: "lunas Budi" (seluruh sisa) atau "cicil 50000 Budi". Jumlah 0 = seluruh sisa. */
+const SETTLE = ["lunas", "pelunasan", "lunasi", "cicil", "cicilan"];
 /** Kata penanda penjualan utang: "jual 50000 modal 30000 utang Budi". */
 const CREDIT = ["utang", "hutang", "kredit", "piutang"];
 
@@ -108,9 +110,25 @@ export function parseEntry(text: string): Entry {
     ? "receivable"
     : PAYABLE.includes(word)
     ? "payable"
+    : SETTLE.includes(word)
+    ? "settle"
     : null;
   if (!kind) return { ok: false, error: "unknown" };
 
+  if (kind === "settle") {
+    // Jumlah boleh tidak ditulis: berarti melunasi seluruh sisa.
+    const amt = readAmount(tokens, 1);
+    if (!amt && word.startsWith("cicil")) return { ok: false, error: "amount" };
+    const parts = splitContact(tokens.slice(amt ? amt[1] : 1).join(" "));
+    if (!parts.contact) return { ok: false, error: "contact" };
+    return {
+      ok: true,
+      kind,
+      amount: amt ? amt[0] : 0,
+      ...(parts.note ? { note: parts.note } : {}),
+      contact: parts.contact,
+    };
+  }
   const a = readAmount(tokens, 1);
   if (!a) return { ok: false, error: "amount" };
   let [amount, i] = a;
@@ -168,9 +186,30 @@ function canSeeProfit(b: Biz): boolean {
 
 /** Isi pesan konfirmasi. Keuntungan hanya untuk Pemilik dan Admin. */
 export function describe(
-  e: { kind: string; amount: number; cost?: number; note?: string; contact?: string; nc?: boolean },
+  e: {
+    kind: string;
+    amount: number;
+    cost?: number;
+    note?: string;
+    contact?: string;
+    nc?: boolean;
+    net?: number;
+  },
   business: Biz,
 ): string {
+  if (e.kind === "settle") {
+    // net > 0: kontak berutang, uang diterima. net < 0: pengguna berutang, uang dibayarkan.
+    const receive = (e.net ?? 0) > 0;
+    const left = Math.abs(e.net ?? 0) - e.amount;
+    const lines = [
+      `<b>${receive ? "Terima pembayaran piutang" : "Bayar utang"}</b> · ${esc(business.name)}`,
+      `${receive ? "Dari" : "Kepada"}: ${esc(e.contact ?? "")}`,
+      `Jumlah: ${rupiah(e.amount)}`,
+      left > 0 ? `Sisa setelah ini: ${rupiah(left)}` : "Setelah ini lunas",
+    ];
+    if (e.note) lines.push(`Catatan: ${esc(e.note)}`);
+    return lines.join("\n");
+  }
   const label = e.kind === "sale" && e.contact ? "Penjualan utang" : KIND_LABEL[e.kind];
   const lines = [`<b>${label}</b> · ${esc(business.name)}`, `Jumlah: ${rupiah(e.amount)}`];
   if (e.kind === "sale" && e.cost != null) {
@@ -249,6 +288,8 @@ export const HELP = [
   "<code>keluar 20000 listrik</code>",
   "<code>piutang 100000 Budi</code>  meminjamkan uang",
   "<code>utang 100000 Budi</code>  menerima pinjaman",
+  "<code>cicil 50000 Budi</code>  pembayaran sebagian",
+  "<code>lunas Budi</code>  melunasi seluruh sisa",
   "",
   "Jumlah boleh ditulis 50000, 50.000, 50rb, atau 1,5jt. Catatan untuk utang piutang ditulis setelah koma. Setiap catatan dikonfirmasi dulu sebelum disimpan.",
   "",
@@ -425,6 +466,36 @@ async function onMessage(msg: any) {
   }
 
   const nonce = crypto.randomUUID().slice(0, 8);
+
+  if (entry.kind === "settle") {
+    const bal = await rpc("tg_contact_balance", { p_tg_id: from, p_name: entry.contact });
+    if (!bal?.found) {
+      await send(chat, `Kontak "${esc(entry.contact ?? "")}" tidak ditemukan. Lihat daftarnya dengan /utang.`);
+      return;
+    }
+    const net = Number(bal.net);
+    if (net === 0) {
+      await send(chat, `Tidak ada utang piutang yang belum lunas dengan ${esc(bal.name)}.`);
+      return;
+    }
+    const amount = entry.amount || Math.abs(net);
+    if (amount > Math.abs(net)) {
+      await send(chat, `Jumlahnya melebihi sisa dengan ${esc(bal.name)}, yaitu ${rupiah(Math.abs(net))}.`);
+      return;
+    }
+    const pending = { n: nonce, kind: "settle", amount, contact: bal.name as string, note: entry.note, net };
+    await rpc("tg_set_pending", { p_tg_id: from, p_payload: pending });
+    await send(chat, `${describe(pending, business)}\n\nSimpan catatan ini?`, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "✅ Simpan", callback_data: `ok:${nonce}` },
+          { text: "Batal", callback_data: `no:${nonce}` },
+        ]],
+      },
+    });
+    return;
+  }
+
   // Kontak yang sudah ada dipakai dengan ejaan tersimpan; yang belum ada dibuat saat disimpan.
   let contact = entry.contact;
   let nc = false;
@@ -480,6 +551,22 @@ async function onCallback(cb: any) {
   }
   if (action === "no") {
     await edit(chat, message, "Dibatalkan, tidak ada yang disimpan.");
+    return;
+  }
+  if (pending.kind === "settle") {
+    const s = await rpc("tg_settle", { p_tg_id: from, p_payload: pending });
+    if (!s?.ok) {
+      const why = s?.error === "over" || s?.error === "settled"
+        ? "Sisa utang piutangnya sudah berubah. Periksa dengan /utang, lalu kirim ulang."
+        : "Gagal menyimpan. Periksa akses Anda ke pembukuan ini, lalu coba lagi.";
+      await edit(chat, message, why);
+      return;
+    }
+    // Sisa dihitung dari jawaban database, bukan dari pratinjau.
+    const net = (s.direction === "receive" ? 1 : -1) * (Number(s.amount) + Number(s.remaining));
+    const done = describe({ ...pending, amount: Number(s.amount), contact: s.contact, net },
+      { name: s.business, role: "staff" });
+    await edit(chat, message, `✅ Tersimpan\n${done}\n\nSalah catat? Hapus pembayarannya dari aplikasi.`);
     return;
   }
   const r = await rpc("tg_record", { p_tg_id: from, p_payload: pending });

@@ -304,6 +304,70 @@ await test('utang piutang dikonfirmasi dengan ejaan kontak yang tersimpan', asyn
   assert.match(calls.find((c) => c.tg === 'sendMessage').body.text, /Sari \(kontak baru\)/);
 });
 
+await test('pelunasan: lunas tanpa jumlah, cicil wajib jumlah', () => {
+  assert.deepEqual(parseEntry('lunas Budi Santoso'),
+    { ok: true, kind: 'settle', amount: 0, contact: 'Budi Santoso' });
+  assert.deepEqual(parseEntry('cicil 50rb Budi, transfer'),
+    { ok: true, kind: 'settle', amount: 50000, note: 'transfer', contact: 'Budi' });
+  assert.deepEqual(parseEntry('lunas 20000 Budi'),
+    { ok: true, kind: 'settle', amount: 20000, contact: 'Budi' });
+  assert.deepEqual(parseEntry('cicil Budi'), { ok: false, error: 'amount' });
+  assert.deepEqual(parseEntry('lunas'), { ok: false, error: 'contact' });
+  assert.deepEqual(parseEntry('cicil 5000'), { ok: false, error: 'contact' });
+});
+
+await test('pelunasan: arah dan sisa di pesan konfirmasi', () => {
+  const biz = { name: 'Toko', role: 'staff' };
+  const terima = describe({ kind: 'settle', amount: 50000, contact: 'Budi', net: 120000 }, biz);
+  assert.match(terima, /Terima pembayaran piutang[\s\S]*Dari: Budi\nJumlah: Rp50\.000\nSisa setelah ini: Rp70\.000/);
+  const bayar = describe({ kind: 'settle', amount: 70000, contact: 'Joko', net: -70000 }, biz);
+  assert.match(bayar, /Bayar utang[\s\S]*Kepada: Joko[\s\S]*Setelah ini lunas/);
+});
+
+await test('pelunasan: kontak asing, sudah lunas, dan kelebihan ditolak sebelum konfirmasi', async () => {
+  for (const [bal, pesan] of [
+    [{ found: false }, /tidak ditemukan/],
+    [{ found: true, name: 'Budi', net: 0 }, /Tidak ada utang piutang/],
+    [{ found: true, name: 'Budi', net: 3000 }, /melebihi sisa[\s\S]*Rp3\.000/],
+  ]) {
+    calls.length = 0;
+    rpcResults = { tg_context: linked, tg_contact_balance: bal };
+    await post(msg('cicil 5000 budi'));
+    assert.ok(!calls.some((c) => c.rpc === 'tg_set_pending'));
+    assert.match(calls.find((c) => c.tg === 'sendMessage').body.text, pesan);
+  }
+});
+
+await test('pelunasan: lunas memakai seluruh sisa, Simpan memanggil tg_settle', async () => {
+  calls.length = 0;
+  rpcResults = { tg_context: linked, tg_contact_balance: { found: true, name: 'Budi', net: -70000 } };
+  await post(msg('lunas budi'));
+  const pend = calls.find((c) => c.rpc === 'tg_set_pending').body.p_payload;
+  assert.equal(pend.amount, 70000);
+  assert.equal(pend.contact, 'Budi');
+  assert.match(calls.find((c) => c.tg === 'sendMessage').body.text, /Bayar utang[\s\S]*Setelah ini lunas/);
+
+  calls.length = 0;
+  rpcResults = {
+    tg_take_pending: pend,
+    tg_settle: { ok: true, business: 'Toko', contact: 'Budi', direction: 'give', amount: 70000, remaining: 0 },
+  };
+  await post(cb('ok:' + pend.n));
+  assert.deepEqual(calls.find((c) => c.rpc === 'tg_settle').body, { p_tg_id: 7, p_payload: pend });
+  assert.ok(!calls.some((c) => c.rpc === 'tg_record'));
+  assert.match(calls.find((c) => c.tg === 'editMessageText').body.text, /Tersimpan[\s\S]*Bayar utang/);
+});
+
+await test('pelunasan: sisa berubah sejak konfirmasi tidak disimpan', async () => {
+  calls.length = 0;
+  rpcResults = {
+    tg_take_pending: { n: 'x', kind: 'settle', amount: 5, contact: 'Budi', net: 5 },
+    tg_settle: { ok: false, error: 'over', net: 2 },
+  };
+  await post(cb('ok:x'));
+  assert.match(calls.find((c) => c.tg === 'editMessageText').body.text, /sudah berubah/);
+});
+
 const cron = (secret) => handle(new Request('https://f/telegram-bot', {
   method: 'POST', headers: { 'X-Cron-Secret': secret }, body: '{}',
 }));

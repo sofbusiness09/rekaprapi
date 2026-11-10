@@ -48,7 +48,8 @@ Bila jawabannya hanya tulisan `RekapRapi bot`, kode di alamat tidak sama dengan 
 ## 6. Tahap 2: ringkasan, utang piutang, laporan harian
 
 1. Jalankan `supabase/migrations/20261114000001_telegram_patch.sql` (bila belum) lalu
-   `supabase/migrations/20261115000000_telegram_reports.sql` di SQL Editor.
+   `supabase/migrations/20261115000000_telegram_reports.sql`, lalu
+   `supabase/migrations/20261116000000_telegram_settle.sql` di SQL Editor.
 2. Edge Functions > `telegram-bot` > Code: ganti seluruh isi dengan `index.ts` terbaru, Deploy.
 3. Buka lagi alamat aktivasi (langkah 5) supaya daftar perintah di Telegram diperbarui.
 4. Jadwalkan laporan harian. Di SQL Editor jalankan ini, dengan dua bagian dalam kurung sudut
@@ -82,6 +83,8 @@ masuk 25rb titipan
 keluar 20000 listrik
 piutang 100000 Budi, pinjam modal
 utang 100000 Budi
+cicil 50000 Budi
+lunas Budi
 ```
 
 - Jumlah boleh ditulis `50000`, `50.000`, `50rb`, `50k`, `1,5jt`.
@@ -95,7 +98,10 @@ utang 100000 Budi
 - `/pembukuan` pindah pembukuan, `/batal` menghapus catatan terakhir dari bot (paling lama 30 menit),
   `/laporan` menghidupkan atau mematikan ringkasan harian, `/putuskan` memutuskan sambungan.
 - Tanggal catatan memakai waktu Indonesia bagian barat (WIB).
-- Belum bisa lewat bot: mencatat pembayaran atau cicilan utang piutang, diskon dan biaya tambahan, jatuh tempo.
+- `cicil 50000 Nama` mencatat pembayaran sebagian, `lunas Nama` melunasi seluruh sisa. Arah uangnya mengikuti saldo:
+  bila kontak berutang, uang diterima; bila Anda yang berutang, uang dibayarkan. Jumlah yang melebihi sisa ditolak.
+  Pelunasan tidak bisa dihapus dengan `/batal`; hapus pembayarannya dari aplikasi.
+- Belum bisa lewat bot: diskon dan biaya tambahan, jatuh tempo.
 
 ## Keamanan
 
