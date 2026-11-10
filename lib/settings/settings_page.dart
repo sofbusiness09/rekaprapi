@@ -6,6 +6,7 @@ import '../backup/backup_setup_page.dart';
 import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
+import '../telegram/telegram_page.dart';
 import '../common/amount_field.dart' show isMobilePlatform;
 import '../theme/background_controller.dart';
 import '../theme/background_picker.dart';
@@ -191,6 +192,14 @@ class SettingsPage extends StatelessWidget {
               context,
               ContactsManagePage(
                   business: business, repo: debtRepo, changes: changes)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.send_outlined),
+          title: const Text('Telegram'),
+          onTap: () => _push(
+              context,
+              TelegramPage(
+                  businessId: business.id, businessName: business.name)),
         ),
         if (business.canManage) ...[
           ListTile(
