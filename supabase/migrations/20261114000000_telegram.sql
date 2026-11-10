@@ -92,7 +92,9 @@ $$;
 -- ---------------------------------------------------------------------------
 create function public.tg_set_bot(p_username text) returns void
 language sql security definer set search_path = public, pg_temp as $$
-  update public.telegram_config set bot_username = btrim(p_username), updated_at = now();
+  -- Supabase menolak UPDATE tanpa WHERE lewat API.
+  update public.telegram_config set bot_username = btrim(p_username), updated_at = now()
+   where id;
 $$;
 
 -- Menukar kode dengan sambungan. Sambungan lama akun Telegram atau akun RekapRapi
