@@ -210,4 +210,124 @@ await test('galat di tengah tetap dijawab 200', async () => {
   assert.equal(res.status, 200);
 });
 
+const { formatReport, formatDebts, formatDue, shortDate } = await import(
+  '../supabase/functions/telegram-bot/index.ts'
+);
+
+await test('utang piutang: kontak wajib, catatan setelah koma', () => {
+  assert.deepEqual(parseEntry('piutang 100rb Budi Santoso, pinjam modal'),
+    { ok: true, kind: 'receivable', amount: 100000, note: 'pinjam modal', contact: 'Budi Santoso' });
+  assert.deepEqual(parseEntry('Hutang 50000 Pak Joko'),
+    { ok: true, kind: 'payable', amount: 50000, contact: 'Pak Joko' });
+  assert.deepEqual(parseEntry('utang 50000'), { ok: false, error: 'contact' });
+  assert.deepEqual(parseEntry('piutang Budi'), { ok: false, error: 'amount' });
+});
+
+await test('penjualan utang membawa modal dan kontak', () => {
+  assert.deepEqual(parseEntry('jual 50000 modal 30000 utang Budi, kopi 2'),
+    { ok: true, kind: 'sale', amount: 50000, cost: 30000, note: 'kopi 2', contact: 'Budi' });
+  assert.deepEqual(parseEntry('jual 50000 modal 30000 kredit'), { ok: false, error: 'contact' });
+  // Tanpa kata penanda, tetap penjualan lunas dengan catatan.
+  assert.deepEqual(parseEntry('jual 50000 modal 30000 Budi'),
+    { ok: true, kind: 'sale', amount: 50000, cost: 30000, note: 'Budi' });
+});
+
+await test('konfirmasi utang piutang menandai kontak baru', () => {
+  const t = describe({ kind: 'sale', amount: 50000, cost: 30000, contact: 'Budi', nc: true },
+    { name: 'Toko', role: 'owner' });
+  assert.match(t, /Penjualan utang/);
+  assert.match(t, /Kontak: Budi \(kontak baru\)/);
+  assert.match(describe({ kind: 'payable', amount: 1, contact: 'A' }, { name: 'T', role: 'staff' }),
+    /Utang \(menerima pinjaman\)[\s\S]*Kontak: A$/);
+});
+
+await test('ringkasan: pemilik, staf, dan pribadi', () => {
+  const s = { income_total: 150000, expense_total: 95000, net: 55000, receivable_open: 1000, payable_open: 0 };
+  const owner = formatReport('Hari ini', { name: 'Toko', kind: 'business', role: 'owner' }, s);
+  assert.match(owner, /Pemasukan: Rp150\.000\nPengeluaran: Rp95\.000\nLaba: Rp55\.000/);
+  const staff = formatReport('Hari ini', { name: 'Toko', kind: 'business', role: 'staff' },
+    { income_total: 150000, receivable_open: 1000, payable_open: 0 });
+  assert.match(staff, /Pemasukan: Rp150\.000/);
+  assert.doesNotMatch(staff, /Laba|Pengeluaran|Rugi/);
+  assert.match(formatReport('x', { name: 'T', kind: 'business', role: 'admin' }, { ...s, net: -5 }), /Rugi: Rp5/);
+  const personal = formatReport('Hari ini', { name: 'Dompet', kind: 'personal', role: 'owner' },
+    { total_in: 10, total_out: 4, balance: 6, receivable_open: 0, payable_open: 0 });
+  assert.match(personal, /Masuk: Rp10\nKeluar: Rp4\nSaldo kas: Rp6/);
+});
+
+await test('daftar utang dan jatuh tempo', () => {
+  assert.equal(shortDate('2026-11-05'), '5 Nov');
+  assert.equal(formatDue([], '2026-11-10'), '');
+  const t = formatDebts({
+    business: { name: 'Toko' }, receivable_open: 120000, payable_open: 70000, today: '2026-11-10',
+    contacts: [{ name: 'Budi', net: 120000 }, { name: 'Joko', net: -70000 }],
+    due: [{ name: 'Budi', kind: 'receivable', remaining: 100000, due_date: '2026-11-09' },
+      { name: 'Joko', kind: 'payable', remaining: 70000, due_date: '2026-11-12' }],
+  });
+  assert.match(t, /• Budi: piutang Rp120\.000/);
+  assert.match(t, /• Joko: utang Rp70\.000\n/);
+  assert.match(t, /Budi: piutang Rp100\.000, 9 Nov \(lewat tempo\)/);
+  assert.match(t, /Joko: utang Rp70\.000, 12 Nov$/);
+});
+
+await test('/hari_ini dan /utang membaca atas nama pengirim', async () => {
+  calls.length = 0;
+  rpcResults = {
+    tg_context: linked,
+    tg_report: { ok: true, business: linked.business, summary: { income_total: 5, expense_total: 1, net: 4 } },
+    tg_debt_overview: { ok: true, business: linked.business, receivable_open: 0, payable_open: 0, contacts: [], due: [], today: '2026-11-10' },
+  };
+  await post(msg('/hari_ini'));
+  assert.deepEqual(calls.find((c) => c.rpc === 'tg_report').body, { p_tg_id: 7, p_period: 'today' });
+  await post(msg('/bulan_ini'));
+  assert.equal(calls.filter((c) => c.rpc === 'tg_report')[1].body.p_period, 'month');
+  await post(msg('/utang'));
+  assert.deepEqual(calls.find((c) => c.rpc === 'tg_debt_overview').body, { p_tg_id: 7 });
+  assert.ok(!calls.some((c) => c.rpc === 'tg_set_pending'));
+});
+
+await test('utang piutang dikonfirmasi dengan ejaan kontak yang tersimpan', async () => {
+  calls.length = 0;
+  rpcResults = { tg_context: linked, tg_find_contact: 'Budi Santoso' };
+  await post(msg('piutang 100000 budi santoso'));
+  const pend = calls.find((c) => c.rpc === 'tg_set_pending').body.p_payload;
+  assert.equal(pend.contact, 'Budi Santoso');
+  assert.equal(pend.nc, undefined);
+  assert.doesNotMatch(calls.find((c) => c.tg === 'sendMessage').body.text, /kontak baru/);
+
+  calls.length = 0;
+  rpcResults = { tg_context: linked, tg_find_contact: null };
+  await post(msg('/utang 5000 Sari'));
+  const p2 = calls.find((c) => c.rpc === 'tg_set_pending').body.p_payload;
+  assert.equal(p2.kind, 'payable');
+  assert.equal(p2.nc, true);
+  assert.match(calls.find((c) => c.tg === 'sendMessage').body.text, /Sari \(kontak baru\)/);
+});
+
+const cron = (secret) => handle(new Request('https://f/telegram-bot', {
+  method: 'POST', headers: { 'X-Cron-Secret': secret }, body: '{}',
+}));
+
+await test('laporan harian hanya dengan rahasia penjadwal', async () => {
+  calls.length = 0;
+  rpcResults = { tg_daily_batch: [] };
+  const bad = await cron('tebak');
+  assert.equal(bad.status, 403);
+  assert.ok(!calls.some((c) => c.rpc === 'tg_daily_batch'));
+
+  rpcResults = {
+    tg_daily_batch: [{
+      chat_id: 55, to: '2026-11-10', business: { name: 'Toko', kind: 'business', role: 'staff' },
+      summary: { income_total: 9000, receivable_open: 0, payable_open: 0 },
+      due: [{ name: 'Budi', kind: 'receivable', remaining: 100, due_date: '2026-11-11' }],
+    }],
+  };
+  const ok = await cron('rahasia');
+  assert.deepEqual(await ok.json(), { ok: true, sent: 1, total: 1 });
+  const sent = calls.find((c) => c.tg === 'sendMessage').body;
+  assert.equal(sent.chat_id, 55);
+  assert.match(sent.text, /Ringkasan hari ini[\s\S]*Pemasukan: Rp9\.000[\s\S]*Jatuh tempo[\s\S]*\/laporan/);
+  assert.doesNotMatch(sent.text, /Laba/);
+});
+
 console.log(`\n${passed} lulus${process.exitCode ? ', ada yang gagal' : ''}`);

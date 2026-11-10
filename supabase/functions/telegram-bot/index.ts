@@ -64,29 +64,50 @@ function readAmount(tokens: string[], i: number): [number, number] | null {
   return single == null ? null : [single, i + 1];
 }
 
+export type Kind = "sale" | "income" | "expense" | "receivable" | "payable";
+
 export type Entry =
-  | { ok: true; kind: "sale" | "income" | "expense"; amount: number; cost?: number; note?: string }
-  | { ok: false; error: "unknown" | "amount" | "cost" };
+  | { ok: true; kind: Kind; amount: number; cost?: number; note?: string; contact?: string }
+  | { ok: false; error: "unknown" | "amount" | "cost" | "contact" };
 
 const SALE = ["jual", "penjualan", "j"];
 const INCOME = ["masuk", "pemasukan", "terima", "+"];
 const EXPENSE = ["keluar", "pengeluaran", "bayar", "beli", "-"];
+const RECEIVABLE = ["piutang"];
+const PAYABLE = ["utang", "hutang"];
+/** Kata penanda penjualan utang: "jual 50000 modal 30000 utang Budi". */
+const CREDIT = ["utang", "hutang", "kredit", "piutang"];
+
+/** "Budi Santoso, pinjam modal" -> nama kontak dan catatan (setelah koma). */
+function splitContact(rest: string): { contact: string; note: string } {
+  const comma = rest.indexOf(",");
+  const contact = (comma < 0 ? rest : rest.slice(0, comma)).trim().slice(0, 60);
+  const note = comma < 0 ? "" : rest.slice(comma + 1).trim().slice(0, 200);
+  return { contact, note };
+}
 
 /**
- * jual 50000 modal 30000 kopi   -> penjualan
- * masuk 25rb titipan            -> pemasukan lain
- * keluar 20000 listrik          -> pengeluaran
+ * jual 50000 modal 30000 kopi          -> penjualan lunas
+ * jual 50000 modal 30000 utang Budi    -> penjualan utang (piutang ke Budi)
+ * masuk 25rb titipan                   -> pemasukan lain
+ * keluar 20000 listrik                 -> pengeluaran
+ * piutang 100000 Budi, pinjam modal    -> meminjamkan uang ke Budi
+ * utang 100000 Budi                    -> menerima pinjaman uang dari Budi
  */
 export function parseEntry(text: string): Entry {
   const tokens = text.trim().split(/\s+/).filter((t) => t.length > 0);
   if (tokens.length === 0) return { ok: false, error: "unknown" };
   const word = tokens[0].toLowerCase().replace(/^\//, "");
-  const kind = SALE.includes(word)
+  const kind: Kind | null = SALE.includes(word)
     ? "sale"
     : INCOME.includes(word)
     ? "income"
     : EXPENSE.includes(word)
     ? "expense"
+    : RECEIVABLE.includes(word)
+    ? "receivable"
+    : PAYABLE.includes(word)
+    ? "payable"
     : null;
   if (!kind) return { ok: false, error: "unknown" };
 
@@ -101,16 +122,27 @@ export function parseEntry(text: string): Entry {
     if (!c) return { ok: false, error: "cost" };
     [cost, i] = c;
   }
-  const note = tokens.slice(i).join(" ").slice(0, 200);
+
+  let contact: string | undefined;
+  let note: string;
+  const credit = kind === "sale" && CREDIT.includes(tokens[i]?.toLowerCase() ?? "");
+  if (kind === "receivable" || kind === "payable" || credit) {
+    const parts = splitContact(tokens.slice(credit ? i + 1 : i).join(" "));
+    if (!parts.contact) return { ok: false, error: "contact" };
+    contact = parts.contact;
+    note = parts.note;
+  } else {
+    note = tokens.slice(i).join(" ").slice(0, 200);
+  }
   return {
     ok: true,
     kind,
     amount,
     ...(cost != null ? { cost } : {}),
     ...(note ? { note } : {}),
+    ...(contact ? { contact } : {}),
   };
 }
-
 export function rupiah(n: number): string {
   const s = Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return (n < 0 ? "-Rp" : "Rp") + s;
@@ -124,38 +156,110 @@ const KIND_LABEL: Record<string, string> = {
   sale: "Penjualan",
   income: "Pemasukan",
   expense: "Pengeluaran",
+  receivable: "Piutang (meminjamkan uang)",
+  payable: "Utang (menerima pinjaman)",
 };
+
+type Biz = { name: string; kind?: string; role: string };
+
+function canSeeProfit(b: Biz): boolean {
+  return b.role === "owner" || b.role === "admin";
+}
 
 /** Isi pesan konfirmasi. Keuntungan hanya untuk Pemilik dan Admin. */
 export function describe(
-  e: { kind: string; amount: number; cost?: number; note?: string },
-  business: { name: string; role: string },
+  e: { kind: string; amount: number; cost?: number; note?: string; contact?: string; nc?: boolean },
+  business: Biz,
 ): string {
-  const lines = [`<b>${KIND_LABEL[e.kind]}</b> · ${esc(business.name)}`, `Jumlah: ${rupiah(e.amount)}`];
+  const label = e.kind === "sale" && e.contact ? "Penjualan utang" : KIND_LABEL[e.kind];
+  const lines = [`<b>${label}</b> · ${esc(business.name)}`, `Jumlah: ${rupiah(e.amount)}`];
   if (e.kind === "sale" && e.cost != null) {
     lines.push(`Modal: ${rupiah(e.cost)}`);
-    if (business.role === "owner" || business.role === "admin") {
+    if (canSeeProfit(business)) {
       const p = e.amount - e.cost;
       lines.push(`${p >= 0 ? "Keuntungan" : "Kerugian"}: ${rupiah(Math.abs(p))}`);
     }
   }
+  if (e.contact) lines.push(`Kontak: ${esc(e.contact)}${e.nc ? " (kontak baru)" : ""}`);
   if (e.note) lines.push(`Catatan: ${esc(e.note)}`);
   return lines.join("\n");
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/** "2026-11-12" -> "12 Nov". */
+export function shortDate(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]}`;
+}
+
+/** Ringkasan satu periode. Staf hanya melihat Pemasukan, Piutang, dan Utang. */
+export function formatReport(title: string, business: Biz, s: Record<string, number>): string {
+  const lines = [`<b>${title}</b> · ${esc(business.name)}`];
+  if (business.kind === "personal") {
+    lines.push(`Masuk: ${rupiah(s.total_in ?? 0)}`, `Keluar: ${rupiah(s.total_out ?? 0)}`);
+    lines.push(`Saldo kas: ${rupiah(s.balance ?? 0)}`);
+  } else {
+    lines.push(`Pemasukan: ${rupiah(s.income_total ?? 0)}`);
+    if (canSeeProfit(business) && s.net != null) {
+      lines.push(`Pengeluaran: ${rupiah(s.expense_total ?? 0)}`);
+      lines.push(`${s.net >= 0 ? "Laba" : "Rugi"}: ${rupiah(Math.abs(s.net))}`);
+    }
+  }
+  lines.push(`Piutang belum lunas: ${rupiah(s.receivable_open ?? 0)}`);
+  lines.push(`Utang belum lunas: ${rupiah(s.payable_open ?? 0)}`);
+  return lines.join("\n");
+}
+
+type Due = { name: string; kind: string; remaining: number; due_date: string };
+
+export function formatDue(due: Due[], today: string): string {
+  if (!due?.length) return "";
+  const lines = ["", "<b>Jatuh tempo</b>"];
+  for (const d of due) {
+    const late = d.due_date < today ? " (lewat tempo)" : "";
+    const what = d.kind === "receivable" ? "piutang" : "utang";
+    lines.push(`• ${esc(d.name)}: ${what} ${rupiah(d.remaining)}, ${shortDate(d.due_date)}${late}`);
+  }
+  return lines.join("\n");
+}
+
+/** Jawaban /utang: total, saldo per kontak, dan yang jatuh tempo. */
+export function formatDebts(r: any): string {
+  const lines = [
+    `<b>Utang piutang</b> · ${esc(r.business.name)}`,
+    `Piutang belum lunas: ${rupiah(r.receivable_open)}`,
+    `Utang belum lunas: ${rupiah(r.payable_open)}`,
+  ];
+  const contacts = (r.contacts ?? []) as { name: string; net: number }[];
+  if (contacts.length) {
+    lines.push("", "<b>Per kontak</b>");
+    for (const c of contacts) {
+      lines.push(`• ${esc(c.name)}: ${c.net > 0 ? "piutang" : "utang"} ${rupiah(Math.abs(c.net))}`);
+    }
+  }
+  return lines.join("\n") + formatDue(r.due ?? [], r.today);
 }
 
 export const HELP = [
   "<b>Cara mencatat</b>",
   "<code>jual 50000 modal 30000 kopi</code>",
+  "<code>jual 50000 modal 30000 utang Budi</code>",
   "<code>masuk 25rb titipan</code>",
   "<code>keluar 20000 listrik</code>",
+  "<code>piutang 100000 Budi</code>  meminjamkan uang",
+  "<code>utang 100000 Budi</code>  menerima pinjaman",
   "",
-  "Jumlah boleh ditulis 50000, 50.000, 50rb, atau 1,5jt. Setiap catatan dikonfirmasi dulu sebelum disimpan.",
+  "Jumlah boleh ditulis 50000, 50.000, 50rb, atau 1,5jt. Catatan untuk utang piutang ditulis setelah koma. Setiap catatan dikonfirmasi dulu sebelum disimpan.",
   "",
+  "/hari_ini  ringkasan hari ini",
+  "/bulan_ini  ringkasan bulan ini",
+  "/utang  utang piutang dan jatuh tempo",
   "/pembukuan  pindah pembukuan",
   "/batal  hapus catatan terakhir dari bot",
+  "/laporan  hidupkan atau matikan ringkasan harian",
   "/putuskan  putuskan Telegram ini",
 ].join("\n");
-
 const NOT_LINKED =
   "Telegram ini belum terhubung. Buka aplikasi RekapRapi, masuk ke Pengaturan > Telegram, lalu tekan Hubungkan.";
 
@@ -267,6 +371,32 @@ async function onMessage(msg: any) {
     );
     return;
   }
+  if (command === "/hari_ini" || command === "/bulan_ini") {
+    const month = command === "/bulan_ini";
+    const r = await rpc("tg_report", { p_tg_id: from, p_period: month ? "month" : "today" });
+    await send(
+      chat,
+      r?.ok
+        ? formatReport(month ? "Bulan ini" : "Hari ini", r.business, r.summary)
+        : "Anda belum punya pembukuan. Buat dulu di aplikasi.",
+    );
+    return;
+  }
+  if (command === "/utang" && text.split(/\s+/).length === 1) {
+    const r = await rpc("tg_debt_overview", { p_tg_id: from });
+    await send(chat, r?.ok ? formatDebts(r) : "Anda belum punya pembukuan. Buat dulu di aplikasi.");
+    return;
+  }
+  if (command === "/laporan") {
+    const on = await rpc("tg_toggle_daily", { p_tg_id: from });
+    await send(
+      chat,
+      on
+        ? "Ringkasan harian dihidupkan. Dikirim sore hari bila ada catatan atau ada yang jatuh tempo."
+        : "Ringkasan harian dimatikan.",
+    );
+    return;
+  }
   if (command === "/putuskan") {
     await rpc("tg_unlink", { p_tg_id: from });
     await send(chat, "Telegram ini sudah diputuskan dari RekapRapi.");
@@ -277,6 +407,8 @@ async function onMessage(msg: any) {
   if (!entry.ok) {
     const why = entry.error === "amount"
       ? "Jumlahnya tidak terbaca."
+      : entry.error === "contact"
+      ? "Nama kontaknya belum ada, contoh: <code>piutang 100000 Budi</code>."
       : entry.error === "cost"
       ? "Penjualan perlu modal, contoh: <code>jual 50000 modal 30000</code>. Tanpa modal, pakai <code>masuk 50000</code>."
       : "Pesan tidak dikenali.";
@@ -293,9 +425,25 @@ async function onMessage(msg: any) {
   }
 
   const nonce = crypto.randomUUID().slice(0, 8);
-  const payload = { n: nonce, kind: entry.kind, amount: entry.amount, cost: entry.cost, note: entry.note };
+  // Kontak yang sudah ada dipakai dengan ejaan tersimpan; yang belum ada dibuat saat disimpan.
+  let contact = entry.contact;
+  let nc = false;
+  if (contact) {
+    const found = await rpc("tg_find_contact", { p_tg_id: from, p_name: contact });
+    if (found) contact = found as string;
+    else nc = true;
+  }
+  const payload = {
+    n: nonce,
+    kind: entry.kind,
+    amount: entry.amount,
+    cost: entry.cost,
+    note: entry.note,
+    contact,
+    nc: nc || undefined,
+  };
   await rpc("tg_set_pending", { p_tg_id: from, p_payload: payload });
-  await send(chat, `${describe(entry, business)}\n\nSimpan catatan ini?`, {
+  await send(chat, `${describe(payload, business)}\n\nSimpan catatan ini?`, {
     reply_markup: {
       inline_keyboard: [[
         { text: "✅ Simpan", callback_data: `ok:${nonce}` },
@@ -340,7 +488,8 @@ async function onCallback(cb: any) {
     return;
   }
   const ctx = await rpc("tg_context", { p_tg_id: from });
-  const body = describe(pending, ctx?.business ?? { name: r.business, role: "staff" });
+  const body = describe({ ...pending, contact: r.contact ?? pending.contact, nc: r.new_contact },
+    ctx?.business ?? { name: r.business, role: "staff" });
   const cat = r.category && pending.kind !== "sale" ? `\nKategori: ${esc(r.category)}` : "";
   await edit(chat, message, `✅ Tersimpan\n${body}${cat}\n\nSalah catat? Kirim /batal`);
 }
@@ -348,6 +497,19 @@ async function onCallback(cb: any) {
 // ---------------------------------------------------------------------------
 // Pemasangan dan pintu masuk
 // ---------------------------------------------------------------------------
+
+/** Dipanggil penjadwal sekali sehari: ringkasan hari ini dan pengingat jatuh tempo. */
+async function daily(): Promise<Response> {
+  const rows = (await rpc("tg_daily_batch", {})) as any[];
+  let sent = 0;
+  for (const r of rows ?? []) {
+    const text = formatReport("Ringkasan hari ini", r.business, r.summary) +
+      formatDue(r.due ?? [], r.to) + "\n\nMatikan dengan /laporan";
+    const res = await send(r.chat_id, text);
+    if (res?.ok) sent++;
+  }
+  return Response.json({ ok: true, sent, total: rows?.length ?? 0 });
+}
 
 async function setup(): Promise<Response> {
   const url = `${env("SUPABASE_URL")}/functions/v1/telegram-bot`;
@@ -375,8 +537,12 @@ async function setup(): Promise<Response> {
   await tg("setMyCommands", {
     commands: [
       { command: "bantuan", description: "Cara mencatat" },
+      { command: "hari_ini", description: "Ringkasan hari ini" },
+      { command: "bulan_ini", description: "Ringkasan bulan ini" },
+      { command: "utang", description: "Utang piutang dan jatuh tempo" },
       { command: "pembukuan", description: "Pindah pembukuan" },
       { command: "batal", description: "Hapus catatan terakhir dari bot" },
+      { command: "laporan", description: "Hidupkan atau matikan ringkasan harian" },
       { command: "putuskan", description: "Putuskan Telegram ini" },
     ],
   });
@@ -404,6 +570,15 @@ export async function handle(req: Request): Promise<Response> {
     }
   }
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  // Penjadwal (pg_cron) memakai kepala X-Cron-Secret dengan rahasia yang sama.
+  if (req.headers.get("X-Cron-Secret") === secret) {
+    try {
+      return await daily();
+    } catch (e) {
+      console.error("laporan harian gagal", e);
+      return Response.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 300) });
+    }
+  }
   if (req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== secret) {
     return new Response("Forbidden", { status: 403 });
   }

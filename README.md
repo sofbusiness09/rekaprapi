@@ -23,6 +23,8 @@ supabase/migrations/20261111000000_rekapan_kind.sql  jenis pembukuan: Usaha atau
 supabase/migrations/20261112000000_accounting_v2.sql  dasar akuntansi baru Pembukuan Usaha: Pemasukan, Pengeluaran (termasuk modal), Laba
 supabase/migrations/20261113000000_backup_auto_restore.sql  backup otomatis harian dan fungsi Pulihkan dari Google Sheet
 supabase/migrations/20261114000000_telegram.sql  Bot Telegram: sambungan akun dan pencatatan lewat chat (panduan: docs/TELEGRAM.md)
+supabase/migrations/20261114000001_telegram_patch.sql  perbaikan penyimpanan nama bot
+supabase/migrations/20261115000000_telegram_reports.sql  Bot Telegram tahap 2: ringkasan, utang piutang, laporan harian
 supabase/tests/backup_test.sql                tes pengaturan backup
 assets/backup_apps_script.gs                  skrip Google Apps Script yang ditempel pengguna di Google Sheet-nya
 tools/apps_script_harness.js                menguji skrip itu dengan tiruan Google Sheet (Node): node tools/apps_script_harness.js assets/backup_apps_script.gs [build/backup_test/payload.json]
