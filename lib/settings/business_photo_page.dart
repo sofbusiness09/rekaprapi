@@ -54,7 +54,9 @@ class BusinessPhotoRepository {
   Future<String> upload(PickedPhoto photo) async {
     final storage = _db.storage.from(businessPhotoBucket);
     // Nama acak: alamat lama yang tersimpan di perangkat tidak menampilkan foto usang.
-    final random = Random.secure().nextInt(1 << 32).toRadixString(16);
+    // Batas ditulis sebagai angka biasa, bukan geser bit: di web (JavaScript)
+    // `1 << 32` bernilai 0 dan membuat pembuat angka acak gagal.
+    final random = Random.secure().nextInt(0x7fffffff).toRadixString(16);
     final path =
         '$businessId/${DateTime.now().millisecondsSinceEpoch}$random.${photo.extension}';
     await storage.uploadBinary(
