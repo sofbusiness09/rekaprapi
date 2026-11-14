@@ -38,10 +38,7 @@ class BusinessController extends ChangeNotifier {
       final email = (user.email ?? '').toLowerCase();
 
       final results = await Future.wait(<Future<dynamic>>[
-        _db
-            .from('business_members')
-            .select('role, businesses(id, name, kind)')
-            .eq('user_id', user.id),
+        _members(user.id),
         _db
             .from('invitations')
             .select('id, business_name, role')
@@ -67,6 +64,7 @@ class BusinessController extends ChangeNotifier {
               name: m['businesses']['name'] as String,
               role: m['role'] as String,
               kind: BusinessKind.parse(m['businesses']['kind'] as String?),
+              photoUrl: m['businesses']['photo_url'] as String?,
             ),
       ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -86,6 +84,22 @@ class BusinessController extends ChangeNotifier {
     } finally {
       loading = false;
       notifyListeners();
+    }
+  }
+
+  /// Keanggotaan beserta pembukuannya. Kolom foto baru ada setelah migrasi
+  /// 20261118000000; sebelum itu daftar tetap dimuat tanpa foto.
+  Future<List<dynamic>> _members(String userId) async {
+    try {
+      return await _db
+          .from('business_members')
+          .select('role, businesses(id, name, kind, photo_url)')
+          .eq('user_id', userId);
+    } on PostgrestException {
+      return await _db
+          .from('business_members')
+          .select('role, businesses(id, name, kind)')
+          .eq('user_id', userId);
     }
   }
 
@@ -134,6 +148,17 @@ class BusinessController extends ChangeNotifier {
   void rename(String id, String name) {
     businesses = [
       for (final b in businesses) b.id == id ? b.copyWith(name: name) : b,
+    ];
+    if (current?.id == id) {
+      current = businesses.firstWhere((b) => b.id == id);
+    }
+    notifyListeners();
+  }
+
+  /// Foto profil pembukuan diganti atau dihapus di Pengaturan.
+  void setPhoto(String id, String? url) {
+    businesses = [
+      for (final b in businesses) b.id == id ? b.withPhoto(url) : b,
     ];
     if (current?.id == id) {
       current = businesses.firstWhere((b) => b.id == id);

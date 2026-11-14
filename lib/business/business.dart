@@ -16,6 +16,7 @@ class Business {
     required this.name,
     required this.role,
     this.kind = BusinessKind.business,
+    this.photoUrl,
   });
 
   final String id;
@@ -24,6 +25,9 @@ class Business {
   /// 'owner' | 'admin' | 'staff'
   final String role;
   final BusinessKind kind;
+
+  /// Alamat foto profil pembukuan; null bila memakai inisial.
+  final String? photoUrl;
 
   bool get canManage => role == 'owner' || role == 'admin';
 
@@ -34,6 +38,14 @@ class Business {
   /// (Staf tetap mengisi modal saat mencatat penjualan, tetapi tidak melihat hasilnya.)
   bool get canSeeProfit => canManage && !isPersonal;
 
-  Business copyWith({String? name}) =>
-      Business(id: id, name: name ?? this.name, role: role, kind: kind);
+  Business copyWith({String? name}) => Business(
+      id: id,
+      name: name ?? this.name,
+      role: role,
+      kind: kind,
+      photoUrl: photoUrl);
+
+  /// Salinan dengan foto diganti; null menghapus foto.
+  Business withPhoto(String? url) =>
+      Business(id: id, name: name, role: role, kind: kind, photoUrl: url);
 }

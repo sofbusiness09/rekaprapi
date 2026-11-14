@@ -25,6 +25,7 @@ class AppSidebar extends StatelessWidget {
     required this.extended,
     required this.onToggle,
     required this.businessName,
+    this.photoUrl,
     required this.roleLabel,
     required this.onOpenSwitcher,
     required this.items,
@@ -37,6 +38,7 @@ class AppSidebar extends StatelessWidget {
   final bool extended;
   final VoidCallback onToggle;
   final String businessName;
+  final String? photoUrl;
   final String roleLabel;
   final VoidCallback onOpenSwitcher;
   final List<SidebarItem> items;
@@ -73,6 +75,7 @@ class AppSidebar extends StatelessWidget {
                   extended: extended,
                   onToggle: onToggle,
                   name: businessName,
+                  photoUrl: photoUrl,
                   role: roleLabel,
                   onSwitch: onOpenSwitcher,
                 ),
@@ -178,7 +181,10 @@ class _Header extends StatelessWidget {
     required this.name,
     required this.role,
     required this.onSwitch,
+    this.photoUrl,
   });
+
+  final String? photoUrl;
 
   final bool extended;
   final VoidCallback onToggle;
@@ -200,7 +206,8 @@ class _Header extends StatelessWidget {
               child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Center(child: InitialAvatar(name, size: 44)),
+                child: Center(
+                    child: InitialAvatar(name, size: 44, photoUrl: photoUrl)),
               ),
             ),
           ),

@@ -14,6 +14,7 @@ import '../theme/font_controller.dart';
 import '../theme/font_picker.dart';
 import '../theme/theme_picker.dart';
 import 'activity_page.dart';
+import 'business_photo_page.dart';
 import 'categories_page.dart';
 import 'contacts_manage_page.dart';
 import 'home_prefs.dart';
@@ -30,6 +31,7 @@ class SettingsPage extends StatelessWidget {
     required this.debtRepo,
     required this.changes,
     required this.onRenamed,
+    required this.onPhotoChanged,
     required this.onSwitchBusiness,
     required this.onBusinessGone,
     required this.backup,
@@ -45,6 +47,9 @@ class SettingsPage extends StatelessWidget {
 
   /// Dipanggil setelah nama usaha diubah, agar judul di atas ikut berubah.
   final ValueChanged<String> onRenamed;
+
+  /// Dipanggil setelah foto profil diganti (alamat baru) atau dihapus (null).
+  final ValueChanged<String?> onPhotoChanged;
 
   /// Membuka daftar usaha untuk berpindah.
   final VoidCallback onSwitchBusiness;
@@ -176,6 +181,19 @@ class SettingsPage extends StatelessWidget {
             leading: const Icon(Icons.storefront_outlined),
             title: const Text('Profil pembukuan'),
             onTap: () => _editProfile(context),
+          ),
+        if (business.canManage)
+          ListTile(
+            leading: const Icon(Icons.account_circle_outlined),
+            title: const Text('Foto profil'),
+            onTap: () => _push(
+                context,
+                BusinessPhotoPage(
+                  businessId: business.id,
+                  businessName: business.name,
+                  photoUrl: business.photoUrl,
+                  onChanged: onPhotoChanged,
+                )),
           ),
         // Pembukuan pribadi tidak dibagikan, jadi tanpa daftar anggota.
         if (!business.isPersonal)

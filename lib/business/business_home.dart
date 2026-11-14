@@ -337,6 +337,7 @@ class _BusinessHomeState extends State<BusinessHome> {
         business: _business,
         repo: _settingsRepo,
         onRenamed: (name) => widget.controller.rename(_business.id, name),
+        onPhotoChanged: (url) => widget.controller.setPhoto(_business.id, url),
         debtRepo: _debtRepo,
         changes: _changes,
         onSwitchBusiness: _openSwitcher,
@@ -391,7 +392,7 @@ class _BusinessHomeState extends State<BusinessHome> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          InitialAvatar(_business.name, size: 38),
+          InitialAvatar(_business.name, size: 38, photoUrl: _business.photoUrl),
           const SizedBox(width: 12),
           Flexible(
             child:
@@ -433,6 +434,7 @@ class _BusinessHomeState extends State<BusinessHome> {
             extended: _railExtended,
             onToggle: () => setState(() => _railExtended = !_railExtended),
             businessName: _business.name,
+            photoUrl: _business.photoUrl,
             roleLabel: roleNames[_business.role] ?? _business.role,
             onOpenSwitcher: _openSwitcher,
             accent: backgroundController.preset.accent,

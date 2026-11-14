@@ -129,11 +129,15 @@ class EmptyState extends StatelessWidget {
 
 /// Lingkaran berisi inisial nama.
 class InitialAvatar extends StatelessWidget {
-  const InitialAvatar(this.name, {super.key, this.color, this.size = 44});
+  const InitialAvatar(this.name,
+      {super.key, this.color, this.size = 44, this.photoUrl});
 
   final String name;
   final Color? color;
   final double size;
+
+  /// Foto pengganti inisial; bila gagal dimuat, inisial tetap tampil.
+  final String? photoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +150,7 @@ class InitialAvatar extends StatelessWidget {
                 ? parts.first.substring(0, 1)
                 : parts.first.substring(0, 1) + parts.last.substring(0, 1))
             .toUpperCase();
-    return Container(
+    final fallback = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -157,6 +161,22 @@ class InitialAvatar extends StatelessWidget {
       child: Text(initials,
           style: TextStyle(
               color: c, fontWeight: FontWeight.w600, fontSize: size * 0.34)),
+    );
+    final url = photoUrl;
+    if (url == null || url.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.3),
+      child: Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        // Foto kecil; dimuat pada ukuran tampil agar hemat memori.
+        cacheWidth: (size * 3).round(),
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : fallback,
+      ),
     );
   }
 }

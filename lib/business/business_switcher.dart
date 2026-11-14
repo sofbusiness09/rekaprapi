@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../backup/restore_page.dart';
 import '../common/dialogs.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
@@ -26,10 +27,12 @@ Future<void> runWithToast(
   }
 }
 
-/// Tambah pembukuan: pilih jenisnya (Usaha atau Pribadi), lalu beri nama.
+/// Tambah pembukuan: pilih jenisnya (Usaha atau Pribadi) lalu beri nama, atau
+/// pulihkan pembukuan lama dari Google Sheet hasil backup.
 Future<void> promptCreateBusiness(
     BuildContext context, BusinessController controller) async {
-  final kind = await showModalBottomSheet<BusinessKind>(
+  // BusinessKind untuk pembukuan baru, atau teks 'restore' untuk pemulihan.
+  final choice = await showModalBottomSheet<Object>(
     context: context,
     showDragHandle: true,
     constraints: const BoxConstraints(maxWidth: 480),
@@ -68,11 +71,28 @@ Future<void> promptCreateBusiness(
             subtitle: const Text('Pemasukan dan pengeluaran pribadi'),
             onTap: () => Navigator.pop(sheetContext, BusinessKind.personal),
           ),
+          ListTile(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            leading: const IconBadge(Icons.restore_rounded,
+                color: Brand.pending, size: 42),
+            title: const Text('Pulihkan dari Google Sheet',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Pembukuan lama dari hasil backup'),
+            onTap: () => Navigator.pop(sheetContext, 'restore'),
+          ),
         ]),
       ),
     ),
   );
-  if (kind == null || !context.mounted) return;
+  if (choice == null || !context.mounted) return;
+  if (choice is! BusinessKind) {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RestorePage(onRestored: controller.afterRestore),
+    ));
+    return;
+  }
+  final kind = choice;
   final name = await askText(context,
       title: kind == BusinessKind.personal
           ? 'Pembukuan pribadi'
@@ -251,7 +271,7 @@ class _SwitcherSheet extends StatelessWidget {
       selected: selected,
       selectedTileColor:
           theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-      leading: InitialAvatar(b.name, size: 42),
+      leading: InitialAvatar(b.name, size: 42, photoUrl: b.photoUrl),
       title: Text(b.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

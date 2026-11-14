@@ -223,19 +223,39 @@ class RecoveryImporter {
   final int batchSize;
   SupabaseClient get _db => Supabase.instance.client;
 
-  /// Mengembalikan id pembukuan baru. Bila gagal di tengah, pembukuan setengah jadi
-  /// dihapus supaya tidak tertinggal.
+  /// Mengembalikan id pembukuan hasil pemulihan.
+  ///
+  /// Tanpa [intoBusinessId]: dibuat pembukuan baru bernama [name]; bila gagal di
+  /// tengah, pembukuan setengah jadi dihapus.
+  /// Dengan [intoBusinessId]: data dimasukkan ke pembukuan itu, yang harus masih
+  /// kosong (dijaga database); bila gagal, pembukuan dikembalikan kosong dan tidak
+  /// dihapus. Kategori buatan pengguna di pembukuan itu dipertahankan.
   Future<String> restore(
     RecoveryPayload payload, {
     required String name,
+    String? intoBusinessId,
     void Function(String step, double progress)? onProgress,
   }) async {
-    final id = await _db.rpc('restore_begin', params: {
-      'p_name': name,
-      'p_kind': payload.kind.apiValue,
-      'p_address': payload.address,
-      'p_phone': payload.phone,
-    }) as String;
+    final into = intoBusinessId != null;
+    // Kategori yang sudah dibuat di pembukuan tujuan, untuk ditambahkan kembali.
+    final kept = intoBusinessId != null
+        ? await _customCategories(intoBusinessId)
+        : const <(String, String)>[];
+
+    final String id;
+    if (into) {
+      id = await _db.rpc('restore_into_begin', params: {
+        'p_business': intoBusinessId,
+        'p_kind': payload.kind.apiValue,
+      }) as String;
+    } else {
+      id = await _db.rpc('restore_begin', params: {
+        'p_name': name,
+        'p_kind': payload.kind.apiValue,
+        'p_address': payload.address,
+        'p_phone': payload.phone,
+      }) as String;
+    }
     try {
       final total = recoveryTables.fold<int>(0, (s, t) => s + payload.count(t));
       var done = 0;
@@ -255,14 +275,51 @@ class RecoveryImporter {
       }
       onProgress?.call('Merapikan…', 1);
       await _db.rpc('restore_finish', params: {'p_business': id});
-      return id;
     } catch (_) {
       try {
-        await _db.rpc('delete_business', params: {'p_business': id});
+        await _db.rpc(into ? 'restore_abort' : 'delete_business',
+            params: {'p_business': id});
       } catch (_) {
         // Pembukuan setengah jadi bisa dihapus sendiri dari Pengaturan.
       }
       rethrow;
+    }
+    await _addMissingCategories(id, kept);
+    return id;
+  }
+
+  Future<List<(String, String)>> _customCategories(String businessId) async {
+    try {
+      final rows = await _db
+          .from('categories')
+          .select('name, type')
+          .eq('business_id', businessId)
+          .eq('is_system', false);
+      return [for (final r in rows) (r['name'] as String, r['type'] as String)];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Menambahkan kembali kategori yang tidak ada di backup. Gagal di sini tidak
+  /// membatalkan pemulihan yang sudah berhasil.
+  Future<void> _addMissingCategories(
+      String businessId, List<(String, String)> kept) async {
+    if (kept.isEmpty) return;
+    try {
+      final rows = await _db
+          .from('categories')
+          .select('name, type')
+          .eq('business_id', businessId);
+      final have = {for (final r in rows) '${r['type']}:${r['name']}'};
+      final missing = [
+        for (final k in kept)
+          if (!have.contains('${k.$2}:${k.$1}'))
+            {'business_id': businessId, 'name': k.$1, 'type': k.$2},
+      ];
+      if (missing.isNotEmpty) await _db.from('categories').insert(missing);
+    } catch (_) {
+      // Kategori bisa ditambahkan lagi dari Pengaturan.
     }
   }
 

@@ -166,6 +166,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => RestorePage(
         connected: _saved,
+        target: widget.controller.business,
         onRestored: widget.onRestored,
       ),
     ));

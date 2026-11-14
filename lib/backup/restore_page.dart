@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
@@ -8,8 +9,64 @@ import 'apps_script_client.dart';
 import 'backup_settings.dart';
 import 'recovery.dart';
 
+/// Pemeriksaan dan penyambungan di sekitar pemulihan. Dapat diganti tiruan saat diuji.
+class RestoreBackend {
+  SupabaseClient get _db => Supabase.instance.client;
+
+  /// Nama pembukuan lain (yang dikelola pengguna ini) yang backup-nya tersambung ke
+  /// [scriptUrl]. Pembukuan milik akun lain tidak terlihat dari sini.
+  Future<List<String>> conflicts(String scriptUrl, {String? exceptId}) async {
+    try {
+      final rows = await _db
+          .from('backup_settings')
+          .select('business_id')
+          .eq('script_url', scriptUrl.trim());
+      final ids = [
+        for (final r in rows)
+          if (r['business_id'] != exceptId) r['business_id'] as String,
+      ];
+      if (ids.isEmpty) return const [];
+      final names = await _db
+          .from('businesses')
+          .select('name')
+          .inFilter('id', ids)
+          .isFilter('deleted_at', null);
+      return [for (final n in names) n['name'] as String];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Pembukuan belum punya transaksi, utang piutang, atau kontak yang aktif.
+  Future<bool> isEmpty(String businessId) async {
+    try {
+      for (final table in const ['cash_transactions', 'debts', 'contacts']) {
+        final rows = await _db
+            .from(table)
+            .select('id')
+            .eq('business_id', businessId)
+            .isFilter('deleted_at', null)
+            .limit(1);
+        if (rows.isNotEmpty) return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Menyambungkan backup pembukuan hasil pemulihan ke Google Sheet sumbernya.
+  Future<void> connect(String businessId,
+          {required String scriptUrl,
+          required String token,
+          String? spreadsheetUrl}) =>
+      BackupSettingsRepository(businessId).save(
+          scriptUrl: scriptUrl, token: token, spreadsheetUrl: spreadsheetUrl);
+}
+
 /// Pulihkan dari Google Sheet: membaca data pemulihan dari Google Sheet hasil backup
-/// lalu memasukkannya sebagai **pembukuan baru**. Pembukuan yang ada tidak diubah.
+/// lalu memasukkannya sebagai **pembukuan baru**, atau ke pembukuan [target] bila
+/// pembukuan itu masih kosong.
 ///
 /// [connected] adalah sheet yang sudah tersambung di pembukuan ini (boleh null).
 /// Sumber lain bisa diketik: alamat skrip dan kode rahasia (ada di dalam kode skrip di
@@ -19,18 +76,26 @@ class RestorePage extends StatefulWidget {
     super.key,
     required this.onRestored,
     this.connected,
+    this.target,
     AppsScriptClient? client,
     RecoveryImporter? importer,
+    RestoreBackend? backend,
   })  : _client = client,
-        _importer = importer;
+        _importer = importer,
+        _backend = backend;
 
   final BackupSettings? connected;
 
-  /// Dipanggil dengan id pembukuan baru setelah berhasil.
+  /// Pembukuan yang sedang dibuka. Bila pengguna Pemiliknya dan pembukuan masih kosong,
+  /// data bisa dipulihkan ke sini alih-alih menjadi pembukuan baru.
+  final Business? target;
+
+  /// Dipanggil dengan id pembukuan hasil pemulihan setelah berhasil.
   final Future<void> Function(String businessId) onRestored;
 
   final AppsScriptClient? _client;
   final RecoveryImporter? _importer;
+  final RestoreBackend? _backend;
 
   @override
   State<RestorePage> createState() => _RestorePageState();
@@ -40,6 +105,7 @@ class _RestorePageState extends State<RestorePage> {
   final _url = TextEditingController();
   final _token = TextEditingController();
   final _name = TextEditingController();
+  late final RestoreBackend _backend = widget._backend ?? RestoreBackend();
 
   RecoveryPayload? _payload;
   String? _savedAt;
@@ -50,6 +116,23 @@ class _RestorePageState extends State<RestorePage> {
   String? _error;
   bool _needsUpdate = false;
 
+  // Sumber yang berhasil dibaca, untuk melanjutkan backup ke sheet yang sama.
+  String _srcUrl = '';
+  String _srcToken = '';
+  String? _srcSheet;
+
+  /// Pembukuan [RestorePage.target] bisa menerima data ini (kosong, jenis sama).
+  bool _canUseTarget = false;
+
+  /// true = pulihkan ke pembukuan target; false = jadi pembukuan baru.
+  bool _intoTarget = false;
+
+  /// "Lanjutkan backup ke Google Sheet ini".
+  bool _keepBackup = true;
+
+  /// Pembukuan lain yang masih backup ke sheet yang sama.
+  List<String> _conflicts = const [];
+
   @override
   void dispose() {
     _url.dispose();
@@ -57,6 +140,10 @@ class _RestorePageState extends State<RestorePage> {
     _name.dispose();
     super.dispose();
   }
+
+  /// Pembukuan target sudah tersambung ke sheet sumber: tidak perlu disambungkan lagi.
+  bool get _targetAlreadyConnected =>
+      _intoTarget && widget.connected?.scriptUrl.trim() == _srcUrl;
 
   Future<void> _read(String url, String token) async {
     if (!isValidScriptUrl(url)) {
@@ -79,11 +166,26 @@ class _RestorePageState extends State<RestorePage> {
       final client = widget._client ?? AppsScriptClient();
       final read = await client.readRecovery(url.trim(), token.trim());
       final payload = RecoveryPayload.fromChunks(read.chunks);
+
+      final target = widget.target;
+      final canUseTarget = target != null &&
+          target.role == 'owner' &&
+          target.kind == payload.kind &&
+          await _backend.isEmpty(target.id);
+      final conflicts = await _backend.conflicts(url, exceptId: target?.id);
       if (!mounted) return;
       setState(() {
         _payload = payload;
         _savedAt = read.savedAt;
         _name.text = '${payload.name} (pulihan)';
+        _srcUrl = url.trim();
+        _srcToken = token.trim();
+        _srcSheet = read.spreadsheetUrl;
+        _canUseTarget = canUseTarget;
+        _intoTarget = false;
+        _conflicts = conflicts;
+        // Sheet masih dipakai pembukuan lain: bawaannya tidak disambungkan.
+        _keepBackup = conflicts.isEmpty;
       });
     } on BackupException catch (e) {
       if (!mounted) return;
@@ -98,19 +200,41 @@ class _RestorePageState extends State<RestorePage> {
     }
   }
 
+  Future<void> _setKeepBackup(bool value) async {
+    if (value && _conflicts.isNotEmpty) {
+      final ok = await confirmDialog(
+        context,
+        title: 'Tetap sambungkan?',
+        body:
+            'Google Sheet ini masih dipakai untuk backup ${_conflictNames()}. Backup kedua pembukuan akan saling menimpa di sheet yang sama.',
+        okLabel: 'Tetap sambungkan',
+      );
+      if (!ok || !mounted) return;
+    }
+    setState(() => _keepBackup = value);
+  }
+
+  String _conflictNames() =>
+      _conflicts.map((n) => 'pembukuan "$n"').join(' dan ');
+
   Future<void> _restore() async {
     final payload = _payload;
-    final name = _name.text.trim();
     if (payload == null) return;
+    final into = _intoTarget && _canUseTarget;
+    final target = widget.target;
+    final name = into ? target!.name : _name.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Isi nama pembukuan baru.');
       return;
     }
     final ok = await confirmDialog(
       context,
-      title: 'Pulihkan sebagai pembukuan baru?',
-      body:
-          '"$name" akan dibuat dari data backup (${payload.summary}). Pembukuan lain tidak diubah.',
+      title: into
+          ? 'Pulihkan ke pembukuan ini?'
+          : 'Pulihkan sebagai pembukuan baru?',
+      body: into
+          ? 'Data backup (${payload.summary}) akan dimasukkan ke "$name".'
+          : '"$name" akan dibuat dari data backup (${payload.summary}). Pembukuan lain tidak diubah.',
       okLabel: 'Pulihkan',
     );
     if (!ok || !mounted) return;
@@ -122,8 +246,9 @@ class _RestorePageState extends State<RestorePage> {
     });
     try {
       final importer = widget._importer ?? RecoveryImporter();
-      final id =
-          await importer.restore(payload, name: name, onProgress: (s, p) {
+      final id = await importer.restore(payload,
+          name: name,
+          intoBusinessId: into ? target!.id : null, onProgress: (s, p) {
         if (mounted) {
           setState(() {
             _step = s;
@@ -131,12 +256,26 @@ class _RestorePageState extends State<RestorePage> {
           });
         }
       });
+
+      // Menyambungkan backup tidak boleh menggagalkan pemulihan yang sudah berhasil.
+      var connectFailed = false;
+      if (_keepBackup && !_targetAlreadyConnected) {
+        try {
+          await _backend.connect(id,
+              scriptUrl: _srcUrl, token: _srcToken, spreadsheetUrl: _srcSheet);
+        } catch (_) {
+          connectFailed = true;
+        }
+      }
+
       await widget.onRestored(id);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).popUntil((r) => r.isFirst);
-      messenger.showSnackBar(
-          SnackBar(content: Text('Pembukuan "$name" berhasil dipulihkan.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(connectFailed
+              ? 'Pembukuan "$name" berhasil dipulihkan, tetapi backup belum tersambung. Sambungkan dari Pengaturan.'
+              : 'Pembukuan "$name" berhasil dipulihkan.')));
     } on PostgrestException catch (e) {
       if (mounted) setState(() => _error = 'Gagal memulihkan: ${e.message}');
     } catch (e) {
@@ -152,6 +291,7 @@ class _RestorePageState extends State<RestorePage> {
     final muted = theme.colorScheme.onSurfaceVariant;
     final payload = _payload;
     final c = widget.connected;
+    final target = widget.target;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pulihkan dari Google Sheet')),
@@ -161,7 +301,7 @@ class _RestorePageState extends State<RestorePage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
           children: [
             Text(
-              'Data dibaca dari Google Sheet hasil backup, lalu dimasukkan sebagai pembukuan baru. Pembukuan yang ada tidak diubah.',
+              'Data dibaca dari Google Sheet hasil backup, lalu dimasukkan sebagai pembukuan baru. Pembukuan lain tidak diubah.',
               style: theme.textTheme.bodyMedium?.copyWith(color: muted),
             ),
             const SizedBox(height: 16),
@@ -261,12 +401,71 @@ class _RestorePageState extends State<RestorePage> {
                       const SizedBox(height: 12),
                       Text(payload.summary, style: theme.textTheme.bodyMedium),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: _name,
-                        enabled: !_restoring,
-                        decoration: const InputDecoration(
-                            labelText: 'Nama pembukuan baru'),
-                      ),
+                      // Tujuan: pembukuan baru, atau pembukuan ini bila masih kosong.
+                      if (_canUseTarget && target != null) ...[
+                        SegmentedButton<bool>(
+                          showSelectedIcon: false,
+                          segments: const [
+                            ButtonSegment(
+                                value: false, label: Text('Pembukuan baru')),
+                            ButtonSegment(
+                                value: true, label: Text('Pembukuan ini')),
+                          ],
+                          selected: {_intoTarget},
+                          onSelectionChanged: _restoring
+                              ? null
+                              : (s) => setState(() => _intoTarget = s.first),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_intoTarget && target != null)
+                        Text(
+                            'Data dimasukkan ke "${target.name}" yang masih kosong. Nama dan anggotanya tidak berubah.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: muted))
+                      else
+                        TextField(
+                          controller: _name,
+                          enabled: !_restoring,
+                          decoration: const InputDecoration(
+                              labelText: 'Nama pembukuan baru'),
+                        ),
+                      if (!_targetAlreadyConnected) ...[
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                              'Lanjutkan backup ke Google Sheet ini'),
+                          subtitle: _conflicts.isEmpty
+                              ? const Text(
+                                  'Matikan bila pembukuan aslinya masih aktif dan masih backup ke sheet ini.')
+                              : null,
+                          value: _keepBackup,
+                          onChanged: _restoring ? null : _setKeepBackup,
+                        ),
+                        if (_conflicts.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Brand.pending.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: Brand.pending.withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded,
+                                      color: Brand.pending, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                        'Google Sheet ini masih dipakai untuk backup ${_conflictNames()}. Kalau dihidupkan, backup kedua pembukuan akan saling menimpa di sheet yang sama.',
+                                        style: theme.textTheme.bodySmall),
+                                  ),
+                                ]),
+                          ),
+                      ],
                       const SizedBox(height: 16),
                       FilledButton.icon(
                         onPressed: _restoring ? null : _restore,
