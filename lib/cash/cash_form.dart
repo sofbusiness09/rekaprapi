@@ -44,6 +44,112 @@ import 'cash_repository.dart';
   return (shown, hidden);
 }
 
+/// Lembar pilihan kategori dengan kotak cari, untuk kategori di luar lima tersering.
+/// Mengembalikan id kategori yang dipilih, atau null bila ditutup.
+Future<String?> showCategorySearch(
+  BuildContext context, {
+  required List<Category> categories,
+  required bool income,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    constraints: const BoxConstraints(maxWidth: 520),
+    builder: (_) =>
+        _CategorySearchSheet(categories: categories, income: income),
+  );
+}
+
+class _CategorySearchSheet extends StatefulWidget {
+  const _CategorySearchSheet({required this.categories, required this.income});
+
+  final List<Category> categories;
+  final bool income;
+
+  @override
+  State<_CategorySearchSheet> createState() => _CategorySearchSheetState();
+}
+
+class _CategorySearchSheetState extends State<_CategorySearchSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final q = _query.trim().toLowerCase();
+    // Urut nama agar mudah dipindai; yang diawali kata cari didahulukan.
+    final items = widget.categories
+        .where((c) => q.isEmpty || c.name.toLowerCase().contains(q))
+        .toList()
+      ..sort((a, b) {
+        final an = a.name.toLowerCase(), bn = b.name.toLowerCase();
+        if (q.isNotEmpty && an.startsWith(q) != bn.startsWith(q)) {
+          return an.startsWith(q) ? -1 : 1;
+        }
+        return an.compareTo(bn);
+      });
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 0, 16, 12 + MediaQuery.viewInsetsOf(context).bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Pilih kategori',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onChanged: (v) => setState(() => _query = v),
+              onSubmitted: (_) {
+                // Enter memilih bila hasilnya tinggal satu.
+                if (items.length == 1) Navigator.pop(context, items.first.id);
+              },
+              decoration: const InputDecoration(
+                hintText: 'Cari kategori',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: items.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text('Tidak ada kategori yang cocok.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      itemBuilder: (context, i) {
+                        final c = items[i];
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          leading:
+                              Icon(categoryIcon(c.name, income: widget.income)),
+                          title: Text(c.name),
+                          onTap: () => Navigator.pop(context, c.id),
+                        );
+                      },
+                    ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
 Future<bool> showCashForm(
   BuildContext context, {
   required CashRepository repo,
@@ -154,9 +260,6 @@ class _CashFormState extends State<_CashForm> {
 
   /// Pemakaian kategori 90 hari terakhir; dimuat setelah formulir tampil.
   Map<String, int> _usage = const {};
-
-  /// Kategori di luar 5 tersering sedang ditampilkan.
-  bool _showAllCategories = false;
 
   Future<void> _loadUsage() async {
     final usage = await widget.repo.categoryUsage();
@@ -562,9 +665,7 @@ class _CashFormState extends State<_CashForm> {
               Text('Kategori', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in _showAllCategories
-                    ? [...split.$1, ...split.$2]
-                    : split.$1)
+                for (final c in split.$1)
                   ChoiceChip(
                     label: Text(c.name),
                     avatar: Icon(categoryIcon(c.name, income: _isIn), size: 18),
@@ -574,16 +675,15 @@ class _CashFormState extends State<_CashForm> {
                   ),
                 if (split.$2.isNotEmpty)
                   ActionChip(
-                    avatar: Icon(
-                        _showAllCategories
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        size: 18),
-                    label: Text(_showAllCategories
-                        ? 'Sembunyikan'
-                        : 'Lainnya (${split.$2.length})'),
-                    onPressed: () => setState(
-                        () => _showAllCategories = !_showAllCategories),
+                    avatar: const Icon(Icons.search_rounded, size: 18),
+                    label: Text('Lainnya (${split.$2.length})'),
+                    onPressed: () async {
+                      final id = await showCategorySearch(context,
+                          categories: split.$2, income: _isIn);
+                      if (id != null && mounted) {
+                        setState(() => _categoryId = id);
+                      }
+                    },
                   ),
                 ActionChip(
                   avatar: const Icon(Icons.add_rounded, size: 18),

@@ -72,4 +72,45 @@ void main() {
       tester.view.resetDevicePixelRatio();
     }
   });
+
+  testWidgets('cari kategori: mengetik menyempitkan daftar, tekan memilih',
+      (tester) async {
+    String? picked;
+    final cats = _cats(['Sewa', 'Servis motor', 'Pajak', 'Asuransi']);
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async => picked = await showCategorySearch(context,
+                categories: cats, income: false),
+            child: const Text('buka'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('buka'));
+    await tester.pumpAndSettle();
+
+    // Tanpa kata cari: semua tampil.
+    for (final n in ['Sewa', 'Servis motor', 'Pajak', 'Asuransi']) {
+      expect(find.text(n), findsOneWidget);
+    }
+
+    await tester.enterText(find.byType(TextField), 'se');
+    await tester.pump();
+    expect(find.text('Pajak'), findsNothing);
+    expect(find.text('Asuransi'), findsNothing);
+    expect(find.text('Sewa'), findsOneWidget);
+    expect(find.text('Servis motor'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pump();
+    expect(find.text('Tidak ada kategori yang cocok.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'MOTOR');
+    await tester.pump();
+    await tester.tap(find.text('Servis motor'));
+    await tester.pumpAndSettle();
+    expect(picked, 'servis motor');
+  });
 }
