@@ -316,12 +316,16 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                                   _id
                                       ? 'Kode skrip disalin.'
                                       : 'Script code copied.')),
-                        if (widget.canRestore)
-                          OutlinedButton.icon(
-                            onPressed: _openRestore,
-                            icon: const Icon(Icons.restore_rounded),
-                            label: const Text('Pulihkan dari Google Sheet'),
-                          ),
+                        const SizedBox(height: 8),
+                      ],
+                      // Pemulihan tidak bergantung pada sambungan pembukuan ini: sumbernya bisa
+                      // Google Sheet lain dengan alamat skrip dan kode rahasianya.
+                      if (widget.canRestore) ...[
+                        OutlinedButton.icon(
+                          onPressed: _openRestore,
+                          icon: const Icon(Icons.restore_rounded),
+                          label: const Text('Pulihkan dari Google Sheet'),
+                        ),
                         const SizedBox(height: 16),
                       ],
                       ..._guide(theme),

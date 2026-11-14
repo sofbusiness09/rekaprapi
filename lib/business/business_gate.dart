@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../backup/restore_page.dart';
+
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'business_controller.dart';
@@ -103,6 +105,17 @@ class _NoBusinessPage extends StatelessWidget {
               onPressed: () => promptJoinByCode(context, controller),
               icon: const Icon(Icons.vpn_key_rounded),
               label: const Text('Gabung dengan kode'),
+            ),
+            const SizedBox(height: 8),
+            // Akun baru atau pembukuan terhapus: pulihkan dari backup Google Sheet.
+            OutlinedButton.icon(
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) =>
+                    RestorePage(onRestored: controller.afterRestore),
+              )),
+              icon: const Icon(Icons.restore_rounded),
+              label: const Text('Pulihkan dari Google Sheet'),
             ),
             if (controller.invites.isNotEmpty) ...[
               const SectionTitle('Undangan untuk Anda'),

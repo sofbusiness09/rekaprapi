@@ -35,6 +35,21 @@ class CashRepository {
     return rows.map(Category.fromMap).toList();
   }
 
+  /// id kategori -> jumlah pemakaian 90 hari terakhir oleh semua anggota. Kosong bila
+  /// belum ada transaksi atau fungsi database belum dipasang.
+  Future<Map<String, int>> categoryUsage() async {
+    try {
+      final res =
+          await _db.rpc('category_usage', params: {'p_business': businessId});
+      return {
+        for (final r in res as List)
+          (r as Map)['category_id'] as String: (r['uses'] as num).toInt(),
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
   /// id pengguna -> nama tampilan, untuk anggota yang terlihat oleh RLS.
   Future<Map<String, String>> memberNames() async {
     final rows = await _db.from('profiles').select('id, display_name, email');

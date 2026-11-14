@@ -23,6 +23,27 @@ import 'cash_repository.dart';
 ///   penjualan): ada Harga Modal, Diskon, Biaya Tambahan, dan info Keuntungan.
 ///
 /// Mengembalikan true bila tersimpan.
+/// Kategori yang langsung tampil di formulir: [limit] tersering menurut [usage]
+/// (seri diurutkan nama), ditambah yang sedang terpilih. Bila hanya satu yang
+/// tersembunyi, semuanya ditampilkan. Mengembalikan (tampil, tersembunyi).
+(List<Category>, List<Category>) splitTopCategories(
+  List<Category> options,
+  Map<String, int> usage, {
+  String? selectedId,
+  int limit = 5,
+}) {
+  if (options.length <= limit + 1) return (options, const []);
+  final ranked = [...options]..sort((a, b) {
+      final c = (usage[b.id] ?? 0).compareTo(usage[a.id] ?? 0);
+      return c != 0 ? c : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+  final shown = ranked.take(limit).toList();
+  final hidden = ranked.skip(limit).toList();
+  final i = hidden.indexWhere((c) => c.id == selectedId);
+  if (i >= 0) shown.add(hidden.removeAt(i));
+  return (shown, hidden);
+}
+
 Future<bool> showCashForm(
   BuildContext context, {
   required CashRepository repo,
@@ -131,6 +152,17 @@ class _CashFormState extends State<_CashForm> {
   List<Category> get _options =>
       _categories.where((c) => c.type == _type).toList();
 
+  /// Pemakaian kategori 90 hari terakhir; dimuat setelah formulir tampil.
+  Map<String, int> _usage = const {};
+
+  /// Kategori di luar 5 tersering sedang ditampilkan.
+  bool _showAllCategories = false;
+
+  Future<void> _loadUsage() async {
+    final usage = await widget.repo.categoryUsage();
+    if (mounted && usage.isNotEmpty) setState(() => _usage = usage);
+  }
+
   Future<void> _addCategory() async {
     final name = await askText(context, title: 'Kategori baru', label: 'Nama');
     if (name == null || name.isEmpty || !mounted) return;
@@ -177,6 +209,7 @@ class _CashFormState extends State<_CashForm> {
   void initState() {
     super.initState();
     if (!_editing) _loadContacts();
+    _loadUsage();
   }
 
   Future<void> _loadContacts() async {
@@ -338,6 +371,9 @@ class _CashFormState extends State<_CashForm> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final sale = _saleMode;
+    final split = splitTopCategories(
+        _options.where((c) => !c.isSale).toList(), _usage,
+        selectedId: _categoryId);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -526,13 +562,28 @@ class _CashFormState extends State<_CashForm> {
               Text('Kategori', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in _options.where((c) => !c.isSale))
+                for (final c in _showAllCategories
+                    ? [...split.$1, ...split.$2]
+                    : split.$1)
                   ChoiceChip(
                     label: Text(c.name),
                     avatar: Icon(categoryIcon(c.name, income: _isIn), size: 18),
                     selected: _categoryId == c.id,
                     onSelected: (s) =>
                         setState(() => _categoryId = s ? c.id : null),
+                  ),
+                if (split.$2.isNotEmpty)
+                  ActionChip(
+                    avatar: Icon(
+                        _showAllCategories
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        size: 18),
+                    label: Text(_showAllCategories
+                        ? 'Sembunyikan'
+                        : 'Lainnya (${split.$2.length})'),
+                    onPressed: () => setState(
+                        () => _showAllCategories = !_showAllCategories),
                   ),
                 ActionChip(
                   avatar: const Icon(Icons.add_rounded, size: 18),

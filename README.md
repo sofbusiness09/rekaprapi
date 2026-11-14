@@ -26,6 +26,7 @@ supabase/migrations/20261114000000_telegram.sql  Bot Telegram: sambungan akun da
 supabase/migrations/20261114000001_telegram_patch.sql  perbaikan penyimpanan nama bot
 supabase/migrations/20261115000000_telegram_reports.sql  Bot Telegram tahap 2: ringkasan, utang piutang, laporan harian
 supabase/migrations/20261116000000_telegram_settle.sql  Bot Telegram: pelunasan dan cicilan utang piutang
+supabase/migrations/20261117000000_category_usage.sql  kategori tersering 90 hari terakhir untuk formulir Pemasukan/Pengeluaran
 supabase/tests/backup_test.sql                tes pengaturan backup
 assets/backup_apps_script.gs                  skrip Google Apps Script yang ditempel pengguna di Google Sheet-nya
 tools/apps_script_harness.js                menguji skrip itu dengan tiruan Google Sheet (Node): node tools/apps_script_harness.js assets/backup_apps_script.gs [build/backup_test/payload.json]

@@ -297,47 +297,66 @@ class _CalcSheetState extends State<_CalcSheet> {
             ]),
           ),
           const SizedBox(height: 8),
+          // Baris atas: hapus semua, sama dengan, kali, hapus satu. C sengaja jauh dari
+          // tombol Selesai dan berwarna merah agar tidak tertekan saat hendak menyimpan.
           Row(children: [
-            numberKey('7'),
-            numberKey('8'),
-            numberKey('9'),
+            key('C',
+                onTap: () => setState(() => _expr = ''),
+                child: Text('C',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700, color: scheme.error))),
+            key('=', operator: true, onTap: _equals),
+            opKey(calcMul),
             key('',
                 onTap: _backspace,
                 child: const Icon(Icons.backspace_outlined, size: 22)),
           ]),
           Row(children: [
-            numberKey('4'),
-            numberKey('5'),
-            numberKey('6'),
-            opKey(calcMul),
-          ]),
-          Row(children: [
-            numberKey('1'),
-            numberKey('2'),
-            numberKey('3'),
+            numberKey('7'),
+            numberKey('8'),
+            numberKey('9'),
             opKey(calcSub),
           ]),
           Row(children: [
-            numberKey('0'),
-            numberKey('00'),
-            numberKey('000'),
+            numberKey('4'),
+            numberKey('5'),
+            numberKey('6'),
             opKey(calcAdd),
           ]),
+          // Dua baris terakhir: angka di kiri, tombol Selesai setinggi dua baris di kanan.
           Row(children: [
-            key('C', onTap: () => setState(() => _expr = '')),
-            key('=', operator: true, onTap: _equals),
             Expanded(
-              flex: 2,
+              flex: 3,
+              child: Column(children: [
+                Row(children: [
+                  numberKey('1'),
+                  numberKey('2'),
+                  numberKey('3'),
+                ]),
+                Row(children: [
+                  numberKey('0'),
+                  numberKey('00'),
+                  numberKey('000'),
+                ]),
+              ]),
+            ),
+            Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(4),
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
+                    minimumSize: const Size.fromHeight(112),
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: negative || tooBig ? null : _done,
-                  child: const Text('Selesai'),
+                  child:
+                      const Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.check_rounded, size: 26),
+                    SizedBox(height: 2),
+                    Text('Selesai'),
+                  ]),
                 ),
               ),
             ),
