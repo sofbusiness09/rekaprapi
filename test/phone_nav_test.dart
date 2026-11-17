@@ -40,6 +40,27 @@ void main() {
     expect(selected, [3]);
   });
 
+  testWidgets('layar HP sempit: semua nama tab tampil tanpa meluap',
+      (tester) async {
+    tester.view.physicalSize = const Size(720, 1600);
+    tester.view.devicePixelRatio = 2.0; // lebar 360
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        bottomNavigationBar: FloatingNavBar(
+            items: _items,
+            selectedIndex: 1,
+            onSelected: (_) {},
+            onCenter: () {}),
+      ),
+    ));
+    for (final n in ['Rekapan', 'Transaksi', 'Utang', 'Profil']) {
+      expect(find.text(n), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('tanpa onCenter tidak ada tombol +', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(

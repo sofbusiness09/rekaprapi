@@ -10,7 +10,7 @@ class FloatingNavItem {
 }
 
 /// Bilah navigasi bawah berbentuk kapsul yang melayang di atas dasar layar.
-/// Tab terpilih memanjang menampilkan ikon dan namanya; yang lain hanya ikon.
+/// Setiap tab menampilkan ikon dengan namanya di bawah; tab terpilih berwarna aksen.
 /// Bila [onCenter] diisi, tombol bulat "+" berada di tengah deretan tab.
 class FloatingNavBar extends StatelessWidget {
   const FloatingNavBar({
@@ -44,7 +44,7 @@ class FloatingNavBar extends StatelessWidget {
           shadowColor: Colors.black.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(32),
           child: Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
@@ -54,8 +54,8 @@ class FloatingNavBar extends StatelessWidget {
               for (var i = 0; i < items.length; i++) ...[
                 if (onCenter != null && i == (items.length + 1) ~/ 2)
                   _CenterButton(onTap: onCenter!, tooltip: centerTooltip),
+                // Lebar sama rata; nama selalu tampil di bawah ikon.
                 Expanded(
-                  flex: i == selectedIndex ? 3 : 2,
                   child: _NavButton(
                     item: items[i],
                     selected: i == selectedIndex,
@@ -82,40 +82,48 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
+    final scheme = theme.colorScheme;
+    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
     return Semantics(
       button: true,
       selected: selected,
       label: item.label,
       child: InkWell(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 56,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           decoration: BoxDecoration(
-            // Warna aksen tema (mengikuti gradasi yang dipilih), tulisan kontras.
-            color: selected ? theme.colorScheme.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(26),
+            // Kapsul lembut warna aksen di belakang tab terpilih.
+            color: selected
+                ? scheme.primary.withValues(alpha: 0.14)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(selected ? item.selectedIcon : item.icon,
-                size: 22,
-                color: selected ? theme.colorScheme.onPrimary : muted),
-            if (selected) ...[
-              const SizedBox(width: 6),
-              Flexible(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(selected ? item.selectedIcon : item.icon,
+                  size: 22, color: color),
+              const SizedBox(height: 3),
+              // Nama mengecil sendiri di layar sempit agar tetap satu baris utuh.
+              FittedBox(
+                fit: BoxFit.scaleDown,
                 child: Text(item.label,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.w600)),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 11.5,
+                        height: 1.1,
+                        color: color,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500)),
               ),
             ],
-          ]),
+          ),
         ),
       ),
     );
@@ -144,9 +152,9 @@ class _CenterButton extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: SizedBox(
-              width: 52,
-              height: 52,
-              child: Icon(Icons.add_rounded, size: 30, color: scheme.onPrimary),
+              width: 48,
+              height: 48,
+              child: Icon(Icons.add_rounded, size: 28, color: scheme.onPrimary),
             ),
           ),
         ),

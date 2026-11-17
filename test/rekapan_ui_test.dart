@@ -150,8 +150,7 @@ void main() {
   });
 
   group('Panel bawah melayang', () {
-    testWidgets('tab terpilih menampilkan nama, lainnya hanya ikon',
-        (tester) async {
+    testWidgets('semua tab bernama, nama di bawah ikon', (tester) async {
       var selected = 0;
       await tester.pumpWidget(MaterialApp(
         home: StatefulBuilder(
@@ -173,14 +172,21 @@ void main() {
         ),
       ));
 
-      expect(find.text('Beranda'), findsOneWidget);
-      expect(find.text('Transaksi'), findsNothing);
+      for (final n in ['Beranda', 'Transaksi', 'Utang', 'Rekapan']) {
+        expect(find.text(n), findsOneWidget);
+      }
+      // Nama berada di bawah ikonnya, tidak terpotong.
+      final icon = tester.getRect(find.byIcon(Icons.receipt_long_outlined));
+      final label = tester.getRect(find.text('Transaksi'));
+      expect(label.top, greaterThanOrEqualTo(icon.bottom));
+      expect((label.center.dx - icon.center.dx).abs(), lessThan(2));
 
-      await tester.tap(find.byIcon(Icons.handshake_outlined));
+      await tester.tap(find.text('Utang'));
       await tester.pumpAndSettle();
       expect(selected, 2);
-      expect(find.text('Utang'), findsOneWidget);
-      expect(find.text('Beranda'), findsNothing);
+      // Tab terpilih memakai ikon terisi.
+      expect(find.byIcon(Icons.handshake), findsOneWidget);
+      expect(find.byIcon(Icons.handshake_outlined), findsNothing);
     });
   });
 

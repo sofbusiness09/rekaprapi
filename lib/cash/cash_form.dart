@@ -365,10 +365,41 @@ class _CashFormState extends State<_CashForm> {
           ? 'Total belum terbaca. Isi jumlahnya sendiri.'
           : 'Periksa hasil scan sebelum menyimpan.');
     } catch (e) {
-      _toast('Gagal membaca nota: $e');
+      _scanFailed(e);
     } finally {
       if (mounted) setState(() => _scanning = false);
     }
+  }
+
+  /// Pesan singkat saat nota gagal dibaca; rincian teknis bisa dibuka bila perlu.
+  void _scanFailed(Object error) {
+    if (!mounted) return;
+    final detail = error.toString();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: const Text(
+            'Nota belum bisa dibaca di HP ini. Isi jumlahnya sendiri.'),
+        action: SnackBarAction(
+          label: 'Rincian',
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Rincian galat'),
+              content: SingleChildScrollView(
+                child: SelectableText(
+                    detail.length > 2000 ? detail.substring(0, 2000) : detail,
+                    style: const TextStyle(fontSize: 12)),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Tutup')),
+              ],
+            ),
+          ),
+        ),
+      ));
   }
 
   /// Kategori baru dari lembar cari, langsung terpilih.
