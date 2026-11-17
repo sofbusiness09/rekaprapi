@@ -1,4 +1,3 @@
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,8 +22,7 @@ import 'business.dart';
 import 'business_controller.dart';
 import 'business_switcher.dart';
 
-/// Tab: Rekapan (dashboard utama), Transaksi, Utang, dan Pengaturan. Di ponsel
-/// Pengaturan dibuka lewat nama pembukuan, jadi bilah bawah hanya tiga tab.
+/// Tab layar lebar: Rekapan (dashboard utama), Transaksi, Utang, dan Pengaturan.
 const _tabs = <(IconData, IconData, String)>[
   (Icons.bar_chart_outlined, Icons.bar_chart_rounded, 'Rekapan'),
   (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Transaksi'),
@@ -32,7 +30,18 @@ const _tabs = <(IconData, IconData, String)>[
   (Icons.settings_outlined, Icons.settings_rounded, 'Pengaturan'),
 ];
 
-const _phoneTabCount = 3;
+/// Tab ponsel: tiga tab utama ditambah Profil (pindah pembukuan, Pengaturan).
+/// Tombol "+" berada di tengah panel bawah.
+const _phoneTabs = <(IconData, IconData, String)>[
+  (Icons.bar_chart_outlined, Icons.bar_chart_rounded, 'Rekapan'),
+  (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Transaksi'),
+  (Icons.handshake_outlined, Icons.handshake_rounded, 'Utang'),
+  (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
+];
+
+/// Tab yang punya tombol Catat di layar lebar (tanpa Pengaturan).
+const _mainTabCount = 3;
+const _profileTab = 3;
 
 /// Pilihan di lembar tombol "+ Catat".
 enum _CatatKind { income, expense, debtGroup, payable, receivable }
@@ -61,8 +70,6 @@ class _BusinessHomeState extends State<BusinessHome> {
       business: widget.business, cash: _repo, debts: _debtRepo);
   final ValueNotifier<int> _changes = ValueNotifier(0);
 
-  /// Tombol Catat memanjang ("+ Catat"); mengecil menjadi ikon saat daftar digulir ke bawah.
-  final ValueNotifier<bool> _fabExpanded = ValueNotifier(true);
   RealtimeChannel? _channel;
   int _tab = 0;
 
@@ -121,7 +128,6 @@ class _BusinessHomeState extends State<BusinessHome> {
     final ch = _channel;
     if (ch != null) Supabase.instance.client.removeChannel(ch);
     _changes.dispose();
-    _fabExpanded.dispose();
     super.dispose();
   }
 
@@ -314,16 +320,6 @@ class _BusinessHomeState extends State<BusinessHome> {
     if (saved) _changes.value++;
   }
 
-  Widget _catatButton() => ValueListenableBuilder<bool>(
-        valueListenable: _fabExpanded,
-        builder: (context, expanded, _) => FloatingActionButton.extended(
-          isExtended: expanded,
-          onPressed: _catat,
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Catat'),
-        ),
-      );
-
   // --- Kerangka ---
 
   void _openSwitcher({bool withSettings = false}) => showBusinessSwitcher(
@@ -347,8 +343,8 @@ class _BusinessHomeState extends State<BusinessHome> {
       );
 
   Widget _body({required bool wide}) {
-    final pages = IndexedStack(
-      index: wide ? _tab : _tab.clamp(0, _phoneTabCount - 1),
+    return IndexedStack(
+      index: _tab.clamp(0, 3),
       children: [
         ReportPage(
             business: _business,
@@ -361,22 +357,15 @@ class _BusinessHomeState extends State<BusinessHome> {
             debtRepo: _debtRepo,
             changes: _changes),
         ContactsPage(business: _business, repo: _debtRepo, changes: _changes),
-        if (wide) _settingsPage(),
+        // Layar lebar: Pengaturan. Ponsel: Profil (Pengaturan dibuka dari sana).
+        if (wide)
+          _settingsPage()
+        else
+          BusinessProfilePanel(
+            controller: widget.controller,
+            onOpenSettings: () => setState(() => _settingsOpen = true),
+          ),
       ],
-    );
-    // Menggulir ke bawah mengecilkan tombol Catat; ke atas memanjangkannya lagi.
-    return NotificationListener<UserScrollNotification>(
-      onNotification: (n) {
-        if (n.metrics.axis == Axis.vertical) {
-          if (n.direction == ScrollDirection.reverse) {
-            _fabExpanded.value = false;
-          } else if (n.direction == ScrollDirection.forward) {
-            _fabExpanded.value = true;
-          }
-        }
-        return false;
-      },
-      child: pages,
     );
   }
 
@@ -385,10 +374,15 @@ class _BusinessHomeState extends State<BusinessHome> {
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final scheme = Theme.of(context).colorScheme;
 
-    // Nama pembukuan yang bisa ditekan untuk berpindah pembukuan.
+    // Nama pembukuan: di ponsel membuka tab Profil (tempat berpindah pembukuan).
     final title = InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () => _openSwitcher(withSettings: !wide),
+      onTap: () => wide
+          ? _openSwitcher()
+          : setState(() {
+              _tab = _profileTab;
+              _settingsOpen = false;
+            }),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -411,8 +405,6 @@ class _BusinessHomeState extends State<BusinessHome> {
                       ?.copyWith(color: scheme.onSurfaceVariant)),
             ]),
           ),
-          const SizedBox(width: 4),
-          Icon(Icons.unfold_more_rounded, color: scheme.onSurfaceVariant),
         ]),
       ),
     );
@@ -449,7 +441,7 @@ class _BusinessHomeState extends State<BusinessHome> {
             // Tombol Catat di tengah bawah area isi.
             child: Stack(children: [
               _body(wide: true),
-              if (_tab < _phoneTabCount)
+              if (_tab < _mainTabCount)
                 Positioned(
                   left: 0,
                   right: 0,
@@ -467,7 +459,6 @@ class _BusinessHomeState extends State<BusinessHome> {
         ]),
       ));
     }
-    final phoneTabs = _tabs.take(_phoneTabCount).toList();
     return PopScope(
       canPop: !_settingsOpen,
       onPopInvokedWithResult: (didPop, _) {
@@ -494,17 +485,16 @@ class _BusinessHomeState extends State<BusinessHome> {
                 padding: const EdgeInsets.only(bottom: 84),
                 child: _settingsPage())
             : _body(wide: false),
-        floatingActionButton: _settingsOpen ? null : _catatButton(),
-        // Panel bawah melayang seperti kapsul di atas isi layar.
+        // Panel bawah melayang: empat tab dengan tombol "+" di tengah.
         bottomNavigationBar: FloatingNavBar(
           items: [
-            for (final t in phoneTabs) FloatingNavItem(t.$1, t.$2, t.$3),
+            for (final t in _phoneTabs) FloatingNavItem(t.$1, t.$2, t.$3),
           ],
-          selectedIndex: _tab.clamp(0, phoneTabs.length - 1),
+          selectedIndex: _tab.clamp(0, _phoneTabs.length - 1),
+          onCenter: _catat,
           onSelected: (i) => setState(() {
             _tab = i;
             _settingsOpen = false;
-            _fabExpanded.value = true;
           }),
         ),
       )),

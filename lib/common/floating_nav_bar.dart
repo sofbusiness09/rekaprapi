@@ -11,17 +11,22 @@ class FloatingNavItem {
 
 /// Bilah navigasi bawah berbentuk kapsul yang melayang di atas dasar layar.
 /// Tab terpilih memanjang menampilkan ikon dan namanya; yang lain hanya ikon.
+/// Bila [onCenter] diisi, tombol bulat "+" berada di tengah deretan tab.
 class FloatingNavBar extends StatelessWidget {
   const FloatingNavBar({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.onSelected,
+    this.onCenter,
+    this.centerTooltip = 'Catat',
   });
 
   final List<FloatingNavItem> items;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final VoidCallback? onCenter;
+  final String centerTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +51,9 @@ class FloatingNavBar extends StatelessWidget {
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.10)),
             ),
             child: Row(children: [
-              for (var i = 0; i < items.length; i++)
+              for (var i = 0; i < items.length; i++) ...[
+                if (onCenter != null && i == (items.length + 1) ~/ 2)
+                  _CenterButton(onTap: onCenter!, tooltip: centerTooltip),
                 Expanded(
                   flex: i == selectedIndex ? 3 : 2,
                   child: _NavButton(
@@ -55,6 +62,7 @@ class FloatingNavBar extends StatelessWidget {
                     onTap: () => onSelected(i),
                   ),
                 ),
+              ],
             ]),
           ),
         ),
@@ -108,6 +116,39 @@ class _NavButton extends StatelessWidget {
               ),
             ],
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tombol "+" bulat di tengah panel bawah.
+class _CenterButton extends StatelessWidget {
+  const _CenterButton({required this.onTap, required this.tooltip});
+
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: scheme.primary,
+          shape: const CircleBorder(),
+          elevation: 3,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: Icon(Icons.add_rounded, size: 30, color: scheme.onPrimary),
+            ),
+          ),
         ),
       ),
     );

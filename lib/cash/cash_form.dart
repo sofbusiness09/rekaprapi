@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/amount_field.dart';
-import '../common/dialogs.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/contact_picker.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
+import '../scan/receipt_ocr.dart';
+import '../scan/receipt_parser.dart';
 import '../settings/settings_repository.dart';
 import '../theme/app_theme.dart';
 import 'cash_models.dart';
@@ -44,28 +46,42 @@ import 'cash_repository.dart';
   return (shown, hidden);
 }
 
-/// Lembar pilihan kategori dengan kotak cari, untuk kategori di luar lima tersering.
-/// Mengembalikan id kategori yang dipilih, atau null bila ditutup.
-Future<String?> showCategorySearch(
+/// Pilihan dari lembar cari kategori: kategori yang sudah ada ([id]) atau nama
+/// kategori baru yang diketik ([newName]).
+class CategoryChoice {
+  const CategoryChoice.existing(String this.id) : newName = null;
+  const CategoryChoice.create(String this.newName) : id = null;
+
+  final String? id;
+  final String? newName;
+}
+
+/// Lembar cari kategori. Bila kata yang dicari belum ada sebagai kategori, muncul
+/// pilihan "Tambah kategori" sehingga tidak perlu tombol terpisah.
+/// Mengembalikan null bila ditutup.
+Future<CategoryChoice?> showCategorySearch(
   BuildContext context, {
   required List<Category> categories,
   required bool income,
+  bool allowAdd = true,
 }) {
-  return showModalBottomSheet<String>(
+  return showModalBottomSheet<CategoryChoice>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     constraints: const BoxConstraints(maxWidth: 520),
-    builder: (_) =>
-        _CategorySearchSheet(categories: categories, income: income),
+    builder: (_) => _CategorySearchSheet(
+        categories: categories, income: income, allowAdd: allowAdd),
   );
 }
 
 class _CategorySearchSheet extends StatefulWidget {
-  const _CategorySearchSheet({required this.categories, required this.income});
+  const _CategorySearchSheet(
+      {required this.categories, required this.income, required this.allowAdd});
 
   final List<Category> categories;
   final bool income;
+  final bool allowAdd;
 
   @override
   State<_CategorySearchSheet> createState() => _CategorySearchSheetState();
@@ -77,7 +93,8 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final q = _query.trim().toLowerCase();
+    final typed = _query.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final q = typed.toLowerCase();
     // Urut nama agar mudah dipindai; yang diawali kata cari didahulukan.
     final items = widget.categories
         .where((c) => q.isEmpty || c.name.toLowerCase().contains(q))
@@ -89,6 +106,17 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
         }
         return an.compareTo(bn);
       });
+    final exact = widget.categories.any((c) => c.name.toLowerCase() == q);
+    final canAdd = widget.allowAdd && typed.isNotEmpty && !exact;
+    final addTile = ListTile(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      leading: Icon(Icons.add_circle_outline_rounded,
+          color: theme.colorScheme.primary),
+      title: Text('Tambah kategori "$typed"',
+          style: TextStyle(
+              color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+      onTap: () => Navigator.pop(context, CategoryChoice.create(typed)),
+    );
 
     return SafeArea(
       child: Padding(
@@ -107,26 +135,37 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
             const SizedBox(height: 12),
             TextField(
               autofocus: true,
+              textCapitalization: TextCapitalization.words,
               textInputAction: TextInputAction.search,
               onChanged: (v) => setState(() => _query = v),
               onSubmitted: (_) {
-                // Enter memilih bila hasilnya tinggal satu.
-                if (items.length == 1) Navigator.pop(context, items.first.id);
+                // Enter: pilih bila hasilnya tinggal satu, atau tambah bila belum ada.
+                if (items.length == 1) {
+                  Navigator.pop(
+                      context, CategoryChoice.existing(items.first.id));
+                } else if (items.isEmpty && canAdd) {
+                  Navigator.pop(context, CategoryChoice.create(typed));
+                }
               },
-              decoration: const InputDecoration(
-                hintText: 'Cari kategori',
-                prefixIcon: Icon(Icons.search_rounded),
+              decoration: InputDecoration(
+                hintText: widget.allowAdd
+                    ? 'Cari atau tambah kategori'
+                    : 'Cari kategori',
+                prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
             const SizedBox(height: 8),
+            if (canAdd) addTile,
             Flexible(
               child: items.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Tidak ada kategori yang cocok.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
-                    )
+                  ? (canAdd
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text('Tidak ada kategori yang cocok.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant)),
+                        ))
                   : ListView.builder(
                       shrinkWrap: true,
                       itemCount: items.length,
@@ -138,7 +177,8 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
                           leading:
                               Icon(categoryIcon(c.name, income: widget.income)),
                           title: Text(c.name),
-                          onTap: () => Navigator.pop(context, c.id),
+                          onTap: () => Navigator.pop(
+                              context, CategoryChoice.existing(c.id)),
                         );
                       },
                     ),
@@ -160,6 +200,7 @@ Future<bool> showCashForm(
   bool lockType = false,
   bool allowSale = true,
   bool showProfit = true,
+  bool? scanReceipts,
 }) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
@@ -175,6 +216,9 @@ Future<bool> showCashForm(
       lockType: lockType && existing == null,
       allowSale: allowSale,
       showProfit: showProfit,
+      // Scan nota: Pembukuan Pribadi, transaksi baru, di aplikasi Android.
+      scanReceipts: scanReceipts ??
+          (!allowSale && existing == null && receiptScanSupported),
     ),
   );
   return saved ?? false;
@@ -190,6 +234,7 @@ class _CashForm extends StatefulWidget {
     required this.lockType,
     required this.allowSale,
     required this.showProfit,
+    this.scanReceipts = false,
   });
 
   final CashRepository repo;
@@ -206,6 +251,9 @@ class _CashForm extends StatefulWidget {
 
   /// Staf mengisi modal tetapi tidak melihat keuntungan.
   final bool showProfit;
+
+  /// Tombol Scan nota di samping Simpan.
+  final bool scanReceipts;
 
   @override
   State<_CashForm> createState() => _CashFormState();
@@ -245,6 +293,7 @@ class _CashFormState extends State<_CashForm> {
   bool _discountPercent = false;
   DateTime? _due;
   bool _busy = false;
+  bool _scanning = false;
 
   static String _prefill(int? v) => (v == null || v == 0) ? '' : thousands(v);
 
@@ -266,9 +315,76 @@ class _CashFormState extends State<_CashForm> {
     if (mounted && usage.isNotEmpty) setState(() => _usage = usage);
   }
 
-  Future<void> _addCategory() async {
-    final name = await askText(context, title: 'Kategori baru', label: 'Nama');
-    if (name == null || name.isEmpty || !mounted) return;
+  /// Scan nota dari kamera atau galeri; mengisi jumlah, tanggal, catatan (nama toko),
+  /// dan kategori bila terbaca. Tidak ada yang tersimpan sebelum Simpan ditekan.
+  Future<void> _scan() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Galeri'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    setState(() => _scanning = true);
+    try {
+      final file = await ImagePicker()
+          .pickImage(source: source, maxWidth: 2000, imageQuality: 92);
+      if (file == null) return;
+      final lines = await readReceiptText(file.path);
+      final r = parseReceipt(lines);
+      final catId = guessCategory(lines.map((l) => l.text).join('\n'), [
+        for (final c in _options)
+          if (!c.isSale) (c.id, c.name),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        if (r.total != null) _amount.text = thousands(r.total!);
+        if (r.date != null) _date = r.date!;
+        if (r.merchant != null && _note.text.trim().isEmpty) {
+          _note.text = r.merchant!;
+        }
+        if (catId != null) _categoryId = catId;
+      });
+      _toast(r.total == null
+          ? 'Total belum terbaca. Isi jumlahnya sendiri.'
+          : 'Periksa hasil scan sebelum menyimpan.');
+    } catch (e) {
+      _toast('Gagal membaca nota: $e');
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  /// Kategori baru dari lembar cari, langsung terpilih.
+  Future<void> _openCategorySearch() async {
+    final choice = await showCategorySearch(context,
+        categories: _options.where((c) => !c.isSale).toList(), income: _isIn);
+    if (choice == null || !mounted) return;
+    if (choice.id != null) {
+      setState(() => _categoryId = choice.id);
+    } else {
+      await _addCategory(choice.newName!);
+    }
+  }
+
+  Future<void> _addCategory(String name) async {
+    if (name.isEmpty || !mounted) return;
     try {
       await SettingsRepository(widget.repo.businessId).addCategory(name, _type);
       final all = await widget.repo.categories();
@@ -474,6 +590,27 @@ class _CashFormState extends State<_CashForm> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final sale = _saleMode;
+    // Lunas atau Hutang: di bawah Harga Modal (penjualan) atau di bawah kolom jumlah.
+    final creditToggle = _editing
+        ? const <Widget>[]
+        : <Widget>[
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.check_circle_outline_rounded),
+                    label: Text('Lunas')),
+                ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.schedule_rounded),
+                    label: Text('Hutang')),
+              ],
+              selected: {_credit},
+              onSelectionChanged: (s) => setState(() => _credit = s.first),
+            ),
+          ];
     final split = splitTopCategories(
         _options.where((c) => !c.isSale).toList(), _usage,
         selectedId: _categoryId);
@@ -507,24 +644,6 @@ class _CashFormState extends State<_CashForm> {
                     child: _TypeTile('Pengeluaran', Icons.north_east_rounded,
                         false, !_isIn, () => setState(() => _type = 'out'))),
               ]),
-            if (!_editing) ...[
-              const SizedBox(height: 16),
-              SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                      value: false,
-                      icon: Icon(Icons.check_circle_outline_rounded),
-                      label: Text('Lunas')),
-                  ButtonSegment(
-                      value: true,
-                      icon: Icon(Icons.schedule_rounded),
-                      label: Text('Hutang')),
-                ],
-                selected: {_credit},
-                onSelectionChanged: (s) => setState(() => _credit = s.first),
-              ),
-            ],
             if (widget.allowSale && _isIn) ...[
               const SizedBox(height: 12),
               SegmentedButton<bool>(
@@ -549,6 +668,7 @@ class _CashFormState extends State<_CashForm> {
               autofocus: !_editing,
               onChanged: () => setState(() {}),
             ),
+            if (!sale) ...creditToggle,
             if (sale) ...[
               const SizedBox(height: 12),
               _AmountBox(
@@ -558,6 +678,7 @@ class _CashFormState extends State<_CashForm> {
                 large: false,
                 onChanged: () => setState(() {}),
               ),
+              ...creditToggle,
               const SizedBox(height: 4),
               Theme(
                 data: theme.copyWith(dividerColor: Colors.transparent),
@@ -673,22 +794,13 @@ class _CashFormState extends State<_CashForm> {
                     onSelected: (s) =>
                         setState(() => _categoryId = s ? c.id : null),
                   ),
-                if (split.$2.isNotEmpty)
-                  ActionChip(
-                    avatar: const Icon(Icons.search_rounded, size: 18),
-                    label: Text('Lainnya (${split.$2.length})'),
-                    onPressed: () async {
-                      final id = await showCategorySearch(context,
-                          categories: split.$2, income: _isIn);
-                      if (id != null && mounted) {
-                        setState(() => _categoryId = id);
-                      }
-                    },
-                  ),
+                // Satu tombol untuk mencari kategori lain sekaligus menambah yang belum ada.
                 ActionChip(
-                  avatar: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Kategori'),
-                  onPressed: _addCategory,
+                  avatar: const Icon(Icons.search_rounded, size: 18),
+                  label: Text(split.$2.isEmpty
+                      ? 'Cari'
+                      : 'Cari (${split.$2.length} lainnya)'),
+                  onPressed: _openCategorySearch,
                 ),
               ]),
             ],
@@ -718,19 +830,43 @@ class _CashFormState extends State<_CashForm> {
               ),
             ),
             const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              style: FilledButton.styleFrom(backgroundColor: _tone),
-              child: _busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
-                  : Text(_editing
-                      ? 'Simpan perubahan'
-                      : (_credit ? 'Simpan sebagai hutang' : 'Simpan')),
-            ),
+            Row(children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _busy || _scanning ? null : _save,
+                  style: FilledButton.styleFrom(backgroundColor: _tone),
+                  child: _busy
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2.5, color: Colors.white))
+                      : Text(_editing
+                          ? 'Simpan perubahan'
+                          : (_credit ? 'Simpan sebagai hutang' : 'Simpan')),
+                ),
+              ),
+              if (widget.scanReceipts) ...[
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: IconButton.filled(
+                    tooltip: 'Scan nota',
+                    style: IconButton.styleFrom(backgroundColor: _tone),
+                    onPressed: _busy || _scanning ? null : _scan,
+                    icon: _scanning
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.4, color: Colors.white))
+                        : const Icon(Icons.document_scanner_outlined,
+                            color: Colors.white),
+                  ),
+                ),
+              ],
+            ]),
           ],
         ),
       ),

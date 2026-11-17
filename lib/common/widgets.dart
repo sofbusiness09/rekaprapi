@@ -262,6 +262,7 @@ class EntryRow extends StatelessWidget {
     this.sub,
     this.status,
     this.statusColor,
+    this.note,
     this.onTap,
   });
 
@@ -273,6 +274,9 @@ class EntryRow extends StatelessWidget {
   final String? sub;
   final String? status;
   final Color? statusColor;
+
+  /// Catatan transaksi, huruf kecil di bawah nominal (rata kanan).
+  final String? note;
   final VoidCallback? onTap;
 
   @override
@@ -280,6 +284,14 @@ class EntryRow extends StatelessWidget {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final surface = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final noteText = note?.trim();
+    final hasNote = noteText != null && noteText.isNotEmpty;
+    Widget noteLine() => Text(noteText!,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.right,
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: muted, fontStyle: FontStyle.italic));
     final dots = theme.colorScheme.onSurface.withValues(alpha: 0.28);
 
     return InkWell(
@@ -342,8 +354,14 @@ class EntryRow extends StatelessWidget {
                   Text(status!,
                       style: theme.textTheme.labelSmall?.copyWith(
                           color: statusColor, fontWeight: FontWeight.w600)),
+                ] else if (hasNote) ...[
+                  // Tanpa status, catatan menempati sisi kanan baris kedua.
+                  const SizedBox(width: 8),
+                  Flexible(flex: 2, child: noteLine()),
                 ],
               ]),
+              if (status != null && hasNote)
+                Align(alignment: Alignment.centerRight, child: noteLine()),
             ]),
           ),
         ]),

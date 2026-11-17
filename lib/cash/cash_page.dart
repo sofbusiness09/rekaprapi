@@ -345,6 +345,7 @@ class _CreditTile extends StatelessWidget {
       sub: clockId(debt.createdAt),
       status: status,
       statusColor: statusColor,
+      note: debt.note,
       onTap: onTap,
     );
   }
@@ -509,6 +510,7 @@ class _TxTile extends StatelessWidget {
       amount: '${tx.isIn ? '+' : '-'}${rupiah(tx.amount)}',
       amountColor: color,
       sub: tx.createdAt == null ? null : clockId(tx.createdAt!),
+      note: tx.note,
       onTap: onTap,
     );
   }

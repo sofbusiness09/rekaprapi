@@ -73,16 +73,16 @@ void main() {
     }
   });
 
-  testWidgets('cari kategori: mengetik menyempitkan daftar, tekan memilih',
-      (tester) async {
-    String? picked;
-    final cats = _cats(['Sewa', 'Servis motor', 'Pajak', 'Asuransi']);
+  /// Membuka lembar cari; hasil pilihan masuk ke [out] setelah lembar ditutup.
+  Future<void> openSearch(
+      WidgetTester tester, List<Category> cats, List<CategoryChoice?> out,
+      {bool allowAdd = true}) async {
     await tester.pumpWidget(MaterialApp(
       home: Builder(
         builder: (context) => Scaffold(
           body: TextButton(
-            onPressed: () async => picked = await showCategorySearch(context,
-                categories: cats, income: false),
+            onPressed: () async => out.add(await showCategorySearch(context,
+                categories: cats, income: false, allowAdd: allowAdd)),
             child: const Text('buka'),
           ),
         ),
@@ -90,11 +90,19 @@ void main() {
     ));
     await tester.tap(find.text('buka'));
     await tester.pumpAndSettle();
+  }
 
-    // Tanpa kata cari: semua tampil.
+  testWidgets('cari kategori: mengetik menyempitkan daftar, tekan memilih',
+      (tester) async {
+    final cats = _cats(['Sewa', 'Servis motor', 'Pajak', 'Asuransi']);
+    final out = <CategoryChoice?>[];
+    await openSearch(tester, cats, out);
+
+    // Tanpa kata cari: semua tampil, tanpa pilihan tambah.
     for (final n in ['Sewa', 'Servis motor', 'Pajak', 'Asuransi']) {
       expect(find.text(n), findsOneWidget);
     }
+    expect(find.textContaining('Tambah kategori'), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'se');
     await tester.pump();
@@ -103,14 +111,42 @@ void main() {
     expect(find.text('Sewa'), findsOneWidget);
     expect(find.text('Servis motor'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'zzz');
-    await tester.pump();
-    expect(find.text('Tidak ada kategori yang cocok.'), findsOneWidget);
-
     await tester.enterText(find.byType(TextField), 'MOTOR');
     await tester.pump();
     await tester.tap(find.text('Servis motor'));
     await tester.pumpAndSettle();
-    expect(picked, 'servis motor');
+    final r = out.single;
+    expect(r!.id, 'servis motor');
+    expect(r.newName, isNull);
+  });
+
+  testWidgets('cari kategori: yang belum ada bisa langsung ditambah',
+      (tester) async {
+    final cats = _cats(['Sewa', 'Pajak']);
+    final out = <CategoryChoice?>[];
+    await openSearch(tester, cats, out);
+
+    // Nama yang sudah ada (beda huruf besar kecil) tidak ditawarkan untuk ditambah.
+    await tester.enterText(find.byType(TextField), 'sewa');
+    await tester.pump();
+    expect(find.textContaining('Tambah kategori'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), '  Jajan   anak ');
+    await tester.pump();
+    expect(find.text('Tambah kategori "Jajan anak"'), findsOneWidget);
+    expect(find.text('Tidak ada kategori yang cocok.'), findsNothing);
+    await tester.tap(find.text('Tambah kategori "Jajan anak"'));
+    await tester.pumpAndSettle();
+    final r = out.single;
+    expect(r!.id, isNull);
+    expect(r.newName, 'Jajan anak');
+  });
+
+  testWidgets('cari kategori tanpa izin tambah: hanya mencari', (tester) async {
+    await openSearch(tester, _cats(['Sewa']), [], allowAdd: false);
+    await tester.enterText(find.byType(TextField), 'zzz');
+    await tester.pump();
+    expect(find.textContaining('Tambah kategori'), findsNothing);
+    expect(find.text('Tidak ada kategori yang cocok.'), findsOneWidget);
   });
 }

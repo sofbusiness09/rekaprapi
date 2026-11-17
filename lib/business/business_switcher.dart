@@ -135,15 +135,45 @@ Future<void> showBusinessSwitcher(
   );
 }
 
+/// Tab Profil di ponsel: pembukuan aktif, daftar pembukuan, tambah pembukuan, gabung
+/// dengan kode, Pengaturan, dan keluar akun. Isinya sama dengan lembar pindah
+/// pembukuan, tetapi tampil sebagai halaman.
+class BusinessProfilePanel extends StatelessWidget {
+  const BusinessProfilePanel({
+    super.key,
+    required this.controller,
+    required this.onOpenSettings,
+  });
+
+  final BusinessController controller;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) => _SwitcherSheet(
+        controller: controller,
+        parentContext: context,
+        onOpenSettings: onOpenSettings,
+        embedded: true,
+      );
+}
+
 class _SwitcherSheet extends StatelessWidget {
   const _SwitcherSheet({
     required this.controller,
     required this.parentContext,
     this.onOpenSettings,
+    this.embedded = false,
   });
 
   final BusinessController controller;
   final VoidCallback? onOpenSettings;
+
+  /// Tampil sebagai tab Profil (bukan lembar): tidak ada yang ditutup saat memilih.
+  final bool embedded;
+
+  void _close(BuildContext context) {
+    if (!embedded) Navigator.pop(context);
+  }
 
   /// Konteks halaman di belakang lembar, dipakai untuk dialog dan pesan.
   final BuildContext parentContext;
@@ -166,18 +196,24 @@ class _SwitcherSheet extends StatelessWidget {
             if (b.role != 'owner') b,
         ];
         return SafeArea(
+          top: !embedded,
+          bottom: !embedded,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+            padding: EdgeInsets.fromLTRB(
+                8, embedded ? 8 : 0, 8, embedded ? 110 : 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text('Pindah pembukuan',
-                      style: theme.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ),
+                if (embedded && controller.current != null)
+                  _CurrentCard(business: controller.current!)
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text('Pindah pembukuan',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                  ),
                 if (mine.isNotEmpty) ...[
                   _SectionLabel('Pembukuan Saya', muted),
                   for (final b in mine) _businessTile(context, theme, b),
@@ -212,7 +248,7 @@ class _SwitcherSheet extends StatelessWidget {
                           icon: const Icon(Icons.check_rounded,
                               color: Brand.income),
                           onPressed: () {
-                            Navigator.pop(context);
+                            _close(context);
                             runWithToast(
                                 parentContext, () => controller.accept(i.id),
                                 done: 'Berhasil bergabung.');
@@ -229,7 +265,7 @@ class _SwitcherSheet extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Maksimal 5 pembukuan milik Anda'),
                   onTap: () {
-                    Navigator.pop(context);
+                    _close(context);
                     promptCreateBusiness(parentContext, controller);
                   },
                 ),
@@ -239,7 +275,7 @@ class _SwitcherSheet extends StatelessWidget {
                   title: const Text('Gabung dengan kode',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
-                    Navigator.pop(context);
+                    _close(context);
                     promptJoinByCode(parentContext, controller);
                   },
                 ),
@@ -251,11 +287,27 @@ class _SwitcherSheet extends StatelessWidget {
                     title: const Text('Pengaturan',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
-                      Navigator.pop(context);
+                      _close(context);
                       onOpenSettings!();
                     },
                   ),
                 ],
+                if (embedded)
+                  ListTile(
+                    leading: const IconBadge(Icons.logout_rounded,
+                        color: Brand.expense, size: 42),
+                    title: const Text('Keluar akun',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    onTap: () async {
+                      if (await confirmDialog(context,
+                          title: 'Keluar dari akun?',
+                          body:
+                              'Anda perlu masuk lagi untuk membuka pembukuan.',
+                          okLabel: 'Keluar')) {
+                        await Supabase.instance.client.auth.signOut();
+                      }
+                    },
+                  ),
               ],
             ),
           ),
@@ -281,7 +333,7 @@ class _SwitcherSheet extends StatelessWidget {
           ? const Icon(Icons.check_circle_rounded, color: Brand.income)
           : null,
       onTap: () {
-        Navigator.pop(context);
+        _close(context);
         controller.select(b);
       },
     );
@@ -301,4 +353,39 @@ class _SectionLabel extends StatelessWidget {
             style:
                 Theme.of(context).textTheme.labelLarge?.copyWith(color: color)),
       );
+}
+
+/// Kartu pembukuan aktif di atas tab Profil.
+class _CurrentCard extends StatelessWidget {
+  const _CurrentCard({required this.business});
+
+  final Business business;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: SoftCard(
+        child: Row(children: [
+          InitialAvatar(business.name, size: 56, photoUrl: business.photoUrl),
+          const SizedBox(width: 16),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(business.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                  'Pembukuan ${business.kind.label} · ${roleNames[business.role] ?? business.role}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 }
