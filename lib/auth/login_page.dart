@@ -1,13 +1,15 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/widgets.dart';
-import '../config.dart';
+import 'reset_code_page.dart';
 import 'url_auth_hint.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage(
+      {super.key, this.resetActions = const PasswordResetActions()});
+
+  final PasswordResetActions resetActions;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -69,20 +71,27 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Lupa password: kode dikirim ke email, lalu diisi di aplikasi bersama password baru.
   Future<void> _resetPassword() async {
     final email = _email.text.trim();
     if (!email.contains('@')) {
       _toast('Isi email dulu.');
       return;
     }
+    setState(() => _busy = true);
     try {
-      // Di web kembali ke alamat yang sedang dibuka; di Android ke alamat web.
-      final back = kIsWeb ? '${Uri.base.origin}${Uri.base.path}' : webAppUrl;
-      await Supabase.instance.client.auth
-          .resetPasswordForEmail(email, redirectTo: back);
-      _toast('Tautan reset password dikirim ke email Anda.');
+      await widget.resetActions.sendCode(email);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) =>
+            ResetCodePage(email: email, actions: widget.resetActions),
+      ));
     } on AuthException catch (e) {
       _toast(e.message);
+    } catch (e) {
+      _toast('Gagal mengirim kode: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 

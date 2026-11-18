@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../backup/backup_controller.dart';
@@ -13,6 +14,7 @@ import '../theme/background_picker.dart';
 import '../theme/font_controller.dart';
 import '../theme/font_picker.dart';
 import '../theme/theme_picker.dart';
+import '../update/app_update.dart';
 import 'activity_page.dart';
 import 'business_photo_page.dart';
 import 'categories_page.dart';
@@ -323,6 +325,7 @@ class SettingsPage extends StatelessWidget {
           title: const Text('Keluar dari akun'),
           onTap: () => _signOut(context),
         ),
+        const _VersionTile(),
         const Divider(),
         if (business.role == 'owner')
           ListTile(
@@ -413,6 +416,61 @@ class _ProfileDialogState extends State<_ProfileDialog> {
           child: const Text('Simpan'),
         ),
       ],
+    );
+  }
+}
+
+/// Versi aplikasi yang terpasang; di Android sekaligus tombol periksa pembaruan.
+class _VersionTile extends StatefulWidget {
+  const _VersionTile();
+
+  @override
+  State<_VersionTile> createState() => _VersionTileState();
+}
+
+class _VersionTileState extends State<_VersionTile> {
+  String? _version;
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((p) {
+      if (mounted) setState(() => _version = p.version);
+    }).catchError((_) {});
+  }
+
+  Future<void> _check() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _checking = true);
+    try {
+      final r = await maybeShowUpdate(context, force: true);
+      if (r == null) {
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Aplikasi sudah versi terbaru.')));
+      }
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Tidak bisa memeriksa pembaruan. Periksa koneksi internet.')));
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.info_outline_rounded),
+      title: Text('Versi aplikasi ${_version ?? ''}'.trim()),
+      subtitle: updatesSupported ? const Text('Periksa pembaruan') : null,
+      trailing: _checking
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2.4))
+          : null,
+      onTap: updatesSupported && !_checking ? _check : null,
     );
   }
 }
