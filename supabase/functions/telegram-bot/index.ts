@@ -161,9 +161,48 @@ export function parseEntry(text: string): Entry {
     ...(contact ? { contact } : {}),
   };
 }
+// Mata uang pembukuan: [simbol, pemisah ribuan, spasi setelah simbol].
+// Sama dengan daftar di aplikasi (lib/common/currency.dart).
+const CURRENCIES: Record<string, [string, string, boolean]> = {
+  IDR: ["Rp", ".", false],
+  USD: ["$", ",", false],
+  EUR: ["€", ".", false],
+  JPY: ["JP¥", ",", false],
+  GBP: ["£", ",", false],
+  CNY: ["CN¥", ",", false],
+  AUD: ["A$", ",", false],
+  CAD: ["C$", ",", false],
+  CHF: ["CHF", ",", true],
+  HKD: ["HK$", ",", false],
+  SGD: ["S$", ",", false],
+  MYR: ["RM", ",", false],
+  AED: ["AED", ",", true],
+  SAR: ["SAR", ",", true],
+  KRW: ["₩", ",", false],
+  THB: ["฿", ",", false],
+  INR: ["₹", ",", false],
+  TWD: ["NT$", ",", false],
+  QAR: ["QAR", ",", true],
+  KWD: ["KWD", ",", true],
+  OMR: ["OMR", ",", true],
+  BHD: ["BHD", ",", true],
+  TRY: ["₺", ".", false],
+  PHP: ["₱", ",", false],
+  VND: ["₫", ".", false],
+  BND: ["B$", ",", false],
+  NZD: ["NZ$", ",", false],
+};
+
+/** Jumlah bulat dengan simbol mata uang pembukuan: "Rp50.000", "AED 50,000". */
+export function money(n: number, currency?: string): string {
+  const [symbol, sep, spaced] = CURRENCIES[(currency ?? "IDR").toUpperCase()] ?? CURRENCIES.IDR;
+  const s = Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
+  return (n < 0 ? "-" : "") + symbol + (spaced ? " " : "") + s;
+}
+
+/** Rupiah (nama lama, dipakai bila mata uang tidak diketahui). */
 export function rupiah(n: number): string {
-  const s = Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return (n < 0 ? "-Rp" : "Rp") + s;
+  return money(n, "IDR");
 }
 
 export function esc(s: string): string {
@@ -178,7 +217,7 @@ const KIND_LABEL: Record<string, string> = {
   payable: "Utang (menerima pinjaman)",
 };
 
-type Biz = { name: string; kind?: string; role: string };
+type Biz = { name: string; kind?: string; role: string; currency?: string };
 
 function canSeeProfit(b: Biz): boolean {
   return b.role === "owner" || b.role === "admin";
@@ -197,6 +236,7 @@ export function describe(
   },
   business: Biz,
 ): string {
+  const fmt = (n: number) => money(n, business.currency);
   if (e.kind === "settle") {
     // net > 0: kontak berutang, uang diterima. net < 0: pengguna berutang, uang dibayarkan.
     const receive = (e.net ?? 0) > 0;
@@ -204,19 +244,19 @@ export function describe(
     const lines = [
       `<b>${receive ? "Terima pembayaran piutang" : "Bayar utang"}</b> · ${esc(business.name)}`,
       `${receive ? "Dari" : "Kepada"}: ${esc(e.contact ?? "")}`,
-      `Jumlah: ${rupiah(e.amount)}`,
-      left > 0 ? `Sisa setelah ini: ${rupiah(left)}` : "Setelah ini lunas",
+      `Jumlah: ${fmt(e.amount)}`,
+      left > 0 ? `Sisa setelah ini: ${fmt(left)}` : "Setelah ini lunas",
     ];
     if (e.note) lines.push(`Catatan: ${esc(e.note)}`);
     return lines.join("\n");
   }
   const label = e.kind === "sale" && e.contact ? "Penjualan utang" : KIND_LABEL[e.kind];
-  const lines = [`<b>${label}</b> · ${esc(business.name)}`, `Jumlah: ${rupiah(e.amount)}`];
+  const lines = [`<b>${label}</b> · ${esc(business.name)}`, `Jumlah: ${fmt(e.amount)}`];
   if (e.kind === "sale" && e.cost != null) {
-    lines.push(`Modal: ${rupiah(e.cost)}`);
+    lines.push(`Modal: ${fmt(e.cost)}`);
     if (canSeeProfit(business)) {
       const p = e.amount - e.cost;
-      lines.push(`${p >= 0 ? "Keuntungan" : "Kerugian"}: ${rupiah(Math.abs(p))}`);
+      lines.push(`${p >= 0 ? "Keuntungan" : "Kerugian"}: ${fmt(Math.abs(p))}`);
     }
   }
   if (e.contact) lines.push(`Kontak: ${esc(e.contact)}${e.nc ? " (kontak baru)" : ""}`);
@@ -234,50 +274,52 @@ export function shortDate(iso: string): string {
 
 /** Ringkasan satu periode. Staf hanya melihat Pemasukan, Piutang, dan Utang. */
 export function formatReport(title: string, business: Biz, s: Record<string, number>): string {
+  const fmt = (n: number) => money(n, business.currency);
   const lines = [`<b>${title}</b> · ${esc(business.name)}`];
   if (business.kind === "personal") {
-    lines.push(`Masuk: ${rupiah(s.total_in ?? 0)}`, `Keluar: ${rupiah(s.total_out ?? 0)}`);
-    lines.push(`Saldo kas: ${rupiah(s.balance ?? 0)}`);
+    lines.push(`Masuk: ${fmt(s.total_in ?? 0)}`, `Keluar: ${fmt(s.total_out ?? 0)}`);
+    lines.push(`Saldo kas: ${fmt(s.balance ?? 0)}`);
   } else {
-    lines.push(`Pemasukan: ${rupiah(s.income_total ?? 0)}`);
+    lines.push(`Pemasukan: ${fmt(s.income_total ?? 0)}`);
     if (canSeeProfit(business) && s.net != null) {
-      lines.push(`Pengeluaran: ${rupiah(s.expense_total ?? 0)}`);
-      lines.push(`${s.net >= 0 ? "Laba" : "Rugi"}: ${rupiah(Math.abs(s.net))}`);
+      lines.push(`Pengeluaran: ${fmt(s.expense_total ?? 0)}`);
+      lines.push(`${s.net >= 0 ? "Laba" : "Rugi"}: ${fmt(Math.abs(s.net))}`);
     }
   }
-  lines.push(`Piutang belum lunas: ${rupiah(s.receivable_open ?? 0)}`);
-  lines.push(`Utang belum lunas: ${rupiah(s.payable_open ?? 0)}`);
+  lines.push(`Piutang belum lunas: ${fmt(s.receivable_open ?? 0)}`);
+  lines.push(`Utang belum lunas: ${fmt(s.payable_open ?? 0)}`);
   return lines.join("\n");
 }
 
 type Due = { name: string; kind: string; remaining: number; due_date: string };
 
-export function formatDue(due: Due[], today: string): string {
+export function formatDue(due: Due[], today: string, currency?: string): string {
   if (!due?.length) return "";
   const lines = ["", "<b>Jatuh tempo</b>"];
   for (const d of due) {
     const late = d.due_date < today ? " (lewat tempo)" : "";
     const what = d.kind === "receivable" ? "piutang" : "utang";
-    lines.push(`• ${esc(d.name)}: ${what} ${rupiah(d.remaining)}, ${shortDate(d.due_date)}${late}`);
+    lines.push(`• ${esc(d.name)}: ${what} ${money(d.remaining, currency)}, ${shortDate(d.due_date)}${late}`);
   }
   return lines.join("\n");
 }
 
 /** Jawaban /utang: total, saldo per kontak, dan yang jatuh tempo. */
-export function formatDebts(r: any): string {
+export function formatDebts(r: any, currency?: string): string {
+  const fmt = (n: number) => money(n, currency ?? r.business?.currency);
   const lines = [
     `<b>Utang piutang</b> · ${esc(r.business.name)}`,
-    `Piutang belum lunas: ${rupiah(r.receivable_open)}`,
-    `Utang belum lunas: ${rupiah(r.payable_open)}`,
+    `Piutang belum lunas: ${fmt(r.receivable_open)}`,
+    `Utang belum lunas: ${fmt(r.payable_open)}`,
   ];
   const contacts = (r.contacts ?? []) as { name: string; net: number }[];
   if (contacts.length) {
     lines.push("", "<b>Per kontak</b>");
     for (const c of contacts) {
-      lines.push(`• ${esc(c.name)}: ${c.net > 0 ? "piutang" : "utang"} ${rupiah(Math.abs(c.net))}`);
+      lines.push(`• ${esc(c.name)}: ${c.net > 0 ? "piutang" : "utang"} ${fmt(Math.abs(c.net))}`);
     }
   }
-  return lines.join("\n") + formatDue(r.due ?? [], r.today);
+  return lines.join("\n") + formatDue(r.due ?? [], r.today, currency ?? r.business?.currency);
 }
 
 export const HELP = [
@@ -407,7 +449,7 @@ async function onMessage(msg: any) {
     await send(
       chat,
       r?.ok
-        ? `Catatan terakhir (${rupiah(r.amount)}) dihapus.`
+        ? `Catatan terakhir (${money(r.amount, business?.currency)}) dihapus.`
         : "Tidak ada catatan dari bot dalam 30 menit terakhir yang bisa dihapus.",
     );
     return;
@@ -418,14 +460,15 @@ async function onMessage(msg: any) {
     await send(
       chat,
       r?.ok
-        ? formatReport(month ? "Bulan ini" : "Hari ini", r.business, r.summary)
+        ? formatReport(month ? "Bulan ini" : "Hari ini",
+          { ...r.business, currency: business?.currency }, r.summary)
         : "Anda belum punya pembukuan. Buat dulu di aplikasi.",
     );
     return;
   }
   if (command === "/utang" && text.split(/\s+/).length === 1) {
     const r = await rpc("tg_debt_overview", { p_tg_id: from });
-    await send(chat, r?.ok ? formatDebts(r) : "Anda belum punya pembukuan. Buat dulu di aplikasi.");
+    await send(chat, r?.ok ? formatDebts(r, business?.currency) : "Anda belum punya pembukuan. Buat dulu di aplikasi.");
     return;
   }
   if (command === "/laporan") {
@@ -480,10 +523,18 @@ async function onMessage(msg: any) {
     }
     const amount = entry.amount || Math.abs(net);
     if (amount > Math.abs(net)) {
-      await send(chat, `Jumlahnya melebihi sisa dengan ${esc(bal.name)}, yaitu ${rupiah(Math.abs(net))}.`);
+      await send(chat, `Jumlahnya melebihi sisa dengan ${esc(bal.name)}, yaitu ${money(Math.abs(net), business.currency)}.`);
       return;
     }
-    const pending = { n: nonce, kind: "settle", amount, contact: bal.name as string, note: entry.note, net };
+    const pending = {
+      n: nonce,
+      kind: "settle",
+      amount,
+      contact: bal.name as string,
+      note: entry.note,
+      net,
+      cur: business.currency,
+    };
     await rpc("tg_set_pending", { p_tg_id: from, p_payload: pending });
     await send(chat, `${describe(pending, business)}\n\nSimpan catatan ini?`, {
       reply_markup: {
@@ -512,6 +563,7 @@ async function onMessage(msg: any) {
     note: entry.note,
     contact,
     nc: nc || undefined,
+    cur: business.currency,
   };
   await rpc("tg_set_pending", { p_tg_id: from, p_payload: payload });
   await send(chat, `${describe(payload, business)}\n\nSimpan catatan ini?`, {
@@ -565,7 +617,7 @@ async function onCallback(cb: any) {
     // Sisa dihitung dari jawaban database, bukan dari pratinjau.
     const net = (s.direction === "receive" ? 1 : -1) * (Number(s.amount) + Number(s.remaining));
     const done = describe({ ...pending, amount: Number(s.amount), contact: s.contact, net },
-      { name: s.business, role: "staff" });
+      { name: s.business, role: "staff", currency: pending.cur });
     await edit(chat, message, `✅ Tersimpan\n${done}\n\nSalah catat? Hapus pembayarannya dari aplikasi.`);
     return;
   }
@@ -576,7 +628,7 @@ async function onCallback(cb: any) {
   }
   const ctx = await rpc("tg_context", { p_tg_id: from });
   const body = describe({ ...pending, contact: r.contact ?? pending.contact, nc: r.new_contact },
-    ctx?.business ?? { name: r.business, role: "staff" });
+    ctx?.business ?? { name: r.business, role: "staff", currency: pending.cur });
   const cat = r.category && pending.kind !== "sale" ? `\nKategori: ${esc(r.category)}` : "";
   await edit(chat, message, `✅ Tersimpan\n${body}${cat}\n\nSalah catat? Kirim /batal`);
 }
@@ -591,7 +643,7 @@ async function daily(): Promise<Response> {
   let sent = 0;
   for (const r of rows ?? []) {
     const text = formatReport("Ringkasan hari ini", r.business, r.summary) +
-      formatDue(r.due ?? [], r.to) + "\n\nMatikan dengan /laporan";
+      formatDue(r.due ?? [], r.to, r.business?.currency) + "\n\nMatikan dengan /laporan";
     const res = await send(r.chat_id, text);
     if (res?.ok) sent++;
   }

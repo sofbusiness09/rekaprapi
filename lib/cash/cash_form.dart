@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/amount_field.dart';
+import '../common/currency.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/contact_picker.dart';
@@ -991,7 +992,7 @@ class _AmountBox extends StatelessWidget {
             ?.copyWith(fontWeight: FontWeight.w600, color: color),
         decoration: InputDecoration(
           hintText: '0',
-          prefixText: 'Rp ',
+          prefixText: activeCurrency.prefix,
           prefixStyle: theme.textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w600, color: color),
           contentPadding:
@@ -1027,9 +1028,10 @@ class _DiscountField extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SegmentedButton<bool>(
         showSelectedIcon: false,
-        segments: const [
-          ButtonSegment(value: false, label: Text('Diskon Rp')),
-          ButtonSegment(value: true, label: Text('Diskon %')),
+        segments: [
+          ButtonSegment(
+              value: false, label: Text('Diskon ${activeCurrency.symbol}')),
+          const ButtonSegment(value: true, label: Text('Diskon %')),
         ],
         selected: {percent},
         onSelectionChanged: (s) => onModeChanged(s.first),
@@ -1091,7 +1093,7 @@ class _MoneyField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: '0',
-        prefixText: 'Rp ',
+        prefixText: activeCurrency.prefix,
       ),
     );
   }

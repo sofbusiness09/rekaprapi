@@ -78,6 +78,10 @@ class RecoveryPayload {
   String? get address => (data['business'] as Map)['address'] as String?;
   String? get phone => (data['business'] as Map)['phone'] as String?;
 
+  /// Mata uang pembukuan asal; backup lama tanpa keterangan dianggap Rupiah.
+  String get currency =>
+      ((data['business'] as Map)['currency'] as String?) ?? 'IDR';
+
   DateTime? get createdAt => data['createdAt'] == null
       ? null
       : DateTime.tryParse(data['createdAt'] as String)?.toLocal();
@@ -200,6 +204,7 @@ class RecoveryExporter {
       'business': {
         'name': business.name,
         'kind': business.kind.apiValue,
+        'currency': business.currency,
         'address': meta?['address'],
         'phone': meta?['phone'],
       },
@@ -285,6 +290,15 @@ class RecoveryImporter {
       rethrow;
     }
     await _addMissingCategories(id, kept);
+    if (payload.currency != 'IDR') {
+      try {
+        await _db
+            .from('businesses')
+            .update({'currency': payload.currency}).eq('id', id);
+      } catch (_) {
+        // Mata uang bisa diatur lagi di Pengaturan.
+      }
+    }
     return id;
   }
 

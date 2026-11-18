@@ -6,6 +6,7 @@ import '../backup/backup_setup_page.dart';
 import '../cash/cash_form.dart';
 import '../cash/cash_page.dart';
 import '../cash/cash_repository.dart';
+import '../common/currency.dart';
 import '../common/floating_nav_bar.dart';
 import '../common/widgets.dart';
 import '../debts/contacts_page.dart';
@@ -85,6 +86,8 @@ class _BusinessHomeState extends State<BusinessHome> {
   @override
   void initState() {
     super.initState();
+    // Semua tampilan jumlah memakai mata uang pembukuan ini.
+    activeCurrency = currencyByCode(widget.business.currency);
     backgroundController.addListener(_onBackground);
     // Tampilan Transaksi dan Saldo kas dimiliki tiap pembukuan.
     final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -109,6 +112,15 @@ class _BusinessHomeState extends State<BusinessHome> {
     // Backup otomatis harian: dijalankan saat pembukuan dibuka bila sudah waktunya.
     if (_business.canManage) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _autoBackup());
+    }
+  }
+
+  @override
+  void didUpdateWidget(BusinessHome old) {
+    super.didUpdateWidget(old);
+    if (old.business.currency != widget.business.currency) {
+      activeCurrency = currencyByCode(widget.business.currency);
+      _changes.value++;
     }
   }
 
@@ -334,6 +346,8 @@ class _BusinessHomeState extends State<BusinessHome> {
         repo: _settingsRepo,
         onRenamed: (name) => widget.controller.rename(_business.id, name),
         onPhotoChanged: (url) => widget.controller.setPhoto(_business.id, url),
+        onCurrencyChanged: (code) =>
+            widget.controller.setCurrency(_business.id, code),
         debtRepo: _debtRepo,
         changes: _changes,
         onSwitchBusiness: _openSwitcher,

@@ -1,4 +1,5 @@
 import '../cash/cash_models.dart';
+import '../common/currency.dart';
 import '../common/format.dart';
 import '../debts/debt_models.dart';
 
@@ -79,6 +80,7 @@ List<BackupSheet> buildBackupSheets(BackupData d) {
     [
       ['Keterangan', 'Nilai'],
       ['Usaha', d.businessName],
+      ['Mata uang', activeCurrency.label],
       ['Waktu backup', _dateTime(d.generatedAt)],
       ['Dibackup oleh', d.generatedBy],
       ['Jumlah transaksi kas', d.cash.length],

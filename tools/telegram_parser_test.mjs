@@ -368,6 +368,37 @@ await test('pelunasan: sisa berubah sejak konfirmasi tidak disimpan', async () =
   assert.match(calls.find((c) => c.tg === 'editMessageText').body.text, /sudah berubah/);
 });
 
+const { money } = await import('../supabase/functions/telegram-bot/index.ts');
+
+await test('mata uang: simbol, pemisah, spasi, dan kode tak dikenal', () => {
+  assert.equal(money(50000, 'IDR'), 'Rp50.000');
+  assert.equal(money(50000, 'USD'), '$50,000');
+  assert.equal(money(1250000, 'AED'), 'AED 1,250,000');
+  assert.equal(money(50000, 'EUR'), '€50.000');
+  assert.equal(money(-5000, 'MYR'), '-RM5,000');
+  assert.equal(money(50000, 'XXX'), 'Rp50.000');
+  assert.equal(money(50000), 'Rp50.000');
+});
+
+await test('ringkasan dan konfirmasi memakai mata uang pembukuan', () => {
+  const biz = { name: 'Toko Dubai', kind: 'business', role: 'owner', currency: 'AED' };
+  assert.match(formatReport('Hari ini', biz, { income_total: 1500, expense_total: 500, net: 1000 }),
+    /Pemasukan: AED 1,500[\s\S]*Laba: AED 1,000/);
+  assert.match(describe({ kind: 'sale', amount: 300, cost: 200 }, biz),
+    /Jumlah: AED 300\nModal: AED 200\nKeuntungan: AED 100/);
+  assert.match(formatDue([{ name: 'Ali', kind: 'receivable', remaining: 700, due_date: '2026-11-20' }],
+    '2026-11-18', 'AED'), /piutang AED 700/);
+});
+
+await test('konfirmasi menyimpan mata uang untuk pesan Tersimpan', async () => {
+  calls.length = 0;
+  rpcResults = { tg_context: { ...linked, business: { ...linked.business, currency: 'USD' } } };
+  await post(msg('keluar 25'));
+  const pend = calls.find((c) => c.rpc === 'tg_set_pending').body.p_payload;
+  assert.equal(pend.cur, 'USD');
+  assert.match(calls.find((c) => c.tg === 'sendMessage').body.text, /Jumlah: \$25/);
+});
+
 const cron = (secret) => handle(new Request('https://f/telegram-bot', {
   method: 'POST', headers: { 'X-Cron-Secret': secret }, body: '{}',
 }));

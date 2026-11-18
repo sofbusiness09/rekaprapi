@@ -6,6 +6,7 @@ import 'package:file_saver/file_saver.dart';
 
 import '../cash/cash_models.dart';
 import '../cash/cash_repository.dart';
+import '../common/currency.dart';
 import '../common/format.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
@@ -89,6 +90,7 @@ class ReportExporter {
 
     // Ringkasan
     add('Ringkasan', ['Usaha', businessName]);
+    add('Ringkasan', ['Mata uang', activeCurrency.label]);
     add('Ringkasan', ['Periode', '${ymd(from)} s/d ${ymd(to)}']);
     add('Ringkasan', ['Total kas masuk', d.summary.totalIn]);
     add('Ringkasan', ['Total kas keluar', d.summary.totalOut]);

@@ -65,6 +65,7 @@ class BusinessController extends ChangeNotifier {
               role: m['role'] as String,
               kind: BusinessKind.parse(m['businesses']['kind'] as String?),
               photoUrl: m['businesses']['photo_url'] as String?,
+              currency: (m['businesses']['currency'] as String?) ?? 'IDR',
             ),
       ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -90,16 +91,21 @@ class BusinessController extends ChangeNotifier {
   /// Keanggotaan beserta pembukuannya. Kolom foto baru ada setelah migrasi
   /// 20261118000000; sebelum itu daftar tetap dimuat tanpa foto.
   Future<List<dynamic>> _members(String userId) async {
-    try {
-      return await _db
-          .from('business_members')
-          .select('role, businesses(id, name, kind, photo_url)')
-          .eq('user_id', userId);
-    } on PostgrestException {
-      return await _db
-          .from('business_members')
-          .select('role, businesses(id, name, kind)')
-          .eq('user_id', userId);
+    // Kolom baru belum ada sebelum migrasinya dijalankan: coba yang lebih sederhana.
+    const selects = [
+      'role, businesses(id, name, kind, photo_url, currency)',
+      'role, businesses(id, name, kind, photo_url)',
+      'role, businesses(id, name, kind)',
+    ];
+    for (var i = 0;; i++) {
+      try {
+        return await _db
+            .from('business_members')
+            .select(selects[i])
+            .eq('user_id', userId);
+      } on PostgrestException {
+        if (i == selects.length - 1) rethrow;
+      }
     }
   }
 
@@ -118,10 +124,38 @@ class BusinessController extends ChangeNotifier {
 
   /// Membuat pembukuan baru dan langsung membukanya. Batas 5 pembukuan dijaga database.
   Future<void> create(String name,
-      {BusinessKind kind = BusinessKind.business}) async {
+      {BusinessKind kind = BusinessKind.business,
+      String currency = 'IDR'}) async {
     final id = await _db.rpc('create_business',
-        params: {'p_name': name, 'p_kind': kind.apiValue});
-    await load(preferId: id as String);
+        params: {'p_name': name, 'p_kind': kind.apiValue}) as String;
+    if (currency != 'IDR') {
+      try {
+        await _db
+            .from('businesses')
+            .update({'currency': currency}).eq('id', id);
+      } catch (_) {
+        // Mata uang bisa diatur lagi di Pengaturan.
+      }
+    }
+    await load(preferId: id);
+  }
+
+  /// Mengganti mata uang pembukuan (Pemilik dan Admin). Nilai tidak dikonversi.
+  Future<void> setCurrency(String id, String code) async {
+    final rows = await _db
+        .from('businesses')
+        .update({'currency': code})
+        .eq('id', id)
+        .select('id');
+    if ((rows as List).isEmpty) {
+      throw const PostgrestException(
+          message: 'Hanya Pemilik dan Admin yang bisa mengganti mata uang.');
+    }
+    businesses = [
+      for (final b in businesses) b.id == id ? b.copyWith(currency: code) : b,
+    ];
+    if (current?.id == id) current = businesses.firstWhere((b) => b.id == id);
+    notifyListeners();
   }
 
   Future<void> joinByCode(String code) async {

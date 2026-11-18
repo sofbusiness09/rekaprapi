@@ -2,6 +2,8 @@
 /// Perkalian dihitung lebih dulu daripada tambah dan kurang, seperti kalkulator biasa.
 library;
 
+import 'currency.dart';
+
 const calcAdd = '+';
 const calcSub = '−';
 const calcMul = '×';
@@ -72,9 +74,10 @@ String formatCalc(String expr) {
 }
 
 String _group(String digits) {
+  final sep = activeCurrency.separator;
   final out = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+    if (i > 0 && (digits.length - i) % 3 == 0) out.write(sep);
     out.write(digits[i]);
   }
   return out.toString();

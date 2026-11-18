@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../backup/restore_page.dart';
+import '../common/currency.dart';
+import '../common/currency_picker.dart';
 import '../common/dialogs.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
@@ -93,13 +95,21 @@ Future<void> promptCreateBusiness(
     return;
   }
   final kind = choice;
+  if (!context.mounted) return;
   final name = await askText(context,
       title: kind == BusinessKind.personal
           ? 'Pembukuan pribadi'
           : 'Pembukuan usaha',
       label: 'Nama pembukuan');
   if (name == null || name.isEmpty || !context.mounted) return;
-  await runWithToast(context, () => controller.create(name, kind: kind),
+  // Mata uang pembukuan; ditutup tanpa memilih berarti Rupiah.
+  final currency = await showCurrencyPicker(context,
+      selected: defaultCurrency, title: 'Mata uang pembukuan');
+  if (!context.mounted) return;
+  await runWithToast(
+      context,
+      () => controller.create(name,
+          kind: kind, currency: currency?.code ?? defaultCurrency),
       done: 'Pembukuan dibuat.');
 }
 

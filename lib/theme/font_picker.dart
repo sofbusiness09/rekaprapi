@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../common/format.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'font_controller.dart';
@@ -82,7 +84,7 @@ class _FontTile extends StatelessWidget {
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
       title: Text(font.name, style: sample),
-      subtitle: Text('Rp 1.250.000  ·  Penjualan hari ini', style: small),
+      subtitle: Text('${rupiah(1250000)}  ·  Penjualan hari ini', style: small),
       trailing: selected
           ? Icon(Icons.check_circle_rounded, color: scheme.primary)
           : null,

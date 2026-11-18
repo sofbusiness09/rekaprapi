@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business.dart';
 import '../common/amount_field.dart';
 import '../common/dialogs.dart';
+import '../common/currency.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
@@ -585,9 +586,9 @@ class _MoneySheetState extends State<_MoneySheet> {
               onChanged: () => setState(() {}),
               style: theme.textTheme.headlineMedium
                   ?.copyWith(fontWeight: FontWeight.w600, color: color),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: '0',
-                prefixText: 'Rp ',
+                prefixText: activeCurrency.prefix,
                 filled: false,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,

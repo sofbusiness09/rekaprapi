@@ -17,6 +17,7 @@ class Business {
     required this.role,
     this.kind = BusinessKind.business,
     this.photoUrl,
+    this.currency = 'IDR',
   });
 
   final String id;
@@ -29,6 +30,9 @@ class Business {
   /// Alamat foto profil pembukuan; null bila memakai inisial.
   final String? photoUrl;
 
+  /// Kode mata uang pembukuan (ISO 4217), mis. IDR atau AED.
+  final String currency;
+
   bool get canManage => role == 'owner' || role == 'admin';
 
   /// Pembukuan pribadi: tanpa penjualan, harga modal, dan keuntungan.
@@ -38,14 +42,20 @@ class Business {
   /// (Staf tetap mengisi modal saat mencatat penjualan, tetapi tidak melihat hasilnya.)
   bool get canSeeProfit => canManage && !isPersonal;
 
-  Business copyWith({String? name}) => Business(
+  Business copyWith({String? name, String? currency}) => Business(
       id: id,
       name: name ?? this.name,
       role: role,
       kind: kind,
-      photoUrl: photoUrl);
+      photoUrl: photoUrl,
+      currency: currency ?? this.currency);
 
   /// Salinan dengan foto diganti; null menghapus foto.
-  Business withPhoto(String? url) =>
-      Business(id: id, name: name, role: role, kind: kind, photoUrl: url);
+  Business withPhoto(String? url) => Business(
+      id: id,
+      name: name,
+      role: role,
+      kind: kind,
+      photoUrl: url,
+      currency: currency);
 }

@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../backup/backup_controller.dart';
 import '../backup/backup_setup_page.dart';
 import '../business/business.dart';
+import '../common/currency.dart';
+import '../common/currency_picker.dart';
 import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
 import '../telegram/telegram_page.dart';
@@ -34,6 +36,7 @@ class SettingsPage extends StatelessWidget {
     required this.changes,
     required this.onRenamed,
     required this.onPhotoChanged,
+    required this.onCurrencyChanged,
     required this.onSwitchBusiness,
     required this.onBusinessGone,
     required this.backup,
@@ -52,6 +55,9 @@ class SettingsPage extends StatelessWidget {
 
   /// Dipanggil setelah foto profil diganti (alamat baru) atau dihapus (null).
   final ValueChanged<String?> onPhotoChanged;
+
+  /// Mengganti mata uang pembukuan (kode ISO). Melempar galat bila ditolak.
+  final Future<void> Function(String code) onCurrencyChanged;
 
   /// Membuka daftar usaha untuk berpindah.
   final VoidCallback onSwitchBusiness;
@@ -85,6 +91,33 @@ class SettingsPage extends StatelessWidget {
       if (context.mounted) _toast(context, 'Profil pembukuan disimpan.');
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
+    }
+  }
+
+  Future<void> _changeCurrency(BuildContext context) async {
+    final picked = await showCurrencyPicker(context,
+        selected: business.currency, title: 'Mata uang pembukuan');
+    if (picked == null ||
+        picked.code == business.currency ||
+        !context.mounted) {
+      return;
+    }
+    final ok = await confirmDialog(context,
+        title: 'Ganti ke ${picked.name}?',
+        body:
+            'Semua jumlah di "${business.name}" akan ditampilkan dalam ${picked.code}. '
+            'Angkanya tidak dikonversi: ${formatMoney(50000, currencyByCode(business.currency))} '
+            'menjadi ${formatMoney(50000, picked)}.',
+        okLabel: 'Ganti');
+    if (!ok || !context.mounted) return;
+    try {
+      await onCurrencyChanged(picked.code);
+      if (context.mounted)
+        _toast(context, 'Mata uang diganti ke ${picked.code}.');
+    } on PostgrestException catch (e) {
+      if (context.mounted) _toast(context, e.message);
+    } catch (e) {
+      if (context.mounted) _toast(context, 'Gagal mengganti mata uang: $e');
     }
   }
 
@@ -183,6 +216,13 @@ class SettingsPage extends StatelessWidget {
             leading: const Icon(Icons.storefront_outlined),
             title: const Text('Profil pembukuan'),
             onTap: () => _editProfile(context),
+          ),
+        if (business.canManage)
+          ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: const Text('Mata uang'),
+            subtitle: Text(currencyByCode(business.currency).label),
+            onTap: () => _changeCurrency(context),
           ),
         if (business.canManage)
           ListTile(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/amount_field.dart';
+import '../common/currency.dart';
 import '../common/format.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
@@ -175,8 +176,8 @@ class _DebtFormState extends State<_DebtForm> {
             AmountField(
               controller: _amount,
               onChanged: () => setState(() {}),
-              decoration:
-                  const InputDecoration(labelText: 'Jumlah', prefixText: 'Rp '),
+              decoration: InputDecoration(
+                  labelText: 'Jumlah', prefixText: activeCurrency.prefix),
             ),
             if (!_editing) ...[
               const SizedBox(height: 4),
@@ -351,8 +352,8 @@ class _PaymentFormState extends State<_PaymentForm> {
               controller: _amount,
               autofocus: true,
               title: 'Jumlah pembayaran',
-              decoration:
-                  const InputDecoration(labelText: 'Jumlah', prefixText: 'Rp '),
+              decoration: InputDecoration(
+                  labelText: 'Jumlah', prefixText: activeCurrency.prefix),
             ),
             const SizedBox(height: 12),
             InkWell(

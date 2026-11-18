@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'currency.dart';
+
 const _months = [
   'Januari',
   'Februari',
@@ -19,18 +21,11 @@ const _days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
-String _grouped(int n) {
-  final s = n.abs().toString();
-  final b = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) b.write('.');
-    b.write(s[i]);
-  }
-  return b.toString();
-}
+String _grouped(int n) => groupDigits(n);
 
-/// 1250000 -> "Rp 1.250.000"
-String rupiah(num n) => '${n < 0 ? '-' : ''}Rp ${_grouped(n.abs().round())}';
+/// Jumlah dengan simbol mata uang pembukuan aktif: 1250000 -> "Rp 1.250.000"
+/// (atau "$1,250,000" untuk USD). Namanya tetap rupiah() karena dipakai di banyak tempat.
+String rupiah(num n) => formatMoney(n);
 
 /// Ringkas untuk sumbu grafik: 1500000 -> "1,5jt", 250000 -> "250rb".
 String compact(num v) {
@@ -56,7 +51,7 @@ String compact(num v) {
 /// "Nov" dari tanggal.
 String monthShort(DateTime d) => _months[d.month - 1].substring(0, 3);
 
-/// Angka saja dengan pemisah ribuan, tanpa "Rp".
+/// Angka saja dengan pemisah ribuan mata uang aktif, tanpa simbol.
 String thousands(num n) => _grouped(n.round());
 
 /// "1.250.000" -> 1250000 (null bila kosong).
