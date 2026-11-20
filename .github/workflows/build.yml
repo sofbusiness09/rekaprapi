@@ -179,9 +179,14 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # Nama berkas berbeda tiap percobaan, supaya Re-run tidak bentrok dengan berkas
+      # dari percobaan sebelumnya di run yang sama.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
+          name: github-pages-${{ github.run_attempt }}
 
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
