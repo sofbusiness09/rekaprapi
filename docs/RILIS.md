@@ -31,8 +31,9 @@ selalu mengarah ke APK terbaru. Alamat ini bisa dibagikan ke pengguna baru.
 
 ## Batasan
 
-- Pengingat muncul saat aplikasi dibuka (paling sering tiap 6 jam), bukan notifikasi push.
+- Pengingat muncul saat aplikasi dibuka atau kembali dibuka (paling sering tiap jam), bukan notifikasi push.
 - "Nanti" menunda pengingat versi yang sama selama sehari.
 - Pengguna versi 1.0.15 ke bawah belum punya fitur ini; mereka memasang 1.0.16 secara manual sekali.
 - Android meminta izin "Instal aplikasi tidak dikenal" untuk peramban pada pemasangan pertama.
 - Menjalankan workflow dua kali dengan versi yang sama mengganti APK di rilis yang sama.
+- APK dibangun khusus prosesor 64-bit (arm64). HP Android 32-bit yang sangat lama tidak bisa memasangnya.

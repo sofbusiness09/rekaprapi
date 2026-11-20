@@ -18,7 +18,7 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   // Dibuka dari tautan reset password: tampilkan layar password baru dulu.
   bool _recovering = UrlAuthHint.current.recovery;
   StreamSubscription<AuthState>? _sub;
@@ -34,8 +34,10 @@ class _AuthGateState extends State<AuthGate> {
         setState(() => _recovering = true);
       }
     });
-    // Aplikasi Android: tawarkan pembaruan bila ada versi baru di GitHub.
+    // Aplikasi Android: tawarkan pembaruan bila ada versi baru di GitHub, saat
+    // dibuka dan setiap kali kembali dibuka dari latar belakang.
     if (updatesSupported) {
+      WidgetsBinding.instance.addObserver(this);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) maybeShowUpdate(context);
       });
@@ -65,7 +67,13 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) maybeShowUpdate(context);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     super.dispose();
   }

@@ -54,9 +54,11 @@ jobs:
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=rekaprapi-release.jks\n' \
             "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_PASSWORD" "$ANDROID_KEY_ALIAS" > android/key.properties
 
+      # Khusus prosesor 64-bit (arm64), dipakai hampir semua HP Android 5 tahun terakhir.
+      # Jauh lebih kecil daripada APK semua prosesor; HP 32-bit lama tidak didukung.
       - name: Bangun APK rilis
         run: >
-          flutter build apk --release
+          flutter build apk --release --target-platform android-arm64
           --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
           --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
 

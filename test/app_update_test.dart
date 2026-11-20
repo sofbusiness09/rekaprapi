@@ -76,21 +76,21 @@ void main() {
     expect(await _checker(_release('v1.0.14')).check(), isNull);
   });
 
-  test('pemeriksaan otomatis paling sering tiap 6 jam', () async {
+  test('pemeriksaan otomatis paling sering tiap jam', () async {
     final calls = <int>[];
     final t0 = DateTime(2026, 11, 18, 9);
     await _checker(_release('v1.0.16'), now: t0, calls: calls).check();
     await _checker(_release('v1.0.16'),
-            now: t0.add(const Duration(hours: 2)), calls: calls)
+            now: t0.add(const Duration(minutes: 30)), calls: calls)
         .check();
     expect(calls.length, 1);
     // Dari Pengaturan (force) selalu memeriksa.
     await _checker(_release('v1.0.16'),
-            now: t0.add(const Duration(hours: 2)), calls: calls)
+            now: t0.add(const Duration(minutes: 30)), calls: calls)
         .check(force: true);
     expect(calls.length, 2);
     await _checker(_release('v1.0.16'),
-            now: t0.add(const Duration(hours: 9)), calls: calls)
+            now: t0.add(const Duration(minutes: 95)), calls: calls)
         .check();
     expect(calls.length, 3);
   });

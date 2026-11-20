@@ -96,8 +96,9 @@ class UpdateChecker {
   final DateTime Function() _clock;
   final Future<String> Function() _currentVersion;
 
-  /// Pemeriksaan otomatis paling sering tiap 6 jam.
-  static const checkEvery = Duration(hours: 6);
+  /// Pemeriksaan otomatis (saat aplikasi dibuka atau kembali dibuka) paling sering
+  /// tiap jam. Batas GitHub 60 permintaan per jam per jaringan, jadi aman.
+  static const checkEvery = Duration(hours: 1);
 
   /// "Nanti" menunda pengingat versi yang sama selama sehari.
   static const snoozeFor = Duration(days: 1);
@@ -177,17 +178,26 @@ bool get updatesSupported =>
 
 /// Memeriksa lalu menampilkan jendela "Versi baru tersedia" bila ada.
 /// Mengembalikan rilis yang ditawarkan, atau null.
+bool _updateBusy = false;
+
 Future<AppRelease?> maybeShowUpdate(
   BuildContext context, {
   bool force = false,
   UpdateChecker? checker,
   Future<bool> Function(Uri)? opener,
 }) async {
-  final c = checker ?? UpdateChecker();
-  final release = await c.check(force: force);
-  if (release == null || !context.mounted) return null;
-  await showUpdateDialog(context, release, checker: c, opener: opener);
-  return release;
+  // Satu pemeriksaan atau satu jendela dalam satu waktu.
+  if (_updateBusy) return null;
+  _updateBusy = true;
+  try {
+    final c = checker ?? UpdateChecker();
+    final release = await c.check(force: force);
+    if (release == null || !context.mounted) return null;
+    await showUpdateDialog(context, release, checker: c, opener: opener);
+    return release;
+  } finally {
+    _updateBusy = false;
+  }
 }
 
 /// Jendela pembaruan. Versi wajib tidak bisa ditutup atau ditunda.
