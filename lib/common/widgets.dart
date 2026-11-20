@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
 
 /// Membatasi lebar isi agar tidak melebar di layar lebar.
@@ -35,14 +36,19 @@ class SoftCard extends StatelessWidget {
   final Color? color;
 
   @override
-  Widget build(BuildContext context) => Card(
-        color: color,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(padding: padding, child: child),
-        ),
+  Widget build(BuildContext context) {
+    // Hiasan mengikuti gaya tampilan (kaca, timbul, brutal, neon, ...).
+    if (color != null) {
+      final tokens = StyleTokens.of(context);
+      return StyledBox(
+        onTap: onTap,
+        padding: padding,
+        decoration: tokens.card().copyWith(color: color),
+        child: child,
       );
+    }
+    return StyledBox(onTap: onTap, padding: padding, child: child);
+  }
 }
 
 class SectionTitle extends StatelessWidget {
@@ -283,7 +289,6 @@ class EntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final surface = theme.cardTheme.color ?? theme.colorScheme.surface;
     final noteText = note?.trim();
     final hasNote = noteText != null && noteText.isNotEmpty;
     Widget noteLine() => Text(noteText!,
@@ -304,43 +309,52 @@ class EntryRow extends StatelessWidget {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Stack(alignment: Alignment.bottomCenter, children: [
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 5,
-                  height: 2,
-                  child: CustomPaint(painter: _DotLine(dots)),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: ColoredBox(
-                        color: surface,
+              // Judul, garis titik-titik, nominal. Garis hanya digambar di sela
+              // keduanya, jadi tidak perlu penutup berwarna (cocok untuk kartu kaca).
+              // Diukur ulang saat huruf selesai dimuat agar judul tidak terpotong.
+              ListenableBuilder(
+                listenable: PaintingBinding.instance.systemFonts,
+                builder: (context, _) => LayoutBuilder(builder: (context, c) {
+                  final titleStyle = theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600);
+                  final amountStyle = theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600, color: amountColor);
+                  double widthOf(String s, TextStyle? st) => (TextPainter(
+                        text: TextSpan(text: s, style: st),
+                        maxLines: 1,
+                        textDirection: Directionality.of(context),
+                        textScaler: MediaQuery.textScalerOf(context),
+                      )..layout())
+                          .width;
+                  final amountW = widthOf(amount, amountStyle);
+                  final room =
+                      (c.maxWidth - amountW - 16).clamp(0.0, c.maxWidth);
+                  final titleW = widthOf(title, titleStyle).clamp(0.0, room);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: titleW + 2,
+                        child: Text(title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: titleStyle),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                          padding: const EdgeInsets.only(bottom: 5),
+                          child: SizedBox(
+                              height: 2,
+                              child: CustomPaint(painter: _DotLine(dots))),
                         ),
                       ),
-                    ),
-                    ColoredBox(
-                      color: surface,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 6),
-                        child: Text(amount,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: amountColor)),
-                      ),
-                    ),
-                  ],
-                ),
-              ]),
+                      const SizedBox(width: 6),
+                      Text(amount, maxLines: 1, style: amountStyle),
+                    ],
+                  );
+                }),
+              ),
               const SizedBox(height: 2),
               Row(children: [
                 Expanded(
@@ -357,7 +371,7 @@ class EntryRow extends StatelessWidget {
                 ] else if (hasNote) ...[
                   // Tanpa status, catatan menempati sisi kanan baris kedua.
                   const SizedBox(width: 8),
-                  Flexible(flex: 2, child: noteLine()),
+                  Expanded(flex: 2, child: noteLine()),
                 ],
               ]),
               if (status != null && hasNote)

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_style.dart';
+
 /// Satu tombol di bilah navigasi melayang.
 class FloatingNavItem {
   const FloatingNavItem(this.icon, this.selectedIcon, this.label);
@@ -30,26 +32,20 @@ class FloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
-    final surface = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final tokens = StyleTokens.of(context);
 
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Material(
-          color: surface,
-          elevation: dark ? 0 : 6,
-          shadowColor: Colors.black.withValues(alpha: 0.25),
-          borderRadius: BorderRadius.circular(32),
-          child: Container(
+        // Kapsul mengikuti gaya tampilan (kaca, timbul, brutal, neon, ...).
+        child: StyledBox(
+          radius: tokens.style == AppStyle.brutal ? 14 : 32,
+          decoration: tokens.style == AppStyle.standard
+              ? _standardDecoration(context)
+              : null,
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.10)),
-            ),
             child: Row(children: [
               for (var i = 0; i < items.length; i++) ...[
                 if (onCenter != null && i == (items.length + 1) ~/ 2)
@@ -67,6 +63,26 @@ class FloatingNavBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Gaya bawaan: kapsul putih dengan bayangan lembut seperti sebelumnya.
+  BoxDecoration _standardDecoration(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    return BoxDecoration(
+      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(32),
+      border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.10)),
+      boxShadow: dark
+          ? const []
+          : [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4)),
+            ],
     );
   }
 }

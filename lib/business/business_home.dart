@@ -8,6 +8,7 @@ import '../cash/cash_page.dart';
 import '../cash/cash_repository.dart';
 import '../common/currency.dart';
 import '../common/floating_nav_bar.dart';
+import '../common/privacy.dart';
 import '../common/widgets.dart';
 import '../debts/contacts_page.dart';
 import '../debts/debt_form.dart';
@@ -178,6 +179,17 @@ class _BusinessHomeState extends State<BusinessHome> {
     final outcome = await _backup.run();
     if (outcome != null) _toast(outcome.message);
   }
+
+  /// Ikon mata: sembunyikan atau tampilkan semua nominal.
+  Widget _privacyButton() => IconButton(
+        tooltip: privacyController.hidden
+            ? 'Tampilkan nominal'
+            : 'Sembunyikan nominal',
+        onPressed: privacyController.toggle,
+        icon: Icon(privacyController.hidden
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined),
+      );
 
   /// Ikon awan di bilah atas: backup sekali tekan; titik peringatan bila backup
   /// terakhir gagal atau sudah lama. Hanya untuk Pemilik dan Admin.
@@ -450,6 +462,7 @@ class _BusinessHomeState extends State<BusinessHome> {
             selected: _tab,
             onSelected: (i) => setState(() => _tab = i),
             backupButton: backupButton,
+            privacyButton: _privacyButton(),
           ),
           Expanded(
             // Tombol Catat di tengah bawah area isi.
@@ -492,7 +505,10 @@ class _BusinessHomeState extends State<BusinessHome> {
                 backgroundColor: transparent,
                 title: title,
                 titleSpacing: 8,
-                actions: [if (backupButton != null) backupButton],
+                actions: [
+                  _privacyButton(),
+                  if (backupButton != null) backupButton,
+                ],
               ),
         body: _settingsOpen
             ? Padding(

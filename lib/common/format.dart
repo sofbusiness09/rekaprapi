@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import 'currency.dart';
+import 'privacy.dart';
 
 const _months = [
   'Januari',
@@ -25,10 +26,13 @@ String _grouped(int n) => groupDigits(n);
 
 /// Jumlah dengan simbol mata uang pembukuan aktif: 1250000 -> "Rp 1.250.000"
 /// (atau "$1,250,000" untuk USD). Namanya tetap rupiah() karena dipakai di banyak tempat.
-String rupiah(num n) => formatMoney(n);
+/// Bila nominal disembunyikan (ikon mata), hasilnya "Rp •••••".
+String rupiah(num n) =>
+    privacyController.hidden ? maskedMoney() : formatMoney(n);
 
 /// Ringkas untuk sumbu grafik: 1500000 -> "1,5jt", 250000 -> "250rb".
 String compact(num v) {
+  if (privacyController.hidden) return '•••';
   final a = v.abs();
   String fmt(double x) {
     final s = x.toStringAsFixed(1).replaceAll('.', ',');

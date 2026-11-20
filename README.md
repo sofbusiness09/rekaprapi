@@ -29,6 +29,7 @@ supabase/migrations/20261116000000_telegram_settle.sql  Bot Telegram: pelunasan 
 supabase/migrations/20261117000000_category_usage.sql  kategori tersering 90 hari terakhir untuk formulir Pemasukan/Pengeluaran
 supabase/migrations/20261118000000_restore_into_photo.sql  pemulihan ke pembukuan kosong; foto profil pembukuan (kolom, wadah Storage, aturan akses)
 supabase/migrations/20261119000000_currency.sql  mata uang per pembukuan (bawaan IDR), juga untuk bot Telegram
+supabase/migrations/20261120000000_contact_activity.sql  aktivitas terakhir per kontak untuk urutan tab Utang
 supabase/tests/backup_test.sql                tes pengaturan backup
 assets/backup_apps_script.gs                  skrip Google Apps Script yang ditempel pengguna di Google Sheet-nya
 tools/apps_script_harness.js                menguji skrip itu dengan tiruan Google Sheet (Node): node tools/apps_script_harness.js assets/backup_apps_script.gs [build/backup_test/payload.json]

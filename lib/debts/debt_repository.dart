@@ -282,4 +282,20 @@ class DebtRepository {
     final t = s?.trim();
     return (t == null || t.isEmpty) ? null : t;
   }
+
+  /// Kontak -> waktu aktivitas terakhir (catatan, pembayaran, perubahan). Kosong bila
+  /// fungsi database belum dipasang; daftar lalu memakai waktu catatan terakhir.
+  Future<Map<String, DateTime>> contactActivity() async {
+    try {
+      final res =
+          await _db.rpc('contact_activity', params: {'p_business': businessId});
+      return {
+        for (final r in res as List)
+          (r as Map)['contact_id'] as String:
+              DateTime.parse(r['last_at'] as String).toLocal(),
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
 }

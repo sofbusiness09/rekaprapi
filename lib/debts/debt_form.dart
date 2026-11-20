@@ -307,7 +307,7 @@ class _PaymentFormState extends State<_PaymentForm> {
   Future<void> _save() async {
     final a = parseAmount(_amount.text);
     if (a == null || a <= 0 || a > widget.maxAmount) {
-      _toast('Isi jumlah 1 sampai ${rupiah(widget.maxAmount)}.');
+      _toast('Isi jumlah 1 sampai ${formatMoney(widget.maxAmount)}.');
       return;
     }
     setState(() => _busy = true);
@@ -344,7 +344,7 @@ class _PaymentFormState extends State<_PaymentForm> {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Maksimal ${rupiah(widget.maxAmount)}',
+              'Maksimal ${formatMoney(widget.maxAmount)}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),

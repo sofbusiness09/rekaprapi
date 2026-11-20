@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../business/business.dart';
 import '../common/format.dart';
 import '../common/widgets.dart';
+import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
 import 'contact_form.dart';
 import 'contact_page.dart';
@@ -11,10 +12,11 @@ import 'debt_repository.dart';
 
 enum _Filter { all, receivable, payable, settled }
 
-/// Urutan daftar: bawaannya yang terbaru (catatan utang terakhir) di atas.
+/// Urutan daftar: bawaannya kontak dengan aktivitas paling baru (catatan, pembayaran,
+/// atau perubahan) di atas.
 enum _Sort {
-  newest('Terbaru'),
-  oldest('Terlama'),
+  newest('Aktivitas terbaru'),
+  oldest('Aktivitas terlama'),
   largest('Terbesar'),
   smallest('Terkecil');
 
@@ -43,17 +45,23 @@ class ContactsPage extends StatefulWidget {
 }
 
 class _Loaded {
-  _Loaded(this.contacts, this.debts);
+  _Loaded(this.contacts, this.debts, this.activity);
   final List<Contact> contacts;
   final List<Debt> debts;
+
+  /// Kontak -> waktu aktivitas terakhir dari database.
+  final Map<String, DateTime> activity;
 }
 
 /// Ringkasan satu kontak: saldo bersih dari semua catatannya.
 class _Row {
-  _Row(this.contact, this.debts);
+  _Row(this.contact, this.debts, [this.activity]);
 
   final Contact contact;
   final List<Debt> debts;
+
+  /// Aktivitas terakhir dari database (pembayaran dan perubahan ikut dihitung).
+  final DateTime? activity;
 
   int get receivable =>
       debts.where((d) => d.isReceivable).fold(0, (s, d) => s + d.remaining);
@@ -74,9 +82,10 @@ class _Row {
 
   bool get overdue => debts.any((d) => d.overdue);
 
-  /// Waktu catatan utang terakhir kontak ini; null bila belum ada catatan.
+  /// Waktu aktivitas terakhir kontak ini; tanpa data aktivitas, waktu catatan
+  /// utang terakhir. Null bila belum ada keduanya.
   DateTime? get latest {
-    DateTime? best;
+    DateTime? best = activity;
     for (final d in debts) {
       if (best == null || d.createdAt.isAfter(best)) best = d.createdAt;
     }
@@ -104,8 +113,13 @@ class _ContactsPageState extends State<ContactsPage> {
   }
 
   Future<_Loaded> _load() async {
-    final r = await Future.wait([widget.repo.contacts(), widget.repo.debts()]);
-    return _Loaded(r[0] as List<Contact>, r[1] as List<Debt>);
+    final r = await Future.wait([
+      widget.repo.contacts(),
+      widget.repo.debts(),
+      widget.repo.contactActivity(),
+    ]);
+    return _Loaded(r[0] as List<Contact>, r[1] as List<Debt>,
+        r[2] as Map<String, DateTime>);
   }
 
   void _reload() {
@@ -150,7 +164,8 @@ class _ContactsPageState extends State<ContactsPage> {
           byContact.putIfAbsent(x.contactId, () => []).add(x);
         }
         final rows = [
-          for (final c in d.contacts) _Row(c, byContact[c.id] ?? const []),
+          for (final c in d.contacts)
+            _Row(c, byContact[c.id] ?? const [], d.activity[c.id]),
         ];
         final totalReceivable = rows.fold(0, (s, r) => s + r.receivable);
         final totalPayable = rows.fold(0, (s, r) => s + r.payable);
@@ -363,46 +378,43 @@ class _Total extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      color: selected ? color.withValues(alpha: 0.10) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-            color: selected ? color : theme.dividerTheme.color ?? Colors.grey,
-            width: selected ? 1.6 : 1),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              IconBadge(icon, color: color, size: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ),
-            ]),
-            const SizedBox(height: 16),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(rupiah(value),
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w600, color: color)),
+    // Terpilih: bernuansa warna dan berbingkai tegas, mengikuti gaya tampilan.
+    final tokens = StyleTokens.of(context);
+    return StyledBox(
+      onTap: onTap,
+      tint: selected ? color : null,
+      decoration: selected
+          ? tokens
+              .card(tint: color)
+              .copyWith(border: Border.all(color: color, width: 1.8))
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            IconBadge(icon, color: color, size: 36),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ),
-            if (hint.isNotEmpty)
-              Text(hint,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ]),
-        ),
+          const SizedBox(height: 16),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(rupiah(value),
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w600, color: color)),
+          ),
+          if (hint.isNotEmpty)
+            Text(hint,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ]),
       ),
     );
   }

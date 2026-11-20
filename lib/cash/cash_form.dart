@@ -588,7 +588,7 @@ class _CashFormState extends State<_CashForm> {
         final base =
             _isIn ? 'Dicatat sebagai piutang.' : 'Dicatat sebagai utang.';
         _toast(off > 0
-            ? '$base ${rupiah(off)} otomatis dikompensasi dengan saldo kontak.'
+            ? '$base ${formatMoney(off)} otomatis dikompensasi dengan saldo kontak.'
             : '$base Lihat di tab Utang.');
       } else if (_editing) {
         await widget.repo.edit(widget.existing!.id,
@@ -750,7 +750,7 @@ class _CashFormState extends State<_CashForm> {
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted)),
                   ),
-                  Text(rupiah(_received < 0 ? 0 : _received),
+                  Text(formatMoney(_received < 0 ? 0 : _received),
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ]),
@@ -786,8 +786,8 @@ class _CashFormState extends State<_CashForm> {
                       Expanded(
                         child: Text(
                           _isIn
-                              ? 'Utang Anda ke kontak ini ${rupiah(-_contactNet!)} akan berkurang otomatis.'
-                              : 'Piutang kontak ini ${rupiah(_contactNet!)} akan berkurang otomatis.',
+                              ? 'Utang Anda ke kontak ini ${formatMoney(-_contactNet!)} akan berkurang otomatis.'
+                              : 'Piutang kontak ini ${formatMoney(_contactNet!)} akan berkurang otomatis.',
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -936,7 +936,7 @@ class _ProfitCard extends StatelessWidget {
             Text(positive ? 'Keuntungan' : 'Rugi',
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            Text(rupiah(profit.abs()),
+            Text(formatMoney(profit.abs()),
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w600, color: color)),
           ]),
@@ -1053,7 +1053,7 @@ class _DiscountField extends StatelessWidget {
             labelText: 'Diskon',
             hintText: '0',
             suffixText: '%',
-            helperText: amount > 0 ? '= ${rupiah(amount)}' : null,
+            helperText: amount > 0 ? '= ${formatMoney(amount)}' : null,
           ),
         )
       else

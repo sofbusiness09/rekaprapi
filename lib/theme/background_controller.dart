@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_style.dart';
+
 /// Satu pilihan warna latar gradasi, dengan nada terang dan gelap.
 class BackgroundPreset {
   const BackgroundPreset(
@@ -88,12 +90,44 @@ final backgroundController = BackgroundController();
 /// Gradasi latar untuk kecerahan tema saat ini, atau null bila dimatikan.
 /// Memudar dari warna pilihan di atas ke warna latar polos di bagian bawah, jadi
 /// kartu putih dan tulisan di bagian bawah layar tetap berada di atas warna polos.
-Gradient? backgroundGradient(Brightness brightness, Color base) {
+Gradient? backgroundGradient(Brightness brightness, Color base,
+    {AppStyle? style}) {
+  final light = brightness == Brightness.light;
+  final tint = backgroundController.preset.tint(brightness);
+  switch (style ?? styleController.style) {
+    case AppStyle.glass:
+      // Kaca butuh latar berwarna di belakangnya: selalu gradasi, lebih hidup.
+      final accent = backgroundController.preset.accent;
+      final second = HSLColor.fromColor(accent)
+          .withHue((HSLColor.fromColor(accent).hue + 60) % 360)
+          .withLightness(light ? 0.78 : 0.22)
+          .toColor();
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [tint, second, base],
+        stops: const [0, 0.55, 1],
+      );
+    case AppStyle.cyber:
+      return const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF1A0B33), Neon.bg],
+        stops: [0, 0.6],
+      );
+    case AppStyle.minimal:
+    case AppStyle.neumorph:
+    case AppStyle.brutal:
+      // Latar polos.
+      return null;
+    case AppStyle.standard:
+      break;
+  }
   if (!backgroundController.enabled) return null;
   return LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [backgroundController.preset.tint(brightness), base],
+    colors: [tint, base],
     stops: const [0, 0.65],
   );
 }

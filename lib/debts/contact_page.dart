@@ -534,14 +534,14 @@ class _MoneySheetState extends State<_MoneySheet> {
     if (v <= 0) return ' ';
     if (widget.receive) {
       if (s == 0) return 'Dicatat sebagai utang/modal.';
-      if (v < s) return 'Sisa piutang ${rupiah(s - v)}.';
+      if (v < s) return 'Sisa piutang ${formatMoney(s - v)}.';
       if (v == s) return 'Piutang lunas.';
-      return 'Lunas. Kelebihan ${rupiah(v - s)} menjadi utang.';
+      return 'Lunas. Kelebihan ${formatMoney(v - s)} menjadi utang.';
     }
     if (s == 0) return 'Dicatat sebagai piutang.';
-    if (v < s) return 'Sisa utang ${rupiah(s - v)}.';
+    if (v < s) return 'Sisa utang ${formatMoney(s - v)}.';
     if (v == s) return 'Utang lunas.';
-    return 'Lunas. Kelebihan ${rupiah(v - s)} menjadi piutang.';
+    return 'Lunas. Kelebihan ${formatMoney(v - s)} menjadi piutang.';
   }
 
   String get _title {
@@ -602,7 +602,7 @@ class _MoneySheetState extends State<_MoneySheet> {
                   onPressed: () => setState(() {
                     _amount.text = thousands(_settleable);
                   }),
-                  child: Text('Isi sesuai total (${rupiah(_settleable)})'),
+                  child: Text('Isi sesuai total (${formatMoney(_settleable)})'),
                 ),
               ),
             Text(_effect(),

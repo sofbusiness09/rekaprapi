@@ -84,3 +84,9 @@ String formatMoney(num n, [Currency? c]) {
   final sign = n < 0 ? '-' : '';
   return '$sign${cur.symbol}${cur.spaced ? ' ' : ''}${groupDigits(n.abs().round(), cur)}';
 }
+
+/// Pengganti angka saat nominal disembunyikan: "Rp •••••", "AED •••••".
+String maskedMoney([Currency? c]) {
+  final cur = c ?? activeCurrency;
+  return '${cur.symbol}${cur.spaced ? ' ' : ''}•••••';
+}

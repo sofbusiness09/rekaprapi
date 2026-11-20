@@ -3,7 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_gate.dart';
 import 'auth/url_auth_hint.dart';
+import 'common/privacy.dart';
 import 'config.dart';
+import 'theme/app_style.dart';
 import 'theme/app_theme.dart';
 import 'settings/input_prefs.dart';
 import 'theme/background_controller.dart';
@@ -16,6 +18,8 @@ Future<void> main() async {
   await fontController.load();
   await inputPrefs.load();
   await backgroundController.load();
+  await privacyController.load();
+  await styleController.load();
   // Dibaca sebelum Supabase menghapus parameter tautan email dari alamat.
   UrlAuthHint.read(Uri.base);
   await Supabase.initialize(
@@ -35,16 +39,24 @@ class RekapRapiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [themeController, fontController, backgroundController]),
+      listenable: Listenable.merge([
+        themeController,
+        fontController,
+        backgroundController,
+        privacyController,
+        styleController,
+      ]),
       builder: (context, _) => MaterialApp(
         title: 'RekapRapi',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light, fontController.font.family,
-            backgroundController.preset.accent),
+            backgroundController.preset.accent, styleController.style),
         darkTheme: buildTheme(Brightness.dark, fontController.font.family,
-            backgroundController.preset.accent),
-        themeMode: themeController.mode,
+            backgroundController.preset.accent, styleController.style),
+        // Cyberpunk selalu gelap.
+        themeMode: styleController.style.forcesDark
+            ? ThemeMode.dark
+            : themeController.mode,
         // Ukuran huruf sistem yang sangat besar membuat kartu dan bilah bawah
         // terpotong; dibatasi sedikit di atas normal.
         builder: (context, child) => MediaQuery.withClampedTextScaling(

@@ -33,6 +33,7 @@ class AppSidebar extends StatelessWidget {
     required this.onSelected,
     required this.accent,
     this.backupButton,
+    this.privacyButton,
   });
 
   final bool extended;
@@ -46,6 +47,9 @@ class AppSidebar extends StatelessWidget {
   final ValueChanged<int> onSelected;
   final Color accent;
   final Widget? backupButton;
+
+  /// Ikon mata untuk menyembunyikan nominal.
+  final Widget? privacyButton;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +95,7 @@ class AppSidebar extends StatelessWidget {
                   const SizedBox(height: 6),
                 ],
                 const Spacer(),
+                if (privacyButton != null) privacyButton!,
                 if (backupButton != null) backupButton!,
                 const SizedBox(height: 8),
                 _Reveal(

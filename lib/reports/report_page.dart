@@ -8,6 +8,7 @@ import '../common/format.dart';
 import '../common/widgets.dart';
 import '../debts/debt_repository.dart';
 import '../settings/home_prefs.dart';
+import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
 import 'report_exporter.dart';
 
@@ -457,41 +458,62 @@ class _HeroKpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = StyleTokens.of(context);
     // Gradasi dari warna kartu: pekat di kiri atas, lebih terang di kanan bawah.
     final deep = Color.lerp(color, Colors.black, 0.45)!;
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [deep, color],
-        ),
-        boxShadow: [
-          BoxShadow(
-              color: color.withValues(alpha: 0.28),
-              blurRadius: 18,
-              offset: const Offset(0, 8)),
-        ],
+    final gradient = BoxDecoration(
+      borderRadius: BorderRadius.circular(26),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: tokens.style == AppStyle.glass
+            ? [deep.withValues(alpha: 0.85), color.withValues(alpha: 0.7)]
+            : [deep, color],
       ),
+      boxShadow: [
+        BoxShadow(
+            color: color.withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 8)),
+      ],
+    );
+    // Tiap gaya punya kartu utama sendiri; teks putih di atas warna penuh.
+    final (BoxDecoration? deco, Color fg) = switch (tokens.style) {
+      AppStyle.standard || AppStyle.glass => (gradient, Colors.white),
+      AppStyle.brutal => (
+          tokens.card().copyWith(color: color),
+          Colors.white,
+        ),
+      AppStyle.minimal || AppStyle.neumorph || AppStyle.cyber => (
+          null,
+          color,
+        ),
+    };
+    final muted = fg == Colors.white
+        ? Colors.white.withValues(alpha: 0.85)
+        : theme.colorScheme.onSurfaceVariant;
+    final chip = fg == Colors.white
+        ? Colors.white.withValues(alpha: 0.18)
+        : color.withValues(alpha: 0.12);
+    return StyledBox(
+      padding: const EdgeInsets.all(22),
+      radius: tokens.style == AppStyle.standard ? 26 : null,
+      tint: deco == null ? color : null,
+      decoration: deco,
       child: Row(children: [
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w600)),
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: muted, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(rupiah(value),
                   style: theme.textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1.1)),
+                      fontWeight: FontWeight.w800, color: fg, height: 1.1)),
             ),
             if (sub != null) ...[
               const SizedBox(height: 10),
@@ -499,12 +521,11 @@ class _HeroKpi extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: chip,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(sub!,
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(color: Colors.white)),
+                    style: theme.textTheme.labelMedium?.copyWith(color: fg)),
               ),
             ],
           ]),
@@ -514,10 +535,10 @@ class _HeroKpi extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
+            color: chip,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Icon(icon, color: Colors.white, size: 28),
+          child: Icon(icon, color: fg, size: 28),
         ),
       ]),
     );
@@ -535,13 +556,10 @@ class _Kpi extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    // Kartu bernuansa warna mengikuti gaya tampilan.
+    return StyledBox(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
+      tint: color,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           IconBadge(icon, color: color, size: 32),

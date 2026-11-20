@@ -11,10 +11,12 @@ import '../common/dialogs.dart';
 import '../debts/debt_repository.dart';
 import '../telegram/telegram_page.dart';
 import '../common/amount_field.dart' show isMobilePlatform;
+import '../theme/app_style.dart';
 import '../theme/background_controller.dart';
 import '../theme/background_picker.dart';
 import '../theme/font_controller.dart';
 import '../theme/font_picker.dart';
+import '../theme/style_picker_page.dart';
 import '../theme/theme_picker.dart';
 import '../update/app_update.dart';
 import 'activity_page.dart';
@@ -291,6 +293,15 @@ class SettingsPage extends StatelessWidget {
         ],
         const Divider(),
         const _Header('Tampilan'),
+        ListenableBuilder(
+          listenable: styleController,
+          builder: (context, _) => ListTile(
+            leading: const Icon(Icons.style_outlined),
+            title: const Text('Gaya tampilan'),
+            subtitle: Text(styleController.style.label),
+            onTap: () => _push(context, const StylePickerPage()),
+          ),
+        ),
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: ThemeModePicker(),
