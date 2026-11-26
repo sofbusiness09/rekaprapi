@@ -133,7 +133,7 @@ List<BackupSheet> buildBackupSheets(BackupData d) {
       for (final t in d.cash)
         [
           ymd(t.date),
-          t.isIn ? 'Masuk' : 'Keluar',
+          t.isIn ? 'Pemasukan' : 'Pengeluaran',
           d.categories[t.categoryId] ?? 'Tanpa kategori',
           t.amount,
           t.note ?? '',

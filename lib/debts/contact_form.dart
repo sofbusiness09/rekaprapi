@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import 'phone_contact_button.dart';
 
 /// Lembar tambah/ubah kontak (nama, telepon, alamat, catatan).
 /// Mengembalikan kontak yang tersimpan (dengan data terbaru), atau null bila dibatalkan.
@@ -106,7 +107,15 @@ class _ContactFormState extends State<_ContactForm> {
             Text(_editing ? 'Ubah kontak' : 'Kontak baru',
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            if (!_editing)
+              PhoneContactButton(
+                onPicked: (name, phone) => setState(() {
+                  _name.text = name;
+                  if (phone != null) _phone.text = phone;
+                }),
+              ),
+            const SizedBox(height: 8),
             TextField(
               controller: _name,
               autofocus: !_editing,

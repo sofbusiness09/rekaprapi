@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../common/widgets.dart';
 import 'debt_models.dart';
+import 'phone_contact_button.dart';
 import 'debt_repository.dart';
 
 const _newContact = '__new__';
@@ -108,7 +109,15 @@ class ContactPicker extends StatelessWidget {
         ),
       ),
       if (controller.isNew) ...[
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
+        PhoneContactButton(
+          onPicked: (name, phone) {
+            controller.name.text = name;
+            if (phone != null) controller.phone.text = phone;
+            onChanged();
+          },
+        ),
+        const SizedBox(height: 4),
         TextField(
           controller: controller.name,
           autofocus: true,

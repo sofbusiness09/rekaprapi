@@ -8,7 +8,7 @@ import '../debts/contact_form.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
 
-/// Pengaturan > Kontak Pelanggan: daftar semua kontak untuk diubah (nama, nomor
+/// Pengaturan > Kontak Pelanggan (Pembukuan Pribadi: Kontak): daftar semua kontak untuk diubah (nama, nomor
 /// telepon, alamat, catatan), ditambah, atau dihapus. Semua anggota boleh mengubah;
 /// menghapus hanya untuk Pemilik/Admin dan hanya bila utang piutangnya lunas.
 class ContactsManagePage extends StatefulWidget {
@@ -89,7 +89,9 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
-      appBar: AppBar(title: const Text('Kontak Pelanggan')),
+      appBar: AppBar(
+          title:
+              Text(widget.business.isPersonal ? 'Kontak' : 'Kontak Pelanggan')),
       body: FutureBuilder<List<Contact>>(
         future: _future,
         builder: (context, snap) {

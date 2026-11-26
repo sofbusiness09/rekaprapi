@@ -277,7 +277,7 @@ export function formatReport(title: string, business: Biz, s: Record<string, num
   const fmt = (n: number) => money(n, business.currency);
   const lines = [`<b>${title}</b> · ${esc(business.name)}`];
   if (business.kind === "personal") {
-    lines.push(`Masuk: ${fmt(s.total_in ?? 0)}`, `Keluar: ${fmt(s.total_out ?? 0)}`);
+    lines.push(`Pemasukan: ${fmt(s.total_in ?? 0)}`, `Pengeluaran: ${fmt(s.total_out ?? 0)}`);
     lines.push(`Saldo kas: ${fmt(s.balance ?? 0)}`);
   } else {
     lines.push(`Pemasukan: ${fmt(s.income_total ?? 0)}`);

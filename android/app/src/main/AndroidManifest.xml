@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dari kontak HP: hanya membaca satu kontak yang dipilih pengguna. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <!-- Wajib di build rilis: tanpa ini aplikasi tidak bisa terhubung ke Supabase. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 

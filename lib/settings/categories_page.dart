@@ -44,10 +44,10 @@ class _CategoriesPageState extends State<CategoriesPage> {
         children: [
           SimpleDialogOption(
               onPressed: () => Navigator.pop(context, 'in'),
-              child: const Text('Kas masuk')),
+              child: const Text('Pemasukan')),
           SimpleDialogOption(
               onPressed: () => Navigator.pop(context, 'out'),
-              child: const Text('Kas keluar')),
+              child: const Text('Pengeluaran')),
         ],
       ),
     );
@@ -87,8 +87,8 @@ class _CategoriesPageState extends State<CategoriesPage> {
             padding: const EdgeInsets.only(bottom: 96),
             children: [
               for (final section in const <(String, String)>[
-                ('in', 'Kas masuk'),
-                ('out', 'Kas keluar'),
+                ('in', 'Pemasukan'),
+                ('out', 'Pengeluaran'),
               ]) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),

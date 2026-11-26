@@ -203,11 +203,9 @@ Future<bool> showCashForm(
   bool showProfit = true,
   bool? scanReceipts,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    constraints: const BoxConstraints(maxWidth: 560),
+  // Halaman penuh: kolom bisa digeser, Simpan selalu terlihat di atas kalkulator.
+  final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+    fullscreenDialog: true,
     builder: (_) => _CashForm(
       repo: repo,
       debtRepo: debtRepo,
@@ -221,7 +219,7 @@ Future<bool> showCashForm(
       scanReceipts: scanReceipts ??
           (!allowSale && existing == null && receiptScanSupported),
     ),
-  );
+  ));
   return saved ?? false;
 }
 
@@ -318,30 +316,8 @@ class _CashFormState extends State<_CashForm> {
 
   /// Scan nota dari kamera atau galeri; mengisi jumlah, tanggal, catatan (nama toko),
   /// dan kategori bila terbaca. Tidak ada yang tersimpan sebelum Simpan ditekan.
-  Future<void> _scan() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 480),
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Kamera'),
-              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Galeri'),
-              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
-            ),
-          ]),
-        ),
-      ),
-    );
-    if (source == null || !mounted) return;
+  Future<void> _scan(ImageSource source) async {
+    if (!mounted) return;
     setState(() => _scanning = true);
     try {
       final file = await ImagePicker()
@@ -647,227 +623,267 @@ class _CashFormState extends State<_CashForm> {
         _options.where((c) => !c.isSale).toList(), _usage,
         selectedId: _categoryId);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.lockType)
-              Row(children: [
-                IconBadge(
-                    _isIn ? Icons.south_west_rounded : Icons.north_east_rounded,
-                    color: _tone,
-                    size: 40),
-                const SizedBox(width: 12),
-                Text(_isIn ? 'Catat pemasukan' : 'Catat pengeluaran',
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-              ])
-            else
-              Row(children: [
-                Expanded(
-                    child: _TypeTile('Pemasukan', Icons.south_west_rounded,
-                        true, _isIn, () => setState(() => _type = 'in'))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _TypeTile('Pengeluaran', Icons.north_east_rounded,
-                        false, !_isIn, () => setState(() => _type = 'out'))),
-              ]),
-            if (widget.allowSale && _isIn) ...[
-              const SizedBox(height: 12),
-              SegmentedButton<bool>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Penjualan')),
-                  ButtonSegment(value: false, label: Text('Penjualan lainnya')),
-                ],
-                selected: {_sale},
-                onSelectionChanged: (s) => setState(() => _sale = s.first),
-              ),
-            ],
-            if (sale && widget.showProfit) ...[
-              const SizedBox(height: 12),
-              _ProfitCard(profit: _profit),
-            ],
-            const SizedBox(height: 16),
-            _AmountBox(
-              controller: _amount,
-              label: sale ? 'Total Penjualan' : 'Jumlah',
-              color: _tone,
-              autofocus: !_editing,
-              onChanged: () => setState(() {}),
-            ),
-            if (!sale) ...creditToggle,
-            if (sale) ...[
-              const SizedBox(height: 12),
-              _AmountBox(
-                controller: _cost,
-                label: 'Harga Modal',
-                color: Brand.expense,
-                large: false,
-                onChanged: () => setState(() {}),
-              ),
-              ...creditToggle,
-              const SizedBox(height: 4),
-              Theme(
-                data: theme.copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  initiallyExpanded: _discountValue > 0 || _feeValue > 0,
-                  title: Text('Tambahan perhitungan (opsional)',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  children: [
-                    _DiscountField(
-                      controller: _discount,
-                      percent: _discountPercent,
-                      amount: _discountValue,
-                      onModeChanged: (p) => setState(() {
-                        _discountPercent = p;
-                        _discount.clear();
-                      }),
-                      onChanged: () => setState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    _MoneyField(
-                      controller: _fee,
-                      label: 'Biaya Tambahan',
-                      color: theme.colorScheme.onSurface,
-                      onChanged: () => setState(() {}),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(children: [
-                  Expanded(
-                    child: Text(_credit ? 'Total piutang' : 'Pemasukan',
-                        style:
-                            theme.textTheme.bodyMedium?.copyWith(color: muted)),
+    final title = _editing
+        ? 'Ubah transaksi'
+        : !widget.lockType
+            ? 'Catat transaksi'
+            : (_isIn ? 'Catat pemasukan' : 'Catat pengeluaran');
+    return Scaffold(
+      appBar: AppBar(leading: const CloseButton(), title: Text(title)),
+      body: CalcHost(
+        bottomBar: _bottomBar(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: ContentWidth(
+            maxWidth: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!widget.lockType)
+                  Row(children: [
+                    Expanded(
+                        child: _TypeTile('Pemasukan', Icons.south_west_rounded,
+                            true, _isIn, () => setState(() => _type = 'in'))),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: _TypeTile(
+                            'Pengeluaran',
+                            Icons.north_east_rounded,
+                            false,
+                            !_isIn,
+                            () => setState(() => _type = 'out'))),
+                  ]),
+                if (widget.allowSale && _isIn) ...[
+                  const SizedBox(height: 12),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Penjualan')),
+                      ButtonSegment(
+                          value: false, label: Text('Penjualan lainnya')),
+                    ],
+                    selected: {_sale},
+                    onSelectionChanged: (s) => setState(() => _sale = s.first),
                   ),
-                  Text(formatMoney(_received < 0 ? 0 : _received),
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ]),
-              ),
-            ],
-            const SizedBox(height: 8),
-            if (_credit) ...[
-              ContactPicker(
-                controller: _contact,
-                contacts: _contacts,
-                label: _isIn
-                    ? 'Siapa yang berutang? (wajib)'
-                    : 'Berutang kepada siapa? (wajib)',
-                onChanged: () {
-                  setState(() {});
-                  _refreshNet();
-                },
-              ),
-              if (_contactNet != null &&
-                  ((_isIn && _contactNet! < 0) || (!_isIn && _contactNet! > 0)))
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Brand.profit.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.swap_horiz_rounded,
-                          size: 20, color: Brand.profit),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _isIn
-                              ? 'Utang Anda ke kontak ini ${formatMoney(-_contactNet!)} akan berkurang otomatis.'
-                              : 'Piutang kontak ini ${formatMoney(_contactNet!)} akan berkurang otomatis.',
-                          style: theme.textTheme.bodySmall,
+                ],
+                if (sale && widget.showProfit) ...[
+                  const SizedBox(height: 12),
+                  _ProfitCard(profit: _profit),
+                ],
+                const SizedBox(height: 16),
+                _AmountBox(
+                  controller: _amount,
+                  label: sale ? 'Total Penjualan' : 'Jumlah',
+                  color: _tone,
+                  autofocus: !_editing,
+                  onChanged: () => setState(() {}),
+                ),
+                if (!sale) ...creditToggle,
+                if (sale) ...[
+                  const SizedBox(height: 12),
+                  _AmountBox(
+                    controller: _cost,
+                    label: 'Harga Modal',
+                    color: Brand.expense,
+                    large: false,
+                    onChanged: () => setState(() {}),
+                  ),
+                  ...creditToggle,
+                  const SizedBox(height: 4),
+                  Theme(
+                    data: theme.copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      initiallyExpanded: _discountValue > 0 || _feeValue > 0,
+                      title: Text('Tambahan perhitungan (opsional)',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      children: [
+                        _DiscountField(
+                          controller: _discount,
+                          percent: _discountPercent,
+                          amount: _discountValue,
+                          onModeChanged: (p) => setState(() {
+                            _discountPercent = p;
+                            _discount.clear();
+                          }),
+                          onChanged: () => setState(() {}),
                         ),
+                        const SizedBox(height: 12),
+                        _MoneyField(
+                          controller: _fee,
+                          label: 'Biaya Tambahan',
+                          color: theme.colorScheme.onSurface,
+                          onChanged: () => setState(() {}),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text(_credit ? 'Total piutang' : 'Pemasukan',
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: muted)),
                       ),
+                      Text(formatMoney(_received < 0 ? 0 : _received),
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600)),
                     ]),
                   ),
-                ),
-              const SizedBox(height: 12),
-              InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () async {
-                  final d = await _pick(_due ?? _date);
-                  if (d != null) setState(() => _due = d);
-                },
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Jatuh tempo (opsional)',
-                    prefixIcon: const Icon(Icons.alarm_rounded),
-                    suffixIcon: _due == null
-                        ? null
-                        : IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setState(() => _due = null)),
+                ],
+                const SizedBox(height: 8),
+                if (_credit) ...[
+                  ContactPicker(
+                    controller: _contact,
+                    contacts: _contacts,
+                    label: _isIn
+                        ? 'Siapa yang berutang? (wajib)'
+                        : 'Berutang kepada siapa? (wajib)',
+                    onChanged: () {
+                      setState(() {});
+                      _refreshNet();
+                    },
                   ),
-                  child: Text(_due == null ? '-' : dateId(_due!)),
-                ),
-              ),
-            ] else if (!sale) ...[
-              Text('Kategori', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                for (final c in split.$1)
-                  ChoiceChip(
-                    label: Text(c.name),
-                    avatar: Icon(categoryIcon(c.name, income: _isIn), size: 18),
-                    selected: _categoryId == c.id,
-                    onSelected: (s) =>
-                        setState(() => _categoryId = s ? c.id : null),
+                  if (_contactNet != null &&
+                      ((_isIn && _contactNet! < 0) ||
+                          (!_isIn && _contactNet! > 0)))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Brand.profit.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.swap_horiz_rounded,
+                              size: 20, color: Brand.profit),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _isIn
+                                  ? 'Utang Anda ke kontak ini ${formatMoney(-_contactNet!)} akan berkurang otomatis.'
+                                  : 'Piutang kontak ini ${formatMoney(_contactNet!)} akan berkurang otomatis.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () async {
+                      final d = await _pick(_due ?? _date);
+                      if (d != null) setState(() => _due = d);
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Jatuh tempo (opsional)',
+                        prefixIcon: const Icon(Icons.alarm_rounded),
+                        suffixIcon: _due == null
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => setState(() => _due = null)),
+                      ),
+                      child: Text(_due == null ? '-' : dateId(_due!)),
+                    ),
                   ),
-                // Satu tombol untuk mencari kategori lain sekaligus menambah yang belum ada.
-                ActionChip(
-                  avatar: const Icon(Icons.search_rounded, size: 18),
-                  label: Text(split.$2.isEmpty
-                      ? 'Cari'
-                      : 'Cari (${split.$2.length} lainnya)'),
-                  onPressed: _openCategorySearch,
+                ] else if (!sale) ...[
+                  Text('Kategori', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final c in split.$1)
+                      ChoiceChip(
+                        label: Text(c.name),
+                        avatar:
+                            Icon(categoryIcon(c.name, income: _isIn), size: 18),
+                        selected: _categoryId == c.id,
+                        onSelected: (s) =>
+                            setState(() => _categoryId = s ? c.id : null),
+                      ),
+                    // Satu tombol untuk mencari kategori lain sekaligus menambah yang belum ada.
+                    ActionChip(
+                      avatar: const Icon(Icons.search_rounded, size: 18),
+                      label: Text(split.$2.isEmpty
+                          ? 'Cari'
+                          : 'Cari (${split.$2.length} lainnya)'),
+                      onPressed: _openCategorySearch,
+                    ),
+                  ]),
+                ],
+                const SizedBox(height: 16),
+                InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () async {
+                    final d = await _pick(_date,
+                        last: DateTime.now().add(const Duration(days: 366)));
+                    if (d != null) setState(() => _date = d);
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Tanggal',
+                      prefixIcon: Icon(Icons.event_rounded),
+                    ),
+                    child: Text(dateId(_date)),
+                  ),
                 ),
-              ]),
-            ],
-            const SizedBox(height: 16),
-            InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () async {
-                final d = await _pick(_date,
-                    last: DateTime.now().add(const Duration(days: 366)));
-                if (d != null) setState(() => _date = d);
-              },
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Tanggal',
-                  prefixIcon: Icon(Icons.event_rounded),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _note,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan (opsional)',
+                    prefixIcon: Icon(Icons.notes_rounded),
+                  ),
                 ),
-                child: Text(dateId(_date)),
-              ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _note,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
-                prefixIcon: Icon(Icons.notes_rounded),
-              ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Baris bawah yang selalu terlihat: Simpan, dan di Pembukuan Pribadi tombol scan
+  /// nota dari galeri atau kamera.
+  Widget _bottomBar() {
+    final theme = Theme.of(context);
+    Widget scanButton(IconData icon, String tip, ImageSource source) => Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: SizedBox(
+            width: 52,
+            height: 52,
+            child: IconButton.filled(
+              tooltip: tip,
+              style: IconButton.styleFrom(backgroundColor: _tone),
+              onPressed: _busy || _scanning ? null : () => _scan(source),
+              icon: Icon(icon, color: Colors.white),
             ),
-            const SizedBox(height: 20),
-            Row(children: [
+          ),
+        );
+    return Material(
+      color: theme.scaffoldBackgroundColor,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: ContentWidth(
+            maxWidth: 560,
+            child: Row(children: [
               Expanded(
                 child: FilledButton(
                   onPressed: _busy || _scanning ? null : _save,
                   style: FilledButton.styleFrom(backgroundColor: _tone),
-                  child: _busy
+                  child: _busy || _scanning
                       ? const SizedBox(
                           width: 22,
                           height: 22,
@@ -879,34 +895,19 @@ class _CashFormState extends State<_CashForm> {
                 ),
               ),
               if (widget.scanReceipts) ...[
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 52,
-                  height: 52,
-                  child: IconButton.filled(
-                    tooltip: 'Scan nota',
-                    style: IconButton.styleFrom(backgroundColor: _tone),
-                    onPressed: _busy || _scanning ? null : _scan,
-                    icon: _scanning
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.4, color: Colors.white))
-                        : const Icon(Icons.document_scanner_outlined,
-                            color: Colors.white),
-                  ),
-                ),
+                scanButton(Icons.add_photo_alternate_outlined,
+                    'Scan nota dari galeri', ImageSource.gallery),
+                scanButton(Icons.photo_camera_outlined, 'Scan nota dari kamera',
+                    ImageSource.camera),
               ],
             ]),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Info keuntungan penjualan, tampil di atas isian.
 class _ProfitCard extends StatelessWidget {
   const _ProfitCard({required this.profit});
 

@@ -279,10 +279,10 @@ class _ReportPageState extends State<ReportPage> {
                     child: _CashFlowChart(
                       buckets: buckets,
                       inLabel: widget.business.isPersonal
-                          ? 'Kas masuk'
+                          ? 'Pemasukan'
                           : 'Pemasukan',
                       outLabel: widget.business.isPersonal
-                          ? 'Kas keluar'
+                          ? 'Pengeluaran'
                           : 'Pengeluaran',
                     ),
                   ),
@@ -378,9 +378,9 @@ class _Kpis extends StatelessWidget {
           summary.balance >= 0 ? Brand.deep : Brand.expense,
           Icons.account_balance_wallet_rounded);
       cards = [
-        _Kpi('Kas masuk', summary.totalIn, Brand.income,
+        _Kpi('Pemasukan', summary.totalIn, Brand.income,
             Icons.south_west_rounded),
-        _Kpi('Kas keluar', summary.totalOut, Brand.expense,
+        _Kpi('Pengeluaran', summary.totalOut, Brand.expense,
             Icons.north_east_rounded),
         _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
             Icons.swap_vert_rounded),
@@ -666,8 +666,8 @@ class _Legend extends StatelessWidget {
 class _CashFlowChart extends StatelessWidget {
   const _CashFlowChart({
     required this.buckets,
-    this.inLabel = 'Kas masuk',
-    this.outLabel = 'Kas keluar',
+    this.inLabel = 'Pemasukan',
+    this.outLabel = 'Pengeluaran',
   });
 
   final List<_Bucket> buckets;
@@ -704,7 +704,7 @@ class _CashFlowChart extends StatelessWidget {
               touchTooltipData: BarTouchTooltipData(
                 getTooltipItem: (group, gi, rod, ri) {
                   final b = buckets[group.x];
-                  final kind = ri == 0 ? 'Masuk' : 'Keluar';
+                  final kind = ri == 0 ? inLabel : outLabel;
                   return BarTooltipItem(
                     '${b.title}\n$kind ${rupiah(rod.toY)}',
                     const TextStyle(

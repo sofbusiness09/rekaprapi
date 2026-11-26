@@ -126,7 +126,8 @@ Future<PickedPhoto?> pickBusinessPhoto() async {
   return PickedPhoto(bytes, mime);
 }
 
-/// Pengaturan > Foto profil: ganti atau hapus foto pembukuan (Pemilik dan Admin).
+/// Pengaturan > Profil pembukuan: foto (ganti atau hapus), nama, alamat, dan nomor
+/// telepon dalam satu halaman (Pemilik dan Admin). Tanpa [loadProfile] hanya foto.
 class BusinessPhotoPage extends StatefulWidget {
   const BusinessPhotoPage({
     super.key,
@@ -134,10 +135,19 @@ class BusinessPhotoPage extends StatefulWidget {
     required this.businessName,
     required this.photoUrl,
     required this.onChanged,
+    this.loadProfile,
+    this.saveProfile,
     BusinessPhotoRepository? repo,
     Future<PickedPhoto?> Function()? picker,
   })  : _repo = repo,
         _picker = picker;
+
+  /// Membaca nama, alamat, dan telepon pembukuan.
+  final Future<Map<String, dynamic>> Function()? loadProfile;
+
+  /// Menyimpan nama, alamat, dan telepon.
+  final Future<void> Function(String name, String address, String phone)?
+      saveProfile;
 
   final String businessId;
   final String businessName;
@@ -158,6 +168,60 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
       widget._repo ?? BusinessPhotoRepository(widget.businessId);
   late String? _url = widget.photoUrl;
   bool _busy = false;
+  final _name = TextEditingController();
+  final _address = TextEditingController();
+  final _phone = TextEditingController();
+  bool _loaded = false;
+
+  bool get _withProfile => widget.loadProfile != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _name.text = widget.businessName;
+    final load = widget.loadProfile;
+    if (load != null) {
+      load().then((d) {
+        if (!mounted) return;
+        setState(() {
+          _name.text = (d['name'] as String?) ?? widget.businessName;
+          _address.text = (d['address'] as String?) ?? '';
+          _phone.text = (d['phone'] as String?) ?? '';
+          _loaded = true;
+        });
+      }).catchError((Object e) {
+        if (mounted) setState(() => _loaded = true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _address.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProfile() async {
+    final save = widget.saveProfile;
+    if (save == null) return;
+    if (_name.text.trim().isEmpty) {
+      _toast('Nama pembukuan wajib diisi.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await save(_name.text, _address.text, _phone.text);
+      if (mounted) _toast('Profil pembukuan disimpan.');
+    } on PostgrestException catch (e) {
+      if (mounted) _toast(e.message);
+    } catch (e) {
+      if (mounted) _toast('Gagal menyimpan: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   void _toast(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -209,45 +273,76 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Foto profil')),
+      appBar: AppBar(
+          title: Text(_withProfile ? 'Profil pembukuan' : 'Foto profil')),
       body: ContentWidth(
         maxWidth: 480,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
           children: [
             Center(
-              child:
-                  InitialAvatar(widget.businessName, size: 128, photoUrl: _url),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(widget.businessName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(height: 24),
-            if (_busy) const LinearProgressIndicator(),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: _busy ? null : _change,
-              icon: const Icon(Icons.photo_library_outlined),
-              label: Text(_url == null ? 'Pilih foto' : 'Ganti foto'),
-            ),
-            if (_url != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Brand.expense,
-                  side: const BorderSide(color: Brand.expense),
-                ),
-                onPressed: _busy ? null : _remove,
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Hapus foto'),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _busy ? null : _change,
+                child: InitialAvatar(widget.businessName,
+                    size: 112, photoUrl: _url),
               ),
-            ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+              TextButton.icon(
+                onPressed: _busy ? null : _change,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: Text(_url == null ? 'Pilih foto' : 'Ganti foto'),
+              ),
+              if (_url != null)
+                TextButton.icon(
+                  style: TextButton.styleFrom(foregroundColor: Brand.expense),
+                  onPressed: _busy ? null : _remove,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Hapus foto'),
+                ),
+            ]),
+            if (_busy) const LinearProgressIndicator(),
+            if (_withProfile) ...[
+              const SizedBox(height: 16),
+              if (!_loaded)
+                const Center(child: CircularProgressIndicator())
+              else ...[
+                TextField(
+                  controller: _name,
+                  textCapitalization: TextCapitalization.words,
+                  decoration:
+                      const InputDecoration(labelText: 'Nama pembukuan'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _address,
+                  decoration: const InputDecoration(labelText: 'Alamat'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'No. telepon'),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _busy ? null : _saveProfile,
+                  child: const Text('Simpan'),
+                ),
+              ],
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Center(
+                  child: Text(widget.businessName,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+              ),
           ],
         ),
       ),

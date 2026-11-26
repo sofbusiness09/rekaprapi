@@ -81,21 +81,6 @@ class SettingsPage extends StatelessWidget {
   void _push(BuildContext context, Widget page) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
-  Future<void> _editProfile(BuildContext context) async {
-    final data = await repo.business();
-    if (!context.mounted) return;
-    final result = await showDialog<(String, String, String)>(
-        context: context, builder: (_) => _ProfileDialog(data: data));
-    if (result == null || !context.mounted) return;
-    try {
-      await repo.updateBusiness(result.$1, result.$2, result.$3);
-      onRenamed(result.$1.trim());
-      if (context.mounted) _toast(context, 'Profil pembukuan disimpan.');
-    } on PostgrestException catch (e) {
-      if (context.mounted) _toast(context, e.message);
-    }
-  }
-
   Future<void> _changeCurrency(BuildContext context) async {
     final picked = await showCurrencyPicker(context,
         selected: business.currency, title: 'Mata uang pembukuan');
@@ -217,19 +202,6 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.storefront_outlined),
             title: const Text('Profil pembukuan'),
-            onTap: () => _editProfile(context),
-          ),
-        if (business.canManage)
-          ListTile(
-            leading: const Icon(Icons.payments_outlined),
-            title: const Text('Mata uang'),
-            subtitle: Text(currencyByCode(business.currency).label),
-            onTap: () => _changeCurrency(context),
-          ),
-        if (business.canManage)
-          ListTile(
-            leading: const Icon(Icons.account_circle_outlined),
-            title: const Text('Foto profil'),
             onTap: () => _push(
                 context,
                 BusinessPhotoPage(
@@ -237,7 +209,19 @@ class SettingsPage extends StatelessWidget {
                   businessName: business.name,
                   photoUrl: business.photoUrl,
                   onChanged: onPhotoChanged,
+                  loadProfile: repo.business,
+                  saveProfile: (name, address, phone) async {
+                    await repo.updateBusiness(name, address, phone);
+                    onRenamed(name.trim());
+                  },
                 )),
+          ),
+        if (business.canManage)
+          ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: const Text('Mata uang'),
+            subtitle: Text(currencyByCode(business.currency).label),
+            onTap: () => _changeCurrency(context),
           ),
         // Pembukuan pribadi tidak dibagikan, jadi tanpa daftar anggota.
         if (!business.isPersonal)
@@ -249,7 +233,7 @@ class SettingsPage extends StatelessWidget {
           ),
         ListTile(
           leading: const Icon(Icons.contacts_outlined),
-          title: const Text('Kontak Pelanggan'),
+          title: Text(business.isPersonal ? 'Kontak' : 'Kontak Pelanggan'),
           onTap: () => _push(
               context,
               ContactsManagePage(
@@ -408,67 +392,6 @@ class _Header extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
         child: Text(text, style: Theme.of(context).textTheme.titleSmall),
       );
-}
-
-class _ProfileDialog extends StatefulWidget {
-  const _ProfileDialog({required this.data});
-
-  final Map<String, dynamic> data;
-
-  @override
-  State<_ProfileDialog> createState() => _ProfileDialogState();
-}
-
-class _ProfileDialogState extends State<_ProfileDialog> {
-  late final _name =
-      TextEditingController(text: widget.data['name'] as String? ?? '');
-  late final _address =
-      TextEditingController(text: widget.data['address'] as String? ?? '');
-  late final _phone =
-      TextEditingController(text: widget.data['phone'] as String? ?? '');
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _address.dispose();
-    _phone.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Profil pembukuan'),
-      content: SingleChildScrollView(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-              controller: _name,
-              decoration: const InputDecoration(labelText: 'Nama pembukuan')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _address,
-              decoration: const InputDecoration(labelText: 'Alamat')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _phone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'No. telepon')),
-        ]),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal')),
-        FilledButton(
-          onPressed: () {
-            if (_name.text.trim().isEmpty) return;
-            Navigator.pop(context, (_name.text, _address.text, _phone.text));
-          },
-          child: const Text('Simpan'),
-        ),
-      ],
-    );
-  }
 }
 
 /// Versi aplikasi yang terpasang; di Android sekaligus tombol periksa pembaruan.

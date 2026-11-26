@@ -56,10 +56,16 @@ class AppSidebar extends StatelessWidget {
     // Warna dasar gelap yang diambil dari aksen, seperti pada tema desain.
     final hsl = HSLColor.fromColor(accent);
     final base = hsl.withLightness(0.11).withSaturation(0.45).toColor();
+    // Ikon dan tombol di bilah gelap selalu terang, juga saat aplikasi bermode terang.
+    const onBar = Color(0xDDFFFFFF);
     final dark = Theme.of(context).copyWith(
       brightness: Brightness.dark,
       colorScheme:
           ColorScheme.fromSeed(seedColor: accent, brightness: Brightness.dark),
+      iconTheme: const IconThemeData(color: onBar),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: onBar),
+      ),
     );
 
     return Theme(

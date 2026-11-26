@@ -252,7 +252,7 @@ await test('ringkasan: pemilik, staf, dan pribadi', () => {
   assert.match(formatReport('x', { name: 'T', kind: 'business', role: 'admin' }, { ...s, net: -5 }), /Rugi: Rp5/);
   const personal = formatReport('Hari ini', { name: 'Dompet', kind: 'personal', role: 'owner' },
     { total_in: 10, total_out: 4, balance: 6, receivable_open: 0, payable_open: 0 });
-  assert.match(personal, /Masuk: Rp10\nKeluar: Rp4\nSaldo kas: Rp6/);
+  assert.match(personal, /Pemasukan: Rp10\nPengeluaran: Rp4\nSaldo kas: Rp6/);
 });
 
 await test('daftar utang dan jatuh tempo', () => {

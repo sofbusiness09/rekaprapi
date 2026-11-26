@@ -17,8 +17,10 @@ import '../reports/report_page.dart';
 import '../settings/home_prefs.dart';
 import '../settings/settings_page.dart';
 import '../settings/settings_repository.dart';
+import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
 import '../theme/background_controller.dart';
+import '../theme/theme_picker.dart';
 import 'app_sidebar.dart';
 import 'business.dart';
 import 'business_controller.dart';
@@ -506,6 +508,8 @@ class _BusinessHomeState extends State<BusinessHome> {
                 title: title,
                 titleSpacing: 8,
                 actions: [
+                  if (!styleController.style.forcesDark)
+                    const ThemeToggleButton(),
                   _privacyButton(),
                   if (backupButton != null) backupButton,
                 ],

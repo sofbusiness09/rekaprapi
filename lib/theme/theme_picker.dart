@@ -27,19 +27,19 @@ class ThemeModePicker extends StatelessWidget {
             ButtonSegment(
               value: ThemeMode.light,
               icon: const Icon(Icons.light_mode_rounded, size: 18),
-              label: compact ? null : const Text('Terang'),
+              label: compact ? null : const _OneLine('Terang'),
               tooltip: 'Terang',
             ),
             ButtonSegment(
               value: ThemeMode.dark,
               icon: const Icon(Icons.dark_mode_rounded, size: 18),
-              label: compact ? null : const Text('Gelap'),
+              label: compact ? null : const _OneLine('Gelap'),
               tooltip: 'Gelap',
             ),
             ButtonSegment(
               value: ThemeMode.system,
               icon: const Icon(Icons.brightness_auto_rounded, size: 18),
-              label: compact ? null : const Text('Otomatis'),
+              label: compact ? null : const _OneLine('Otomatis'),
               tooltip: 'Ikuti perangkat',
             ),
           ],
@@ -82,6 +82,36 @@ class ThemeModeColumn extends StatelessWidget {
             onPressed: () => themeController.set(m.$1),
           ),
       ]),
+    );
+  }
+}
+
+/// Tulisan pilihan yang tidak pernah pindah baris (mis. "Otomatis" tidak terpotong).
+class _OneLine extends StatelessWidget {
+  const _OneLine(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(text, maxLines: 1, softWrap: false),
+      );
+}
+
+/// Tombol cepat di bilah atas: berpindah antara terang dan gelap. "Ikuti perangkat"
+/// tetap dipilih dari Pengaturan. Disembunyikan untuk gaya yang selalu gelap.
+class ThemeToggleButton extends StatelessWidget {
+  const ThemeToggleButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return IconButton(
+      tooltip: dark ? 'Mode terang' : 'Mode gelap',
+      onPressed: () =>
+          themeController.set(dark ? ThemeMode.light : ThemeMode.dark),
+      icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
     );
   }
 }

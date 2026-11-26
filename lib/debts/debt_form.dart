@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../common/amount_field.dart';
 import '../common/currency.dart';
 import '../common/format.dart';
+import '../common/widgets.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
@@ -18,17 +19,16 @@ Future<bool> showDebtForm(
   bool lockKind = false,
   Debt? existing,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
+  // Halaman penuh seperti formulir Pemasukan/Pengeluaran.
+  final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+    fullscreenDialog: true,
     builder: (_) => _DebtForm(
         repo: repo,
         contacts: contacts,
         initialKind: initialKind,
         lockKind: lockKind,
         existing: existing),
-  );
+  ));
   return saved ?? false;
 }
 
@@ -130,113 +130,131 @@ class _DebtFormState extends State<_DebtForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-                _editing
-                    ? 'Ubah catatan'
-                    : (widget.lockKind
-                        ? (_receivable ? 'Catat piutang' : 'Catat utang')
-                        : 'Catat utang piutang'),
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            if (!_editing && !widget.lockKind)
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'receivable', label: Text('Piutang')),
-                  ButtonSegment(value: 'payable', label: Text('Utang')),
-                ],
-                selected: {_kind},
-                onSelectionChanged: (s) => setState(() => _kind = s.first),
+    final title = _editing
+        ? 'Ubah catatan'
+        : (widget.lockKind
+            ? (_receivable ? 'Catat piutang' : 'Catat utang')
+            : 'Catat utang piutang');
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(leading: const CloseButton(), title: Text(title)),
+      body: CalcHost(
+        bottomBar: Material(
+          color: theme.scaffoldBackgroundColor,
+          child: SafeArea(
+            top: false,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: theme.dividerColor)),
               ),
-            if (!_editing && !widget.lockKind)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  _receivable
-                      ? 'Piutang: orang lain berutang kepada Anda.'
-                      : 'Utang: Anda berutang kepada orang lain.',
-                  style: Theme.of(context).textTheme.bodySmall,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: ContentWidth(
+                maxWidth: 560,
+                child: FilledButton(
+                  onPressed: _busy ? null : _save,
+                  child: const Text('Simpan'),
                 ),
               ),
-            const SizedBox(height: 16),
-            ContactPicker(
-              controller: _contact,
-              contacts: widget.contacts,
-              label: _receivable ? 'Pelanggan / peminjam' : 'Pemberi utang',
-              onChanged: () => setState(() {}),
             ),
-            const SizedBox(height: 12),
-            AmountField(
-              controller: _amount,
-              onChanged: () => setState(() {}),
-              decoration: InputDecoration(
-                  labelText: 'Jumlah', prefixText: activeCurrency.prefix),
-            ),
-            if (!_editing) ...[
-              const SizedBox(height: 4),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _cashMoved,
-                onChanged: (v) => setState(() => _cashMoved = v),
-                title: Text(_receivable
-                    ? 'Uang dipinjamkan sekarang'
-                    : 'Uang diterima sekarang'),
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    final d = await _pick(_date);
-                    if (d != null) setState(() => _date = d);
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Tanggal'),
-                    child: Text(dateId(_date)),
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: ContentWidth(
+            maxWidth: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!_editing && !widget.lockKind)
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                          value: 'receivable', label: Text('Piutang')),
+                      ButtonSegment(value: 'payable', label: Text('Utang')),
+                    ],
+                    selected: {_kind},
+                    onSelectionChanged: (s) => setState(() => _kind = s.first),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    final d = await _pick(_due ?? _date);
-                    if (d != null) setState(() => _due = d);
-                  },
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Jatuh tempo',
-                      suffixIcon: _due == null
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => setState(() => _due = null)),
+                if (!_editing && !widget.lockKind)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      _receivable
+                          ? 'Piutang: orang lain berutang kepada Anda.'
+                          : 'Utang: Anda berutang kepada orang lain.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    child: Text(_due == null ? '-' : dateId(_due!)),
                   ),
+                const SizedBox(height: 16),
+                ContactPicker(
+                  controller: _contact,
+                  contacts: widget.contacts,
+                  label: _receivable ? 'Pelanggan / peminjam' : 'Pemberi utang',
+                  onChanged: () => setState(() {}),
                 ),
-              ),
-            ]),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _note,
-              decoration:
-                  const InputDecoration(labelText: 'Catatan (opsional)'),
+                const SizedBox(height: 12),
+                AmountField(
+                  controller: _amount,
+                  onChanged: () => setState(() {}),
+                  decoration: InputDecoration(
+                      labelText: 'Jumlah', prefixText: activeCurrency.prefix),
+                ),
+                if (!_editing) ...[
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _cashMoved,
+                    onChanged: (v) => setState(() => _cashMoved = v),
+                    title: Text(_receivable
+                        ? 'Uang dipinjamkan sekarang'
+                        : 'Uang diterima sekarang'),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final d = await _pick(_date);
+                        if (d != null) setState(() => _date = d);
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(labelText: 'Tanggal'),
+                        child: Text(dateId(_date)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        final d = await _pick(_due ?? _date);
+                        if (d != null) setState(() => _due = d);
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Jatuh tempo',
+                          suffixIcon: _due == null
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setState(() => _due = null)),
+                        ),
+                        child: Text(_due == null ? '-' : dateId(_due!)),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _note,
+                  decoration:
+                      const InputDecoration(labelText: 'Catatan (opsional)'),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: const Text('Simpan'),
-            ),
-          ],
+          ),
         ),
       ),
     );

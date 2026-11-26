@@ -107,7 +107,7 @@ class ReportExporter {
     for (final c in d.byCategory) {
       add('Ringkasan', [
         c['category_name'],
-        c['type'] == 'in' ? 'Masuk' : 'Keluar',
+        c['type'] == 'in' ? 'Pemasukan' : 'Pengeluaran',
         (c['tx_count'] as num).toInt(),
         (c['total'] as num).toInt(),
       ]);
@@ -131,7 +131,7 @@ class ReportExporter {
     for (final t in d.cash) {
       add('Kas', [
         ymd(t.date),
-        t.isIn ? 'Masuk' : 'Keluar',
+        t.isIn ? 'Pemasukan' : 'Pengeluaran',
         d.categories[t.categoryId] ?? 'Tanpa kategori',
         t.amount,
         t.note ?? '',
@@ -226,7 +226,7 @@ class ReportExporter {
       for (final t in d.cash)
         _csv([
           ymd(t.date),
-          t.isIn ? 'Masuk' : 'Keluar',
+          t.isIn ? 'Pemasukan' : 'Pengeluaran',
           d.categories[t.categoryId] ?? 'Tanpa kategori',
           t.amount,
           t.note ?? '',

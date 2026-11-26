@@ -61,6 +61,13 @@ class _AmountFieldState extends State<AmountField> {
 
   Future<void> _open() async {
     FocusScope.of(context).unfocus();
+    // Di halaman catat, kalkulator menempel di bawah halaman (tidak menutupi
+    // formulir dan tombol Simpan).
+    final host = CalcHost.maybeOf(context);
+    if (host != null) {
+      host.attach(widget.controller, widget.title, widget.onChanged);
+      return;
+    }
     final result = await showCalcKeypad(
       context,
       title: widget.title,
@@ -124,17 +131,45 @@ Future<int?> showCalcKeypad(
   );
 }
 
-class _CalcSheet extends StatefulWidget {
+class _CalcSheet extends StatelessWidget {
   const _CalcSheet({required this.title, required this.initial});
 
   final String title;
   final int? initial;
 
   @override
-  State<_CalcSheet> createState() => _CalcSheetState();
+  Widget build(BuildContext context) => CalcKeypad(
+        title: title,
+        initial: initial,
+        onDone: (v) => Navigator.pop(context, v),
+      );
 }
 
-class _CalcSheetState extends State<_CalcSheet> {
+/// Keyboard kalkulator: angka, 00, 000, +, −, ×, =, hapus, dan Selesai.
+/// [onDone] menerima hasil (bilangan bulat, tidak negatif). Bila [onChanged] diisi,
+/// hasil sementara dikirim setiap tombol ditekan (dipakai kalkulator menempel).
+/// [docked]: menempel di bawah halaman, tanpa judul dan tanpa layar besar.
+class CalcKeypad extends StatefulWidget {
+  const CalcKeypad({
+    super.key,
+    required this.title,
+    required this.initial,
+    required this.onDone,
+    this.onChanged,
+    this.docked = false,
+  });
+
+  final String title;
+  final int? initial;
+  final ValueChanged<int> onDone;
+  final ValueChanged<int>? onChanged;
+  final bool docked;
+
+  @override
+  State<CalcKeypad> createState() => _CalcKeypadState();
+}
+
+class _CalcKeypadState extends State<CalcKeypad> {
   static const _maxLength = 24;
 
   late String _expr = (widget.initial ?? 0) > 0 ? '${widget.initial}' : '';
@@ -182,6 +217,16 @@ class _CalcSheetState extends State<_CalcSheet> {
 
   BigInt? get _value => evalCalc(_expr);
 
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    // Kalkulator menempel: kolom jumlah ikut berubah selama mengetik.
+    final v = _value;
+    if (widget.onChanged != null && v != null && v >= BigInt.zero) {
+      widget.onChanged!(v.toInt());
+    }
+  }
+
   void _equals() {
     final v = _value;
     if (v == null || v < BigInt.zero) return;
@@ -190,12 +235,12 @@ class _CalcSheetState extends State<_CalcSheet> {
 
   void _done() {
     if (_expr.isEmpty) {
-      Navigator.pop(context, 0);
+      widget.onDone(0);
       return;
     }
     final v = _value;
     if (v == null || v < BigInt.zero) return;
-    Navigator.pop(context, v.toInt());
+    widget.onDone(v.toInt());
   }
 
   @override
@@ -230,7 +275,7 @@ class _CalcSheetState extends State<_CalcSheet> {
           padding: const EdgeInsets.all(4),
           child: FilledButton.tonal(
             style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
+              minimumSize: Size.fromHeight(widget.docked ? 46 : 52),
               padding: EdgeInsets.zero,
               backgroundColor: operator
                   ? scheme.primaryContainer
@@ -254,49 +299,77 @@ class _CalcSheetState extends State<_CalcSheet> {
     Widget opKey(String op) =>
         key(op, operator: true, onTap: () => _operator(op));
 
+    final docked = widget.docked;
     return SafeArea(
+      top: !docked,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: EdgeInsets.fromLTRB(
+            docked ? 6 : 12, 0, docked ? 6 : 12, docked ? 6 : 12),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-            child: Row(children: [
-              Text(widget.title,
-                  style: theme.textTheme.labelLarge
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
-            ]),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(14),
+          if (!docked)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+              child: Row(children: [
+                Text(widget.title,
+                    style: theme.textTheme.labelLarge
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+              ]),
             ),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Text(
-                  _expr.isEmpty ? '0' : formatCalc(_expr),
-                  maxLines: 1,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: _expr.isEmpty
-                          ? scheme.onSurfaceVariant
-                          : scheme.onSurface),
+          // Menempel: kolom jumlah sudah menampilkan hasil; di sini cukup hitungannya.
+          if (docked)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+              child: Row(children: [
+                Text(widget.title,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+                const Spacer(),
+                Flexible(
+                  flex: 4,
+                  child: Text(
+                      _hasOperator ? '${formatCalc(_expr)}  $preview' : preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                          color: negative || tooBig
+                              ? scheme.error
+                              : scheme.onSurfaceVariant)),
                 ),
+              ]),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(height: 2),
-              Text(preview,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                      color: negative || tooBig
-                          ? scheme.error
-                          : scheme.onSurfaceVariant)),
-            ]),
-          ),
-          const SizedBox(height: 8),
+              child:
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _expr.isEmpty ? '0' : formatCalc(_expr),
+                    maxLines: 1,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: _expr.isEmpty
+                            ? scheme.onSurfaceVariant
+                            : scheme.onSurface),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(preview,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: negative || tooBig
+                            ? scheme.error
+                            : scheme.onSurfaceVariant)),
+              ]),
+            ),
+          SizedBox(height: docked ? 2 : 8),
           // Baris atas: hapus semua, sama dengan, kali, hapus satu. C sengaja jauh dari
           // tombol Selesai dan berwarna merah agar tidak tertekan saat hendak menyimpan.
           Row(children: [
@@ -345,7 +418,7 @@ class _CalcSheetState extends State<_CalcSheet> {
                 padding: const EdgeInsets.all(4),
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(112),
+                    minimumSize: Size.fromHeight(widget.docked ? 100 : 112),
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
@@ -368,4 +441,100 @@ class _CalcSheetState extends State<_CalcSheet> {
 
   /// Hanya operator (mis. "×") tanpa angka: belum bisa dihitung, tetapi bukan "terlalu besar".
   bool get _endsWithOperatorOnly => !RegExp(r'[0-9]').hasMatch(_expr);
+}
+
+/// Halaman dengan kalkulator yang menempel di bawah: isi halaman ([child]) bisa
+/// digeser, [bottomBar] (tombol Simpan dan sejenisnya) selalu terlihat tepat di atas
+/// kalkulator atau keyboard ponsel, dan kalkulator tampil saat kolom jumlah aktif.
+/// Saat kolom teks biasa aktif, kalkulator turun dan keyboard ponsel yang tampil.
+class CalcHost extends StatefulWidget {
+  const CalcHost({super.key, required this.child, required this.bottomBar});
+
+  final Widget child;
+  final Widget bottomBar;
+
+  /// Kalkulator menempel terdekat, atau null (mis. di layar tanpa CalcHost).
+  static CalcHostState? maybeOf(BuildContext context) =>
+      context.findAncestorStateOfType<CalcHostState>();
+
+  @override
+  State<CalcHost> createState() => CalcHostState();
+}
+
+class CalcHostState extends State<CalcHost> {
+  TextEditingController? _target;
+  String _title = 'Jumlah';
+  VoidCallback? _onChanged;
+
+  /// Kolom yang sedang diisi lewat kalkulator.
+  TextEditingController? get target => _target;
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_onFocus);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_onFocus);
+    super.dispose();
+  }
+
+  /// Kolom teks biasa aktif: kalkulator turun agar keyboard ponsel yang dipakai.
+  void _onFocus() {
+    if (_target == null) return;
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    final editable = ctx?.findAncestorWidgetOfExactType<EditableText>();
+    if (editable != null && !editable.readOnly) detach();
+  }
+
+  void attach(
+      TextEditingController controller, String title, VoidCallback? onChanged) {
+    setState(() {
+      _target = controller;
+      _title = title;
+      _onChanged = onChanged;
+    });
+  }
+
+  void detach() {
+    if (_target == null) return;
+    setState(() => _target = null);
+  }
+
+  void _set(int v) {
+    final c = _target;
+    if (c == null) return;
+    final text = v > 0 ? thousands(v) : '';
+    if (c.text != text) {
+      c.text = text;
+      _onChanged?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final target = _target;
+    return Column(children: [
+      Expanded(child: widget.child),
+      widget.bottomBar,
+      if (target != null)
+        Material(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          child: CalcKeypad(
+            // Kunci per kolom: kalkulator mulai dari nilai kolom yang baru dipilih.
+            key: ObjectKey(target),
+            title: _title,
+            initial: parseAmount(target.text),
+            docked: true,
+            onChanged: _set,
+            onDone: (v) {
+              _set(v);
+              detach();
+            },
+          ),
+        ),
+    ]);
+  }
 }

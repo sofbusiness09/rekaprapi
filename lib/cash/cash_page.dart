@@ -247,8 +247,8 @@ class _CashPageState extends State<CashPage> {
                       Wrap(spacing: 8, children: [
                         for (final f in const <(String?, String)>[
                           (null, 'Semua'),
-                          ('in', 'Masuk'),
-                          ('out', 'Keluar'),
+                          ('in', 'Pemasukan'),
+                          ('out', 'Pengeluaran'),
                         ])
                           ChoiceChip(
                             label: Text(f.$2),
@@ -391,7 +391,7 @@ class _MonthPill extends StatelessWidget {
 
 /// Ringkasan bulan di atas daftar Transaksi.
 /// Pembukuan Usaha: Pemasukan, Pengeluaran, Laba (Staf hanya Pemasukan).
-/// Pembukuan Pribadi: Masuk, Keluar, Selisih.
+/// Pembukuan Pribadi: Pemasukan, Pengeluaran, Selisih.
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.summary, required this.business});
 
@@ -404,8 +404,8 @@ class _SummaryCard extends StatelessWidget {
     if (business.isPersonal) {
       final net = summary.totalIn - summary.totalOut;
       metrics = [
-        _Metric('Masuk', summary.totalIn, Brand.income),
-        _Metric('Keluar', summary.totalOut, Brand.expense),
+        _Metric('Pemasukan', summary.totalIn, Brand.income),
+        _Metric('Pengeluaran', summary.totalOut, Brand.expense),
         _Metric('Selisih', net, net >= 0 ? Brand.income : Brand.expense),
       ];
     } else if (business.canSeeProfit) {
