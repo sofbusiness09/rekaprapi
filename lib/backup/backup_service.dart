@@ -7,6 +7,7 @@ import 'apps_script_client.dart';
 import 'backup_settings.dart';
 import 'backup_sheets.dart';
 import 'recovery.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Menjalankan satu kali backup: mengambil SEMUA data usaha, menyusunnya menjadi lembar,
 /// mengirimnya ke Google Sheet, lalu mencatat hasilnya.
@@ -48,8 +49,9 @@ class BackupService {
     return BackupData(
       businessName: business.name,
       generatedAt: DateTime.now(),
-      generatedBy:
-          (userId == null ? null : names[userId]) ?? userEmail ?? 'Pengguna',
+      generatedBy: (userId == null ? null : names[userId]) ??
+          userEmail ??
+          tr('Pengguna'),
       summary: r[0] as Summary,
       cash: r[1] as List<CashTx>,
       categories: {for (final c in r[2] as List<Category>) c.id: c.name},
@@ -66,26 +68,26 @@ class BackupService {
     void Function(String step)? onStep,
   }) async {
     try {
-      onStep?.call('Mengambil data usaha…');
+      onStep?.call(tr('Mengambil data usaha…'));
       final data = await gather();
       final sheets = buildBackupSheets(data);
 
       // Data lengkap untuk fitur Pulihkan dari Google Sheet (lembar tersembunyi).
-      onStep?.call('Menyiapkan data pemulihan…');
+      onStep?.call(tr('Menyiapkan data pemulihan…'));
       final recovery = (await RecoveryExporter(business).export()).toChunks();
 
-      onStep?.call('Mengirim ke Google Sheet…');
+      onStep?.call(tr('Mengirim ke Google Sheet…'));
       final result = await _client.send(config.scriptUrl, config.token, sheets,
           recovery: recovery);
 
-      onStep?.call('Mencatat hasil…');
+      onStep?.call(tr('Mencatat hasil…'));
       await settings.recordSuccess(result);
       return result;
     } on BackupException catch (e) {
       await settings.recordFailure(e.message);
       rethrow;
     } catch (e) {
-      await settings.recordFailure('Gagal mengambil data: $e');
+      await settings.recordFailure(tr('Gagal mengambil data: {0}', [e]));
       rethrow;
     }
   }

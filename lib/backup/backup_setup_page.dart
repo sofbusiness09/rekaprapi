@@ -1,5 +1,3 @@
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,6 +12,7 @@ import 'backup_controller.dart';
 import 'backup_guide.dart';
 import 'restore_page.dart';
 import 'backup_settings.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Membuka alamat di browser/aplikasi lain; mengembalikan false bila gagal.
 Future<bool> openLink(String url) async {
@@ -88,9 +87,9 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
   bool _running = false;
 
   // Bahasa panduan mengikuti bahasa perangkat; bisa diganti agar cocok dengan akun Google.
-  GuideLang _lang = PlatformDispatcher.instance.locale.languageCode == 'id'
-      ? GuideLang.id
-      : GuideLang.en;
+  GuideLang _lang = languageController.language == AppLanguage.en
+      ? GuideLang.en
+      : GuideLang.id;
 
   bool get _id => _lang == GuideLang.id;
 
@@ -199,16 +198,20 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     }
     setState(() => _showCode = true);
     _toast(_id
-        ? 'Penyalinan otomatis gagal. Kode ditampilkan: tekan lama lalu pilih Salin.'
-        : 'Auto-copy failed. The code is shown: long-press and choose Copy.');
+        ? tr(
+            'Penyalinan otomatis gagal. Kode ditampilkan: tekan lama lalu pilih Salin.')
+        : tr(
+            'Auto-copy failed. The code is shown: long-press and choose Copy.'));
   }
 
   Future<void> _connect() async {
     final url = _url.text.trim();
     if (!isValidScriptUrl(url)) {
       setState(() => _error = _id
-          ? 'Alamat harus berbentuk https://script.google.com/macros/s/…/exec'
-          : 'The address must look like https://script.google.com/macros/s/…/exec');
+          ? tr(
+              'Alamat harus berbentuk https://script.google.com/macros/s/…/exec')
+          : tr(
+              'The address must look like https://script.google.com/macros/s/…/exec'));
       return;
     }
     setState(() {
@@ -220,14 +223,16 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
       await widget.controller.repo
           .save(scriptUrl: url, token: _token, spreadsheetUrl: spreadsheetUrl);
       await _load();
-      _toast(
-          _id ? 'Tersambung ke Google Sheet.' : 'Connected to Google Sheets.');
+      _toast(_id
+          ? tr('Tersambung ke Google Sheet.')
+          : tr('Connected to Google Sheets.'));
     } on BackupException catch (e) {
       setState(() => _error = e.message);
     } on PostgrestException catch (e) {
-      setState(() => _error = 'Gagal menyimpan pengaturan: ${e.message}');
+      setState(
+          () => _error = tr('Gagal menyimpan pengaturan: {0}', [e.message]));
     } catch (e) {
-      setState(() => _error = 'Gagal: $e');
+      setState(() => _error = tr('Gagal: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -235,10 +240,10 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
 
   Future<void> _disconnect() async {
     final ok = await confirmDialog(context,
-        title: 'Hapus pengaturan backup?',
-        body:
-            'Alamat dan kode rahasia dihapus dari RekapRapi. Google Sheet Anda dan isinya tidak dihapus.',
-        okLabel: 'Hapus');
+        title: tr('Hapus pengaturan backup?'),
+        body: tr(
+            'Alamat dan kode rahasia dihapus dari RekapRapi. Google Sheet Anda dan isinya tidak dihapus.'),
+        okLabel: tr('Hapus'));
     if (!ok) return;
     try {
       await widget.controller.repo.delete();
@@ -250,7 +255,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
             generateBackupToken(); // kode rahasia baru untuk sambungan berikutnya
         _error = null;
       });
-      _toast('Pengaturan backup dihapus.');
+      _toast(tr('Pengaturan backup dihapus.'));
     } on PostgrestException catch (e) {
       _toast(e.message);
     }
@@ -262,16 +267,17 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
     final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Backup dan Pemulihan')),
+      appBar: AppBar(title: Text(tr('Backup dan Pemulihan'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
               ? Center(
                   child: EmptyState(
                     icon: Icons.cloud_off_rounded,
-                    title: 'Pengaturan backup belum bisa dimuat',
-                    subtitle:
-                        '$_loadError\n\nPastikan migrasi 20261109000000_backup_settings.sql sudah dijalankan dan Anda Pemilik atau Admin.',
+                    title: tr('Pengaturan backup belum bisa dimuat'),
+                    subtitle: tr(
+                        '{0}\n\nPastikan migrasi 20261109000000_backup_settings.sql sudah dijalankan dan Anda Pemilik atau Admin.',
+                        [_loadError]),
                   ),
                 )
               : ContentWidth(
@@ -280,8 +286,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                     children: [
                       Text(
-                        'Simpan salinan seluruh data usaha (kas, utang piutang, kontak) ke Google Sheet Anda dengan satu klik. '
-                        'Setiap backup menimpa isi sheet dengan data terbaru.',
+                        tr('Simpan salinan seluruh data usaha (kas, utang piutang, kontak) ke Google Sheet Anda dengan satu klik. Setiap backup menimpa isi sheet dengan data terbaru.'),
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted),
                       ),
@@ -303,9 +308,9 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                           ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Backup otomatis harian'),
-                          subtitle: const Text(
-                              'Dijalankan saat aplikasi dibuka bila backup terakhir lebih dari 24 jam'),
+                          title: Text(tr('Backup otomatis harian')),
+                          subtitle: Text(tr(
+                              'Dijalankan saat aplikasi dibuka bila backup terakhir lebih dari 24 jam')),
                           value: _saved!.autoDaily,
                           onChanged: _toggleAuto,
                         ),
@@ -315,8 +320,8 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                               onCopy: () => _copy(
                                   _code,
                                   _id
-                                      ? 'Kode skrip disalin.'
-                                      : 'Script code copied.')),
+                                      ? tr('Kode skrip disalin.')
+                                      : tr('Script code copied.'))),
                         const SizedBox(height: 8),
                       ],
                       // Pemulihan tidak bergantung pada sambungan pembukuan ini: sumbernya bisa
@@ -325,7 +330,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                         OutlinedButton.icon(
                           onPressed: _openRestore,
                           icon: const Icon(Icons.restore_rounded),
-                          label: const Text('Pulihkan dari Google Sheet'),
+                          label: Text(tr('Pulihkan dari Google Sheet')),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -342,10 +347,10 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                             Expanded(
                               child: Text(
                                 _id
-                                    ? 'Keamanan: skrip hanya meminta izin untuk Google Sheet tempat ia ditempel, dan menolak permintaan tanpa kode rahasia yang sudah tertanam di kode di atas. '
-                                        'Jangan bagikan alamat atau kode itu. Data hanya dikirim dari RekapRapi ke Google Sheet Anda sendiri.'
-                                    : 'Security: the script only asks permission for the Google Sheet it is pasted into, and rejects any request without the secret code embedded in the code above. '
-                                        'Do not share the address or the code. Data is only sent from RekapRapi to your own Google Sheet.',
+                                    ? tr(
+                                        'Keamanan: skrip hanya meminta izin untuk Google Sheet tempat ia ditempel, dan menolak permintaan tanpa kode rahasia yang sudah tertanam di kode di atas. Jangan bagikan alamat atau kode itu. Data hanya dikirim dari RekapRapi ke Google Sheet Anda sendiri.')
+                                    : tr(
+                                        'Security: the script only asks permission for the Google Sheet it is pasted into, and rejects any request without the secret code embedded in the code above. Do not share the address or the code. Data is only sent from RekapRapi to your own Google Sheet.'),
                                 style: theme.textTheme.bodySmall,
                               ),
                             ),
@@ -359,7 +364,7 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                               foregroundColor: Brand.expense),
                           onPressed: _disconnect,
                           icon: const Icon(Icons.link_off_rounded),
-                          label: const Text('Hapus pengaturan backup'),
+                          label: Text(tr('Hapus pengaturan backup')),
                         ),
                       ],
                     ],
@@ -379,9 +384,9 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
       Row(children: [
         SegmentedButton<GuideLang>(
           showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: GuideLang.id, label: Text('Indonesia')),
-            ButtonSegment(value: GuideLang.en, label: Text('English')),
+          segments: [
+            ButtonSegment(value: GuideLang.id, label: Text(tr('Indonesia'))),
+            ButtonSegment(value: GuideLang.en, label: Text(tr('English'))),
           ],
           selected: {_lang},
           onSelectionChanged: (s) => setState(() => _lang = s.first),
@@ -419,8 +424,8 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
             onPressed: () async {
               if (!await openLink('https://sheets.new')) {
                 _toast(_id
-                    ? 'Buka sheets.new di browser Anda.'
-                    : 'Open sheets.new in your browser.');
+                    ? tr('Buka sheets.new di browser Anda.')
+                    : tr('Open sheets.new in your browser.'));
               }
             },
             icon: const Icon(Icons.open_in_new_rounded),
@@ -494,8 +499,8 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                 keyboardType: TextInputType.url,
                 decoration: InputDecoration(
                   labelText: _id
-                      ? 'URL aplikasi web (…/exec)'
-                      : 'Web app URL (…/exec)',
+                      ? tr('URL aplikasi web (…/exec)')
+                      : tr('Web app URL (…/exec)'),
                   prefixIcon: const Icon(Icons.link_rounded),
                   errorText: _error,
                   errorMaxLines: 4,
@@ -512,11 +517,11 @@ class _BackupSetupPageState extends State<BackupSetupPage> {
                             strokeWidth: 2.5, color: Colors.white))
                     : Text(_saved == null
                         ? (_id
-                            ? 'Simpan dan uji koneksi'
-                            : 'Save and test connection')
+                            ? tr('Simpan dan uji koneksi')
+                            : tr('Save and test connection'))
                         : (_id
-                            ? 'Simpan perubahan dan uji koneksi'
-                            : 'Save changes and test connection')),
+                            ? tr('Simpan perubahan dan uji koneksi')
+                            : tr('Save changes and test connection'))),
               ),
             ]);
     }
@@ -560,8 +565,8 @@ class _ScriptUpdateCard extends StatelessWidget {
             Expanded(
               child: Text(
                   id
-                      ? 'Skrip Google perlu diperbarui'
-                      : 'Your Google script needs an update',
+                      ? tr('Skrip Google perlu diperbarui')
+                      : tr('Your Google script needs an update'),
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600)),
             ),
@@ -569,8 +574,10 @@ class _ScriptUpdateCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
               id
-                  ? 'Backup tetap berjalan, tetapi data belum bisa dipulihkan sebelum skrip diperbarui.'
-                  : 'Backups still run, but the data cannot be restored until the script is updated.',
+                  ? tr(
+                      'Backup tetap berjalan, tetapi data belum bisa dipulihkan sebelum skrip diperbarui.')
+                  : tr(
+                      'Backups still run, but the data cannot be restored until the script is updated.'),
               style: theme.textTheme.bodyMedium),
           const SizedBox(height: 8),
           for (var i = 0; i < steps.length; i++)
@@ -582,8 +589,9 @@ class _ScriptUpdateCard extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy_rounded),
-            label: Text(
-                id ? 'Salin kode skrip terbaru' : 'Copy latest script code'),
+            label: Text(id
+                ? tr('Salin kode skrip terbaru')
+                : tr('Copy latest script code')),
           ),
         ]),
       ),
@@ -614,15 +622,17 @@ class _StatusCard extends StatelessWidget {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Tersambung',
+              Text(tr('Tersambung'),
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600)),
               Text(
                 never
-                    ? 'Belum pernah dibackup.'
+                    ? tr('Belum pernah dibackup.')
                     : failed
-                        ? 'Backup terakhir gagal (${timeId(s.lastBackupAt!)}): ${s.lastStatus}'
-                        : 'Backup terakhir ${timeId(s.lastBackupAt!)} · ${s.lastTotalRows} baris',
+                        ? tr('Backup terakhir gagal ({0}): {1}',
+                            [timeId(s.lastBackupAt!), s.lastStatus])
+                        : tr('Backup terakhir {0} · {1} baris',
+                            [timeId(s.lastBackupAt!), s.lastTotalRows]),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: failed ? Brand.expense : muted),
               ),
@@ -634,7 +644,7 @@ class _StatusCard extends StatelessWidget {
           TextButton.icon(
             onPressed: () => openLink(s.spreadsheetUrl!),
             icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: const Text('Buka Google Sheet'),
+            label: Text(tr('Buka Google Sheet')),
           ),
         ],
       ]),

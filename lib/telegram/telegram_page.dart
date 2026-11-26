@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../common/dialogs.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Keadaan sambungan Telegram akun yang sedang masuk.
 class TelegramStatus {
@@ -110,7 +111,7 @@ class _TelegramPageState extends State<TelegramPage>
         if (s.linked) _link = null;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = 'Gagal memuat: $e');
+      if (mounted) setState(() => _error = tr('Gagal memuat: {0}', [e]));
     }
   }
 
@@ -132,12 +133,12 @@ class _TelegramPageState extends State<TelegramPage>
         opened = false;
       }
       if (!opened && mounted) {
-        _toast('Telegram tidak terbuka. Salin alamat di bawah.');
+        _toast(tr('Telegram tidak terbuka. Salin alamat di bawah.'));
       }
     } on PostgrestException catch (e) {
       if (mounted) _toast(e.message);
     } catch (e) {
-      if (mounted) _toast('Gagal membuat kode: $e');
+      if (mounted) _toast(tr('Gagal membuat kode: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -145,15 +146,15 @@ class _TelegramPageState extends State<TelegramPage>
 
   Future<void> _disconnect() async {
     final ok = await confirmDialog(context,
-        title: 'Putuskan Telegram?',
-        body: 'Bot tidak lagi bisa mencatat ke pembukuan Anda.',
-        okLabel: 'Putuskan');
+        title: tr('Putuskan Telegram?'),
+        body: tr('Bot tidak lagi bisa mencatat ke pembukuan Anda.'),
+        okLabel: tr('Putuskan'));
     if (!ok) return;
     setState(() => _busy = true);
     try {
       await _repo.unlink();
       await _load();
-      if (mounted) _toast('Telegram diputuskan.');
+      if (mounted) _toast(tr('Telegram diputuskan.'));
     } on PostgrestException catch (e) {
       if (mounted) _toast(e.message);
     } finally {
@@ -168,7 +169,7 @@ class _TelegramPageState extends State<TelegramPage>
     final s = _status;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Telegram')),
+      appBar: AppBar(title: Text(tr('Telegram'))),
       body: ContentWidth(
         maxWidth: 640,
         child: RefreshIndicator(
@@ -186,11 +187,11 @@ class _TelegramPageState extends State<TelegramPage>
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (s.bot == null)
-                const EmptyState(
+                EmptyState(
                   icon: Icons.send_rounded,
-                  title: 'Bot Telegram belum diaktifkan',
+                  title: tr('Bot Telegram belum diaktifkan'),
                   subtitle:
-                      'Fitur ini belum disiapkan oleh pengelola aplikasi.',
+                      tr('Fitur ini belum disiapkan oleh pengelola aplikasi.'),
                 )
               else ...[
                 SoftCard(
@@ -202,7 +203,10 @@ class _TelegramPageState extends State<TelegramPage>
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(s.linked ? 'Terhubung' : 'Belum terhubung',
+                            Text(
+                                s.linked
+                                    ? tr('Terhubung')
+                                    : tr('Belum terhubung'),
                                 style: theme.textTheme.titleSmall
                                     ?.copyWith(fontWeight: FontWeight.w600)),
                             Text(
@@ -225,7 +229,7 @@ class _TelegramPageState extends State<TelegramPage>
                       await open(Uri.parse('https://t.me/${s.bot}'));
                     },
                     icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Buka bot'),
+                    label: Text(tr('Buka bot')),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
@@ -235,13 +239,13 @@ class _TelegramPageState extends State<TelegramPage>
                     ),
                     onPressed: _busy ? null : _disconnect,
                     icon: const Icon(Icons.link_off_rounded),
-                    label: const Text('Putuskan'),
+                    label: Text(tr('Putuskan')),
                   ),
                 ] else ...[
                   FilledButton.icon(
                     onPressed: _busy ? null : _connect,
                     icon: const Icon(Icons.link_rounded),
-                    label: const Text('Hubungkan'),
+                    label: Text(tr('Hubungkan')),
                   ),
                   if (_link != null) ...[
                     const SizedBox(height: 12),
@@ -249,8 +253,7 @@ class _TelegramPageState extends State<TelegramPage>
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                                'Di Telegram tekan Start. Kode berlaku 10 menit dan hanya sekali pakai.',
+                            Text(tr('Di Telegram tekan Start. Kode berlaku 10 menit dan hanya sekali pakai.'),
                                 style: theme.textTheme.bodySmall
                                     ?.copyWith(color: muted)),
                             const SizedBox(height: 8),
@@ -263,10 +266,10 @@ class _TelegramPageState extends State<TelegramPage>
                                   onPressed: () async {
                                     await Clipboard.setData(
                                         ClipboardData(text: '$_link'));
-                                    _toast('Alamat disalin.');
+                                    _toast(tr('Alamat disalin.'));
                                   },
                                   icon: const Icon(Icons.copy_rounded),
-                                  label: const Text('Salin'),
+                                  label: Text(tr('Salin')),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -274,7 +277,7 @@ class _TelegramPageState extends State<TelegramPage>
                                 child: OutlinedButton.icon(
                                   onPressed: _load,
                                   icon: const Icon(Icons.refresh_rounded),
-                                  label: const Text('Periksa'),
+                                  label: Text(tr('Periksa')),
                                 ),
                               ),
                             ]),
@@ -282,7 +285,7 @@ class _TelegramPageState extends State<TelegramPage>
                     ),
                   ],
                 ],
-                const SectionTitle('Cara mencatat lewat chat'),
+                SectionTitle(tr('Cara mencatat lewat chat')),
                 SoftCard(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,8 +301,7 @@ class _TelegramPageState extends State<TelegramPage>
                                 style: theme.textTheme.bodyMedium
                                     ?.copyWith(fontFamily: 'monospace')),
                           ),
-                        Text(
-                            'Bot menanyakan konfirmasi sebelum menyimpan. /pembukuan untuk pindah pembukuan, /batal untuk menghapus catatan terakhir.',
+                        Text(tr('Bot menanyakan konfirmasi sebelum menyimpan. /pembukuan untuk pindah pembukuan, /batal untuk menghapus catatan terakhir.'),
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: muted)),
                       ]),

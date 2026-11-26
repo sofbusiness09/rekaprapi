@@ -8,6 +8,7 @@ import '../debts/debt_repository.dart';
 import 'apps_script_client.dart';
 import 'backup_service.dart';
 import 'backup_settings.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Hasil satu kali backup, siap ditampilkan sebagai pesan singkat.
 class BackupOutcome {
@@ -100,7 +101,7 @@ class BackupController extends ChangeNotifier {
       userEmail: user?.email,
     );
     running = true;
-    step = 'Memulai…';
+    step = tr('Memulai…');
     notifyListeners();
     try {
       final r = await service.run(config, onStep: (s) {
@@ -109,14 +110,16 @@ class BackupController extends ChangeNotifier {
       });
       final note =
           r.scriptVersion == null || r.scriptVersion! < requiredScriptVersion
-              ? ' Skrip Google perlu diperbarui agar data bisa dipulihkan.'
+              ? tr(' Skrip Google perlu diperbarui agar data bisa dipulihkan.')
               : '';
-      return BackupOutcome(true,
-          'Backup selesai ${clockId(_clock())}: ${r.totalRows} baris.$note');
+      return BackupOutcome(
+          true,
+          tr('Backup selesai {0}: {1} baris.{2}',
+              [clockId(_clock()), r.totalRows, note]));
     } on BackupException catch (e) {
-      return BackupOutcome(false, 'Backup gagal: ${e.message}');
+      return BackupOutcome(false, tr('Backup gagal: {0}', [e.message]));
     } catch (e) {
-      return BackupOutcome(false, 'Backup gagal: $e');
+      return BackupOutcome(false, tr('Backup gagal: {0}', [e]));
     } finally {
       running = false;
       await load();
@@ -135,7 +138,7 @@ class BackupController extends ChangeNotifier {
     return BackupOutcome(
         outcome.ok,
         outcome.ok
-            ? 'Backup otomatis: ${outcome.message}'
-            : 'Backup otomatis gagal. ${outcome.message}');
+            ? tr('Backup otomatis: {0}', [outcome.message])
+            : tr('Backup otomatis gagal. {0}', [outcome.message]));
   }
 }

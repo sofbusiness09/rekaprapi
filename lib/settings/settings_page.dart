@@ -28,6 +28,7 @@ import 'input_prefs.dart';
 import 'members_page.dart';
 import 'settings_repository.dart';
 import 'tx_prefs_page.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
@@ -83,29 +84,56 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _changeCurrency(BuildContext context) async {
     final picked = await showCurrencyPicker(context,
-        selected: business.currency, title: 'Mata uang pembukuan');
+        selected: business.currency, title: tr('Mata uang pembukuan'));
     if (picked == null ||
         picked.code == business.currency ||
         !context.mounted) {
       return;
     }
     final ok = await confirmDialog(context,
-        title: 'Ganti ke ${picked.name}?',
-        body:
-            'Semua jumlah di "${business.name}" akan ditampilkan dalam ${picked.code}. '
-            'Angkanya tidak dikonversi: ${formatMoney(50000, currencyByCode(business.currency))} '
-            'menjadi ${formatMoney(50000, picked)}.',
-        okLabel: 'Ganti');
+        title: tr('Ganti ke {0}?', [picked.name]),
+        body: tr(
+            'Semua jumlah di "{0}" akan ditampilkan dalam {1}. Angkanya tidak dikonversi: {2} menjadi {3}.',
+            [
+              business.name,
+              picked.code,
+              formatMoney(50000, currencyByCode(business.currency)),
+              formatMoney(50000, picked)
+            ]),
+        okLabel: tr('Ganti'));
     if (!ok || !context.mounted) return;
     try {
       await onCurrencyChanged(picked.code);
       if (context.mounted)
-        _toast(context, 'Mata uang diganti ke ${picked.code}.');
+        _toast(context, tr('Mata uang diganti ke {0}.', [picked.code]));
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
     } catch (e) {
-      if (context.mounted) _toast(context, 'Gagal mengganti mata uang: $e');
+      if (context.mounted)
+        _toast(context, tr('Gagal mengganti mata uang: {0}', [e]));
     }
+  }
+
+  Future<void> _chooseLanguage(BuildContext context) async {
+    final picked = await showModalBottomSheet<AppLanguage>(
+      context: context,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 480),
+      builder: (sheetContext) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final l in AppLanguage.values)
+            ListTile(
+              leading: Icon(l == languageController.language
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked),
+              title: Text(l.label),
+              onTap: () => Navigator.pop(sheetContext, l),
+            ),
+          const SizedBox(height: 12),
+        ]),
+      ),
+    );
+    if (picked != null) await languageController.set(picked);
   }
 
   Future<void> _changeName(BuildContext context) async {
@@ -116,13 +144,13 @@ class SettingsPage extends StatelessWidget {
         .single();
     if (!context.mounted) return;
     final name = await askText(context,
-        title: 'Nama tampilan',
-        label: 'Nama',
+        title: tr('Nama tampilan'),
+        label: tr('Nama'),
         initial: (profile['display_name'] ?? '') as String);
     if (name == null || name.isEmpty || !context.mounted) return;
     try {
       await repo.updateDisplayName(name);
-      if (context.mounted) _toast(context, 'Nama disimpan.');
+      if (context.mounted) _toast(context, tr('Nama disimpan.'));
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
     }
@@ -130,17 +158,17 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _changePassword(BuildContext context) async {
     final pw = await askText(context,
-        title: 'Ganti password',
-        label: 'Password baru (min. 6 karakter)',
+        title: tr('Ganti password'),
+        label: tr('Password baru (min. 6 karakter)'),
         obscure: true);
     if (pw == null || !context.mounted) return;
     if (pw.length < 6) {
-      _toast(context, 'Password minimal 6 karakter.');
+      _toast(context, tr('Password minimal 6 karakter.'));
       return;
     }
     try {
       await repo.changePassword(pw);
-      if (context.mounted) _toast(context, 'Password diganti.');
+      if (context.mounted) _toast(context, tr('Password diganti.'));
     } on AuthException catch (e) {
       if (context.mounted) _toast(context, e.message);
     }
@@ -153,18 +181,18 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _leave(BuildContext context) async {
     if (!await confirmDialog(context,
-        title: 'Keluar dari pembukuan?',
-        body:
-            'Anda tidak akan bisa mengakses "${business.name}" kecuali diundang lagi.',
-        okLabel: 'Keluar')) {
+        title: tr('Keluar dari pembukuan?'),
+        body: tr('Anda tidak akan bisa mengakses "{0}" kecuali diundang lagi.',
+            [business.name]),
+        okLabel: tr('Keluar'))) {
       return;
     }
     if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await repo.leaveBusiness();
-      messenger.showSnackBar(
-          SnackBar(content: Text('Anda keluar dari "${business.name}".')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(tr('Anda keluar dari "{0}".', [business.name]))));
       onBusinessGone();
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
@@ -173,18 +201,19 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _deleteBusiness(BuildContext context) async {
     final typed = await askText(context,
-        title: 'Hapus pembukuan?',
-        label: 'Ketik nama pembukuan untuk menghapus: ${business.name}');
+        title: tr('Hapus pembukuan?'),
+        label:
+            tr('Ketik nama pembukuan untuk menghapus: {0}', [business.name]));
     if (typed == null || !context.mounted) return;
     if (typed != business.name) {
-      _toast(context, 'Nama tidak cocok. Usaha tidak dihapus.');
+      _toast(context, tr('Nama tidak cocok. Usaha tidak dihapus.'));
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
     try {
       await repo.deleteBusiness();
       messenger.showSnackBar(
-          SnackBar(content: Text('Usaha "${business.name}" dihapus.')));
+          SnackBar(content: Text(tr('Usaha "{0}" dihapus.', [business.name]))));
       onBusinessGone();
     } on PostgrestException catch (e) {
       if (context.mounted) _toast(context, e.message);
@@ -201,7 +230,7 @@ class SettingsPage extends StatelessWidget {
         if (business.canManage)
           ListTile(
             leading: const Icon(Icons.storefront_outlined),
-            title: const Text('Profil pembukuan'),
+            title: Text(tr('Profil pembukuan')),
             onTap: () => _push(
                 context,
                 BusinessPhotoPage(
@@ -219,7 +248,7 @@ class SettingsPage extends StatelessWidget {
         if (business.canManage)
           ListTile(
             leading: const Icon(Icons.payments_outlined),
-            title: const Text('Mata uang'),
+            title: Text(tr('Mata uang')),
             subtitle: Text(currencyByCode(business.currency).label),
             onTap: () => _changeCurrency(context),
           ),
@@ -227,13 +256,14 @@ class SettingsPage extends StatelessWidget {
         if (!business.isPersonal)
           ListTile(
             leading: const Icon(Icons.group_outlined),
-            title: const Text('Anggota'),
+            title: Text(tr('Anggota')),
             onTap: () =>
                 _push(context, MembersPage(business: business, repo: repo)),
           ),
         ListTile(
           leading: const Icon(Icons.contacts_outlined),
-          title: Text(business.isPersonal ? 'Kontak' : 'Kontak Pelanggan'),
+          title:
+              Text(business.isPersonal ? tr('Kontak') : tr('Kontak Pelanggan')),
           onTap: () => _push(
               context,
               ContactsManagePage(
@@ -241,7 +271,7 @@ class SettingsPage extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.send_outlined),
-          title: const Text('Telegram'),
+          title: Text(tr('Telegram')),
           onTap: () => _push(
               context,
               TelegramPage(
@@ -250,12 +280,12 @@ class SettingsPage extends StatelessWidget {
         if (business.canManage) ...[
           ListTile(
             leading: const Icon(Icons.category_outlined),
-            title: const Text('Kategori'),
+            title: Text(tr('Kategori')),
             onTap: () => _push(context, CategoriesPage(repo: repo)),
           ),
           ListTile(
             leading: const Icon(Icons.cloud_upload_outlined),
-            title: const Text('Backup dan Pemulihan'),
+            title: Text(tr('Backup dan Pemulihan')),
             onTap: () async {
               await Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => BackupSetupPage(
@@ -271,18 +301,27 @@ class SettingsPage extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.history),
-            title: const Text('Riwayat aktivitas'),
+            title: Text(tr('Riwayat aktivitas')),
             onTap: () => _push(context, ActivityPage(repo: repo)),
           ),
         ],
         const Divider(),
-        const _Header('Tampilan'),
+        _Header(tr('Tampilan')),
+        ListenableBuilder(
+          listenable: languageController,
+          builder: (context, _) => ListTile(
+            leading: const Icon(Icons.translate_rounded),
+            title: Text(tr('Bahasa')),
+            subtitle: Text(languageController.language.label),
+            onTap: () => _chooseLanguage(context),
+          ),
+        ),
         ListenableBuilder(
           listenable: styleController,
           builder: (context, _) => ListTile(
             leading: const Icon(Icons.style_outlined),
-            title: const Text('Gaya tampilan'),
-            subtitle: Text(styleController.style.label),
+            title: Text(tr('Gaya tampilan')),
+            subtitle: Text(styleController.style.title),
             onTap: () => _push(context, const StylePickerPage()),
           ),
         ),
@@ -294,7 +333,7 @@ class SettingsPage extends StatelessWidget {
           listenable: fontController,
           builder: (context, _) => ListTile(
             leading: const Icon(Icons.text_fields_rounded),
-            title: const Text('Jenis huruf'),
+            title: Text(tr('Jenis huruf')),
             subtitle: Text(fontController.font.name),
             onTap: () => showFontPicker(context),
           ),
@@ -303,9 +342,9 @@ class SettingsPage extends StatelessWidget {
           listenable: backgroundController,
           builder: (context, _) => ListTile(
             leading: const Icon(Icons.gradient_rounded),
-            title: const Text('Latar gradasi'),
+            title: Text(tr('Latar gradasi')),
             subtitle: Text(backgroundController.enabled
-                ? backgroundController.preset.name
+                ? tr(backgroundController.preset.name)
                 : 'Mati'),
             onTap: () => showBackgroundPicker(context),
           ),
@@ -316,14 +355,14 @@ class SettingsPage extends StatelessWidget {
             listenable: inputPrefs,
             builder: (context, _) => SwitchListTile(
               secondary: const Icon(Icons.calculate_outlined),
-              title: const Text('Keyboard kalkulator'),
+              title: Text(tr('Keyboard kalkulator')),
               value: inputPrefs.calcKeypad,
               onChanged: inputPrefs.setCalcKeypad,
             ),
           ),
         ListTile(
           leading: const Icon(Icons.receipt_long_outlined),
-          title: const Text('Tampilan Transaksi'),
+          title: Text(tr('Tampilan Transaksi')),
           onTap: () => _push(context, TxPrefsPage(businessName: business.name)),
         ),
         // Pembukuan Usaha: Saldo Kas disembunyikan kecuali dihidupkan di sini.
@@ -332,32 +371,32 @@ class SettingsPage extends StatelessWidget {
             listenable: homePrefs,
             builder: (context, _) => SwitchListTile(
               secondary: const Icon(Icons.account_balance_wallet_outlined),
-              title: const Text('Tampilkan saldo kas'),
+              title: Text(tr('Tampilkan saldo kas')),
               value: homePrefs.value.showCashBalance,
               onChanged: (v) => homePrefs
                   .update(homePrefs.value.copyWith(showCashBalance: v)),
             ),
           ),
         const Divider(),
-        _Header('Akun ($email)'),
+        _Header(tr('Akun ({0})', [email])),
         ListTile(
           leading: const Icon(Icons.badge_outlined),
-          title: const Text('Nama tampilan'),
+          title: Text(tr('Nama tampilan')),
           onTap: () => _changeName(context),
         ),
         ListTile(
           leading: const Icon(Icons.lock_outline),
-          title: const Text('Ganti password'),
+          title: Text(tr('Ganti password')),
           onTap: () => _changePassword(context),
         ),
         ListTile(
           leading: const Icon(Icons.swap_horiz),
-          title: const Text('Pindah / tambah pembukuan'),
+          title: Text(tr('Pindah / tambah pembukuan')),
           onTap: onSwitchBusiness,
         ),
         ListTile(
           leading: const Icon(Icons.logout),
-          title: const Text('Keluar dari akun'),
+          title: Text(tr('Keluar dari akun')),
           onTap: () => _signOut(context),
         ),
         const _VersionTile(),
@@ -366,14 +405,14 @@ class SettingsPage extends StatelessWidget {
           ListTile(
             leading:
                 Icon(Icons.delete_forever_outlined, color: Colors.red.shade700),
-            title: Text('Hapus pembukuan',
+            title: Text(tr('Hapus pembukuan'),
                 style: TextStyle(color: Colors.red.shade700)),
             onTap: () => _deleteBusiness(context),
           )
         else
           ListTile(
             leading: Icon(Icons.exit_to_app, color: Colors.red.shade700),
-            title: Text('Keluar dari pembukuan ini',
+            title: Text(tr('Keluar dari pembukuan ini'),
                 style: TextStyle(color: Colors.red.shade700)),
             onTap: () => _leave(context),
           ),
@@ -421,12 +460,12 @@ class _VersionTileState extends State<_VersionTile> {
       final r = await maybeShowUpdate(context, force: true);
       if (r == null) {
         messenger.showSnackBar(
-            const SnackBar(content: Text('Aplikasi sudah versi terbaru.')));
+            SnackBar(content: Text(tr('Aplikasi sudah versi terbaru.'))));
       }
     } catch (_) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text(
-              'Tidak bisa memeriksa pembaruan. Periksa koneksi internet.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(tr(
+              'Tidak bisa memeriksa pembaruan. Periksa koneksi internet.'))));
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -436,8 +475,8 @@ class _VersionTileState extends State<_VersionTile> {
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.info_outline_rounded),
-      title: Text('Versi aplikasi ${_version ?? ''}'.trim()),
-      subtitle: updatesSupported ? const Text('Periksa pembaruan') : null,
+      title: Text(tr('Versi aplikasi {0}', [_version ?? '']).trim()),
+      subtitle: updatesSupported ? Text(tr('Periksa pembaruan')) : null,
       trailing: _checking
           ? const SizedBox(
               width: 20,

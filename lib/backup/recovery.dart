@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../business/business.dart';
 import '../common/format.dart';
 import 'apps_script_client.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Tabel yang ikut data pemulihan, dalam urutan memasukkannya (induk dulu).
 const recoveryTables = ['categories', 'contacts', 'debts', 'payments', 'cash'];
@@ -80,7 +81,7 @@ class RecoveryPayload {
 
   /// Mata uang pembukuan asal; backup lama tanpa keterangan dianggap Rupiah.
   String get currency =>
-      ((data['business'] as Map)['currency'] as String?) ?? 'IDR';
+      ((data['business'] as Map)['currency'] as String?) ?? tr('IDR');
 
   DateTime? get createdAt => data['createdAt'] == null
       ? null
@@ -121,32 +122,33 @@ class RecoveryPayload {
     } on BackupException {
       rethrow;
     } catch (_) {
-      throw const BackupException(
-          'Data pemulihan di Google Sheet rusak atau tidak lengkap. Jalankan Backup lagi dari aplikasi, lalu coba pulihkan.');
+      throw BackupException(tr(
+          'Data pemulihan di Google Sheet rusak atau tidak lengkap. Jalankan Backup lagi dari aplikasi, lalu coba pulihkan.'));
     }
   }
 
   static RecoveryPayload validated(Map<String, dynamic> d) {
-    if (d['app'] != 'RekapRapi') throw const FormatException('bukan RekapRapi');
+    if (d['app'] != 'RekapRapi') throw FormatException(tr('bukan RekapRapi'));
     final f = d['format'];
     if (f is! int || f > format) {
-      throw const BackupException(
-          'Data pemulihan dibuat oleh versi RekapRapi yang lebih baru. Perbarui aplikasi lebih dulu.');
+      throw BackupException(tr(
+          'Data pemulihan dibuat oleh versi RekapRapi yang lebih baru. Perbarui aplikasi lebih dulu.'));
     }
     final b = d['business'];
     if (b is! Map || (b['name'] as String?)?.trim().isEmpty != false) {
-      throw const FormatException('nama kosong');
+      throw FormatException(tr('nama kosong'));
     }
     final tables = d['tables'];
-    if (tables is! Map) throw const FormatException('tabel');
+    if (tables is! Map) throw FormatException(tr('tabel'));
     for (final t in recoveryTables) {
       final table = tables[t];
       if (table is! Map || table['cols'] is! List || table['rows'] is! List) {
-        throw FormatException('tabel $t');
+        throw FormatException(tr('tabel {0}', [t]));
       }
       final cols = (table['cols'] as List).length;
       for (final r in table['rows'] as List) {
-        if (r is! List || r.length != cols) throw FormatException('baris $t');
+        if (r is! List || r.length != cols)
+          throw FormatException(tr('baris {0}', [t]));
       }
     }
     return RecoveryPayload(d);
@@ -268,8 +270,8 @@ class RecoveryImporter {
         final rows = payload.rows(table);
         for (var i = 0; i < rows.length; i += batchSize) {
           final end = i + batchSize > rows.length ? rows.length : i + batchSize;
-          onProgress?.call(
-              'Memulihkan ${_label(table)}…', total == 0 ? 1 : done / total);
+          onProgress?.call(tr('Memulihkan {0}…', [_label(table)]),
+              total == 0 ? 1 : done / total);
           await _db.rpc('restore_rows', params: {
             'p_business': id,
             'p_table': table,
@@ -278,7 +280,7 @@ class RecoveryImporter {
           done += end - i;
         }
       }
-      onProgress?.call('Merapikan…', 1);
+      onProgress?.call(tr('Merapikan…'), 1);
       await _db.rpc('restore_finish', params: {'p_business': id});
     } catch (_) {
       try {

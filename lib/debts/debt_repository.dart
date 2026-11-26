@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../cash/cash_repository.dart' show SaleDetail;
 import '../common/format.dart';
 import 'debt_models.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Semua perubahan utang piutang lewat fungsi database (RPC) supaya kas
 /// ikut tercatat/berubah dalam satu transaksi. Klien tidak menulis tabel utang langsung.
@@ -78,8 +79,8 @@ class DebtRepository {
         .eq('id', id)
         .select('id');
     if (rows.isEmpty) {
-      throw const PostgrestException(
-          message: 'Kontak tidak ditemukan atau tidak bisa diubah.');
+      throw PostgrestException(
+          message: tr('Kontak tidak ditemukan atau tidak bisa diubah.'));
     }
   }
 

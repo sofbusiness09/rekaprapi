@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
 import 'phone_contact_button.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Lembar tambah/ubah kontak (nama, telepon, alamat, catatan).
 /// Mengembalikan kontak yang tersimpan (dengan data terbaru), atau null bila dibatalkan.
@@ -58,7 +59,7 @@ class _ContactFormState extends State<_ContactForm> {
   Future<void> _save() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      _toast('Isi nama kontak.');
+      _toast(tr('Isi nama kontak.'));
       return;
     }
     setState(() => _busy = true);
@@ -88,7 +89,7 @@ class _ContactFormState extends State<_ContactForm> {
       _toast(e.message);
       if (mounted) setState(() => _busy = false);
     } catch (e) {
-      _toast('Gagal menyimpan: $e');
+      _toast(tr('Gagal menyimpan: {0}', [e]));
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -104,7 +105,7 @@ class _ContactFormState extends State<_ContactForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_editing ? 'Ubah kontak' : 'Kontak baru',
+            Text(_editing ? tr('Ubah kontak') : tr('Kontak baru'),
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
@@ -120,36 +121,36 @@ class _ContactFormState extends State<_ContactForm> {
               controller: _name,
               autofocus: !_editing,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Nama',
-                prefixIcon: Icon(Icons.person_outline_rounded),
+              decoration: InputDecoration(
+                labelText: tr('Nama'),
+                prefixIcon: const Icon(Icons.person_outline_rounded),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _phone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Nomor telepon / WhatsApp',
-                prefixIcon: Icon(Icons.phone_outlined),
+              decoration: InputDecoration(
+                labelText: tr('Nomor telepon / WhatsApp'),
+                prefixIcon: const Icon(Icons.phone_outlined),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _address,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Alamat (opsional)',
-                prefixIcon: Icon(Icons.location_on_outlined),
+              decoration: InputDecoration(
+                labelText: tr('Alamat (opsional)'),
+                prefixIcon: const Icon(Icons.location_on_outlined),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _note,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
-                prefixIcon: Icon(Icons.notes_rounded),
+              decoration: InputDecoration(
+                labelText: tr('Catatan (opsional)'),
+                prefixIcon: const Icon(Icons.notes_rounded),
               ),
             ),
             const SizedBox(height: 20),
@@ -161,7 +162,8 @@ class _ContactFormState extends State<_ContactForm> {
                       height: 22,
                       child: CircularProgressIndicator(
                           strokeWidth: 2.5, color: Colors.white))
-                  : Text(_editing ? 'Simpan perubahan' : 'Simpan kontak'),
+                  : Text(
+                      _editing ? tr('Simpan perubahan') : tr('Simpan kontak')),
             ),
           ],
         ),

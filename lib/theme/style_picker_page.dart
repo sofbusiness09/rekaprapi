@@ -5,6 +5,7 @@ import 'app_style.dart';
 import 'app_theme.dart';
 import 'background_controller.dart';
 import 'font_controller.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Pengaturan > Gaya tampilan: pilih gaya dengan melihat pratinjaunya.
 class StylePickerPage extends StatelessWidget {
@@ -13,7 +14,7 @@ class StylePickerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gaya tampilan')),
+      appBar: AppBar(title: Text(tr('Gaya tampilan'))),
       body: ListenableBuilder(
         listenable: styleController,
         builder: (context, _) => ContentWidth(
@@ -66,7 +67,7 @@ class StylePreview extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: style.label,
+      label: style.title,
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
@@ -97,7 +98,7 @@ class StylePreview extends StatelessWidget {
                       children: [
                         Row(children: [
                           Expanded(
-                            child: Text(style.label,
+                            child: Text(style.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: t.textTheme.titleMedium?.copyWith(
@@ -108,28 +109,28 @@ class StylePreview extends StatelessWidget {
                             Icon(Icons.check_circle_rounded,
                                 color: t.colorScheme.primary),
                         ]),
-                        Text(style.description,
+                        Text(style.info,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: t.textTheme.bodySmall?.copyWith(
                                 color: t.colorScheme.onSurfaceVariant)),
                         const Spacer(),
-                        const Row(children: [
+                        Row(children: [
                           Expanded(
                             child: StyledBox(
                               tint: Brand.income,
-                              padding: EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(10),
                               child: _Sample(
-                                  'Pemasukan', 'Rp 1,2 jt', Brand.income),
+                                  tr('Pemasukan'), 'Rp 1,2 jt', Brand.income),
                             ),
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: StyledBox(
                               tint: Brand.expense,
-                              padding: EdgeInsets.all(10),
-                              child: _Sample(
-                                  'Pengeluaran', 'Rp 450 rb', Brand.expense),
+                              padding: const EdgeInsets.all(10),
+                              child: _Sample(tr('Pengeluaran'), 'Rp 450 rb',
+                                  Brand.expense),
                             ),
                           ),
                         ]),
@@ -141,8 +142,9 @@ class StylePreview extends StatelessWidget {
                                 minimumSize: const Size.fromHeight(34),
                                 padding: EdgeInsets.zero),
                             onPressed: onTap,
-                            child:
-                                Text(selected ? 'Dipakai' : 'Pakai gaya ini'),
+                            child: Text(selected
+                                ? tr('Dipakai')
+                                : tr('Pakai gaya ini')),
                           ),
                         ),
                       ],

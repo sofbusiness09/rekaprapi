@@ -9,8 +9,11 @@ import '../common/widgets.dart';
 import '../theme/app_theme.dart';
 import 'business.dart';
 import 'business_controller.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
-const roleNames = {'owner': 'Pemilik', 'admin': 'Admin', 'staff': 'Staf'};
+/// Nama peran dalam bahasa aktif.
+Map<String, String> get roleNames =>
+    {'owner': tr('Pemilik'), 'admin': tr('Admin'), 'staff': tr('Staf')};
 
 /// Menjalankan [action] dan menampilkan galat sebagai pesan, bukan membiarkannya diam.
 Future<void> runWithToast(
@@ -25,7 +28,7 @@ Future<void> runWithToast(
   } on PostgrestException catch (e) {
     messenger.showSnackBar(SnackBar(content: Text(e.message)));
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Gagal: $e')));
+    messenger.showSnackBar(SnackBar(content: Text(tr('Gagal: {0}', [e]))));
   }
 }
 
@@ -46,7 +49,7 @@ Future<void> promptCreateBusiness(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('Jenis pembukuan',
+              child: Text(tr('Jenis pembukuan'),
                   style: Theme.of(sheetContext)
                       .textTheme
                       .titleLarge
@@ -58,9 +61,9 @@ Future<void> promptCreateBusiness(
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             leading: const IconBadge(Icons.storefront_rounded,
                 color: Brand.income, size: 42),
-            title: const Text('Pembukuan Usaha',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Penjualan, modal, keuntungan, utang piutang'),
+            title: Text(tr('Pembukuan Usaha'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(tr('Penjualan, modal, keuntungan, utang piutang')),
             onTap: () => Navigator.pop(sheetContext, BusinessKind.business),
           ),
           ListTile(
@@ -68,9 +71,9 @@ Future<void> promptCreateBusiness(
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             leading: const IconBadge(Icons.account_balance_wallet_rounded,
                 color: Brand.info, size: 42),
-            title: const Text('Pembukuan Pribadi',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Pemasukan dan pengeluaran pribadi'),
+            title: Text(tr('Pembukuan Pribadi'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(tr('Pemasukan dan pengeluaran pribadi')),
             onTap: () => Navigator.pop(sheetContext, BusinessKind.personal),
           ),
           ListTile(
@@ -78,9 +81,9 @@ Future<void> promptCreateBusiness(
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             leading: const IconBadge(Icons.restore_rounded,
                 color: Brand.pending, size: 42),
-            title: const Text('Pulihkan dari Google Sheet',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Pembukuan lama dari hasil backup'),
+            title: Text(tr('Pulihkan dari Google Sheet'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(tr('Pembukuan lama dari hasil backup')),
             onTap: () => Navigator.pop(sheetContext, 'restore'),
           ),
         ]),
@@ -98,28 +101,28 @@ Future<void> promptCreateBusiness(
   if (!context.mounted) return;
   final name = await askText(context,
       title: kind == BusinessKind.personal
-          ? 'Pembukuan pribadi'
-          : 'Pembukuan usaha',
-      label: 'Nama pembukuan');
+          ? tr('Pembukuan pribadi')
+          : tr('Pembukuan usaha'),
+      label: tr('Nama pembukuan'));
   if (name == null || name.isEmpty || !context.mounted) return;
   // Mata uang pembukuan; ditutup tanpa memilih berarti Rupiah.
   final currency = await showCurrencyPicker(context,
-      selected: defaultCurrency, title: 'Mata uang pembukuan');
+      selected: defaultCurrency, title: tr('Mata uang pembukuan'));
   if (!context.mounted) return;
   await runWithToast(
       context,
       () => controller.create(name,
           kind: kind, currency: currency?.code ?? defaultCurrency),
-      done: 'Pembukuan dibuat.');
+      done: tr('Pembukuan dibuat.'));
 }
 
 Future<void> promptJoinByCode(
     BuildContext context, BusinessController controller) async {
   final code = await askText(context,
-      title: 'Gabung dengan kode', label: 'Kode undangan');
+      title: tr('Gabung dengan kode'), label: tr('Kode undangan'));
   if (code == null || code.isEmpty || !context.mounted) return;
   await runWithToast(context, () => controller.joinByCode(code),
-      done: 'Berhasil bergabung.');
+      done: tr('Berhasil bergabung.'));
 }
 
 /// Lembar pindah usaha: daftar usaha, undangan, tambah usaha, dan gabung dengan kode.
@@ -220,22 +223,22 @@ class _SwitcherSheet extends StatelessWidget {
                 else
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text('Pindah pembukuan',
+                    child: Text(tr('Pindah pembukuan'),
                         style: theme.textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
                 if (mine.isNotEmpty) ...[
-                  _SectionLabel('Pembukuan Saya', muted),
+                  _SectionLabel(tr('Pembukuan Saya'), muted),
                   for (final b in mine) _businessTile(context, theme, b),
                 ],
                 if (shared.isNotEmpty) ...[
-                  _SectionLabel('Dibagikan kepada saya', muted),
+                  _SectionLabel(tr('Dibagikan kepada saya'), muted),
                   for (final b in shared) _businessTile(context, theme, b),
                 ],
                 if (controller.invites.isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                    child: Text('Undangan untuk Anda',
+                    child: Text(tr('Undangan untuk Anda'),
                         style:
                             theme.textTheme.labelLarge?.copyWith(color: muted)),
                   ),
@@ -245,23 +248,24 @@ class _SwitcherSheet extends StatelessWidget {
                           color: Brand.info, size: 42),
                       title: Text(i.businessName,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('Sebagai ${roleNames[i.role] ?? i.role}'),
+                      subtitle: Text(
+                          tr('Sebagai {0}', [roleNames[i.role] ?? i.role])),
                       trailing: Wrap(spacing: 4, children: [
                         IconButton(
-                          tooltip: 'Tolak',
+                          tooltip: tr('Tolak'),
                           icon: const Icon(Icons.close_rounded),
                           onPressed: () => runWithToast(
                               parentContext, () => controller.decline(i.id)),
                         ),
                         IconButton(
-                          tooltip: 'Terima',
+                          tooltip: tr('Terima'),
                           icon: const Icon(Icons.check_rounded,
                               color: Brand.income),
                           onPressed: () {
                             _close(context);
                             runWithToast(
                                 parentContext, () => controller.accept(i.id),
-                                done: 'Berhasil bergabung.');
+                                done: tr('Berhasil bergabung.'));
                           },
                         ),
                       ]),
@@ -271,9 +275,9 @@ class _SwitcherSheet extends StatelessWidget {
                 ListTile(
                   leading: const IconBadge(Icons.add_rounded,
                       color: Brand.income, size: 42),
-                  title: const Text('Tambah pembukuan',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Maksimal 5 pembukuan milik Anda'),
+                  title: Text(tr('Tambah pembukuan'),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(tr('Maksimal 5 pembukuan milik Anda')),
                   onTap: () {
                     _close(context);
                     promptCreateBusiness(parentContext, controller);
@@ -282,8 +286,8 @@ class _SwitcherSheet extends StatelessWidget {
                 ListTile(
                   leading: const IconBadge(Icons.vpn_key_rounded,
                       color: Brand.info, size: 42),
-                  title: const Text('Gabung dengan kode',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text(tr('Gabung dengan kode'),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     _close(context);
                     promptJoinByCode(parentContext, controller);
@@ -294,8 +298,8 @@ class _SwitcherSheet extends StatelessWidget {
                   ListTile(
                     leading: const IconBadge(Icons.settings_rounded,
                         color: Brand.profit, size: 42),
-                    title: const Text('Pengaturan',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(tr('Pengaturan'),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
                       _close(context);
                       onOpenSettings!();
@@ -306,14 +310,14 @@ class _SwitcherSheet extends StatelessWidget {
                   ListTile(
                     leading: const IconBadge(Icons.logout_rounded,
                         color: Brand.expense, size: 42),
-                    title: const Text('Keluar akun',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(tr('Keluar akun'),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () async {
                       if (await confirmDialog(context,
-                          title: 'Keluar dari akun?',
-                          body:
-                              'Anda perlu masuk lagi untuk membuka pembukuan.',
-                          okLabel: 'Keluar')) {
+                          title: tr('Keluar dari akun?'),
+                          body: tr(
+                              'Anda perlu masuk lagi untuk membuka pembukuan.'),
+                          okLabel: tr('Keluar'))) {
                         await Supabase.instance.client.auth.signOut();
                       }
                     },
@@ -389,7 +393,10 @@ class _CurrentCard extends StatelessWidget {
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700)),
               Text(
-                  'Pembukuan ${business.kind.label} · ${roleNames[business.role] ?? business.role}',
+                  tr('Pembukuan {0} · {1}', [
+                    business.kind.label,
+                    roleNames[business.role] ?? business.role
+                  ]),
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ]),

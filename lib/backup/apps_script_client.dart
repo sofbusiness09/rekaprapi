@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'backup_sheets.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Galat backup dengan pesan yang bisa langsung ditampilkan ke pengguna.
 class BackupException implements Exception {
@@ -96,8 +97,8 @@ class AppsScriptClient {
     final json = await _post(url, {'token': token, 'read': true});
     final chunks = json['chunks'];
     if (chunks is! List) {
-      throw const BackupException(
-          'Skrip Google Anda belum mendukung pemulihan. Perbarui skripnya ke versi terbaru, lalu jalankan Backup sekali.',
+      throw BackupException(
+          tr('Skrip Google Anda belum mendukung pemulihan. Perbarui skripnya ke versi terbaru, lalu jalankan Backup sekali.'),
           code: 'old_script');
     }
     return RecoveryRead(
@@ -130,8 +131,8 @@ class AppsScriptClient {
   Future<Map<String, dynamic>> _post(
       String url, Map<String, dynamic> body) async {
     if (!isValidScriptUrl(url)) {
-      throw const BackupException(
-          'Alamat bukan alamat aplikasi web Google Apps Script yang berakhiran /exec.');
+      throw BackupException(tr(
+          'Alamat bukan alamat aplikasi web Google Apps Script yang berakhiran /exec.'));
     }
     try {
       // text/plain menghindari permintaan pra-periksa (preflight) yang tidak
@@ -151,29 +152,28 @@ class AppsScriptClient {
       try {
         decoded = jsonDecode(text);
       } catch (_) {
-        throw BackupException(
-            'Google tidak memberi jawaban yang benar (status ${response.statusCode}). '
-            'Pastikan penerapan aplikasi web diatur "Yang memiliki akses: Siapa saja" '
-            'dan alamatnya berakhiran /exec.');
+        throw BackupException(tr(
+            'Google tidak memberi jawaban yang benar (status {0}). Pastikan penerapan aplikasi web diatur "Yang memiliki akses: Siapa saja" dan alamatnya berakhiran /exec.',
+            [response.statusCode]));
       }
       if (decoded is! Map<String, dynamic>) {
-        throw const BackupException('Jawaban dari Google tidak dikenali.');
+        throw BackupException(tr('Jawaban dari Google tidak dikenali.'));
       }
       if (decoded['ok'] != true) {
         throw BackupException(
             (decoded['error'] as String?) ??
-                'Backup ditolak oleh skrip Google.',
+                tr('Backup ditolak oleh skrip Google.'),
             code: decoded['code'] as String?);
       }
       return decoded;
     } on BackupException {
       rethrow;
     } on TimeoutException {
-      throw const BackupException(
-          'Google terlalu lama menjawab. Coba lagi beberapa saat lagi.');
+      throw BackupException(
+          tr('Google terlalu lama menjawab. Coba lagi beberapa saat lagi.'));
     } on http.ClientException {
-      throw const BackupException(
-          'Tidak bisa menghubungi Google. Periksa koneksi internet Anda.');
+      throw BackupException(
+          tr('Tidak bisa menghubungi Google. Periksa koneksi internet Anda.'));
     }
   }
 

@@ -4,6 +4,7 @@ import '../common/widgets.dart';
 import 'debt_models.dart';
 import 'phone_contact_button.dart';
 import 'debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 const _newContact = '__new__';
 
@@ -25,8 +26,8 @@ class ContactPickerController {
 
   /// Pesan galat bila isian belum lengkap; null bila valid.
   String? validate() {
-    if (selected == null) return 'Pilih kontak, atau tambah kontak baru.';
-    if (isNew && name.text.trim().isEmpty) return 'Isi nama kontak baru.';
+    if (selected == null) return tr('Pilih kontak, atau tambah kontak baru.');
+    if (isNew && name.text.trim().isEmpty) return tr('Isi nama kontak baru.');
     return null;
   }
 
@@ -84,8 +85,8 @@ class ContactPicker extends StatelessWidget {
     final picked = _selectedContact;
     final hasValue = controller.isNew || picked != null;
     final text = controller.isNew
-        ? 'Kontak baru'
-        : (picked?.name ?? 'Pilih atau cari kontak');
+        ? tr('Kontak baru')
+        : (picked?.name ?? tr('Pilih atau cari kontak'));
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       InkWell(
@@ -122,18 +123,18 @@ class ContactPicker extends StatelessWidget {
           controller: controller.name,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Nama kontak',
-            prefixIcon: Icon(Icons.badge_outlined),
+          decoration: InputDecoration(
+            labelText: tr('Nama kontak'),
+            prefixIcon: const Icon(Icons.badge_outlined),
           ),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: controller.phone,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'No. HP (opsional)',
-            prefixIcon: Icon(Icons.phone_outlined),
+          decoration: InputDecoration(
+            labelText: tr('No. HP (opsional)'),
+            prefixIcon: const Icon(Icons.phone_outlined),
           ),
         ),
       ],
@@ -190,7 +191,7 @@ class _SearchSheetState extends State<_SearchSheet> {
               autofocus: true,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Cari nama atau nomor telepon',
+                hintText: tr('Cari nama atau nomor telepon'),
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: q.isEmpty
                     ? null
@@ -208,7 +209,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                        'Belum ada kontak. Tambahkan kontak baru di bawah.',
+                        tr('Belum ada kontak. Tambahkan kontak baru di bawah.'),
                         textAlign: TextAlign.center,
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted)),
@@ -216,7 +217,7 @@ class _SearchSheetState extends State<_SearchSheet> {
                 else if (matches.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text('Tidak ada kontak yang cocok.',
+                    child: Text(tr('Tidak ada kontak yang cocok.'),
                         textAlign: TextAlign.center,
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted)),
@@ -251,8 +252,9 @@ class _SearchSheetState extends State<_SearchSheet> {
                     color: Colors.green, size: 42),
                 title: Text(
                   q.isEmpty
-                      ? 'Tambah kontak baru'
-                      : 'Tambah "${_query.text.trim()}" sebagai kontak baru',
+                      ? tr('Tambah kontak baru')
+                      : tr('Tambah "{0}" sebagai kontak baru',
+                          [_query.text.trim()]),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),

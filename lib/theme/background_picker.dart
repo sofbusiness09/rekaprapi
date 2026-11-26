@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'background_controller.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Lembar pengaturan latar gradasi: hidup atau mati, dan pilihan warna.
 Future<void> showBackgroundPicker(BuildContext context) {
@@ -29,13 +30,13 @@ class _BackgroundSheet extends StatelessWidget {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Latar gradasi',
+                child: Text(tr('Latar gradasi'),
                     style: theme.textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.w600)),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Aktifkan'),
+                title: Text(tr('Aktifkan')),
                 value: on,
                 onChanged: backgroundController.setEnabled,
               ),
@@ -101,7 +102,7 @@ class _Swatch extends StatelessWidget {
               : const SizedBox.shrink(),
         ),
         const SizedBox(height: 6),
-        Text(preset.name, style: Theme.of(context).textTheme.labelSmall),
+        Text(tr(preset.name), style: Theme.of(context).textTheme.labelSmall),
       ]),
     );
   }

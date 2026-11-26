@@ -1,3 +1,5 @@
+import 'package:rekap_rapi/l10n/l10n.dart';
+
 /// Jenis pembukuan: usaha (fitur lengkap termasuk penjualan) atau pribadi.
 enum BusinessKind {
   business,
@@ -7,7 +9,7 @@ enum BusinessKind {
       v == 'personal' ? BusinessKind.personal : BusinessKind.business;
 
   String get apiValue => name;
-  String get label => this == personal ? 'Pribadi' : 'Usaha';
+  String get label => this == personal ? tr('Pribadi') : tr('Usaha');
 }
 
 class Business {

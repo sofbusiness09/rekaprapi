@@ -16,6 +16,7 @@ import '../settings/settings_repository.dart';
 import '../theme/app_theme.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Lembar formulir catat transaksi.
 ///
@@ -113,7 +114,7 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       leading: Icon(Icons.add_circle_outline_rounded,
           color: theme.colorScheme.primary),
-      title: Text('Tambah kategori "$typed"',
+      title: Text(tr('Tambah kategori "{0}"', [typed]),
           style: TextStyle(
               color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
       onTap: () => Navigator.pop(context, CategoryChoice.create(typed)),
@@ -129,7 +130,7 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('Pilih kategori',
+              child: Text(tr('Pilih kategori'),
                   style: theme.textTheme.titleLarge
                       ?.copyWith(fontWeight: FontWeight.w600)),
             ),
@@ -150,8 +151,8 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
               },
               decoration: InputDecoration(
                 hintText: widget.allowAdd
-                    ? 'Cari atau tambah kategori'
-                    : 'Cari kategori',
+                    ? tr('Cari atau tambah kategori')
+                    : tr('Cari kategori'),
                 prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
@@ -163,7 +164,7 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
                       ? const SizedBox.shrink()
                       : Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),
-                          child: Text('Tidak ada kategori yang cocok.',
+                          child: Text(tr('Tidak ada kategori yang cocok.'),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant)),
                         ))
@@ -177,7 +178,7 @@ class _CategorySearchSheetState extends State<_CategorySearchSheet> {
                               borderRadius: BorderRadius.circular(14)),
                           leading:
                               Icon(categoryIcon(c.name, income: widget.income)),
-                          title: Text(c.name),
+                          title: Text(tr(c.name)),
                           onTap: () => Navigator.pop(
                               context, CategoryChoice.existing(c.id)),
                         );
@@ -339,8 +340,8 @@ class _CashFormState extends State<_CashForm> {
         if (catId != null) _categoryId = catId;
       });
       _toast(r.total == null
-          ? 'Total belum terbaca. Isi jumlahnya sendiri.'
-          : 'Periksa hasil scan sebelum menyimpan.');
+          ? tr('Total belum terbaca. Isi jumlahnya sendiri.')
+          : tr('Periksa hasil scan sebelum menyimpan.'));
     } catch (e) {
       _scanFailed(e);
     } finally {
@@ -355,14 +356,14 @@ class _CashFormState extends State<_CashForm> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: const Text(
-            'Nota belum bisa dibaca di HP ini. Isi jumlahnya sendiri.'),
+        content: Text(
+            tr('Nota belum bisa dibaca di HP ini. Isi jumlahnya sendiri.')),
         action: SnackBarAction(
-          label: 'Rincian',
+          label: tr('Rincian'),
           onPressed: () => showDialog<void>(
             context: context,
             builder: (dialogContext) => AlertDialog(
-              title: const Text('Rincian galat'),
+              title: Text(tr('Rincian galat')),
               content: SingleChildScrollView(
                 child: SelectableText(
                     detail.length > 2000 ? detail.substring(0, 2000) : detail,
@@ -371,7 +372,7 @@ class _CashFormState extends State<_CashForm> {
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text('Tutup')),
+                    child: Text(tr('Tutup'))),
               ],
             ),
           ),
@@ -508,16 +509,17 @@ class _CashFormState extends State<_CashForm> {
   String? _validate() {
     if (_gross <= 0) {
       return _saleMode
-          ? 'Isi total penjualan lebih dari 0.'
-          : 'Isi jumlah lebih dari 0.';
+          ? tr('Isi total penjualan lebih dari 0.')
+          : tr('Isi jumlah lebih dari 0.');
     }
     if (_saleMode) {
       if (_discountValue > _gross) {
-        return 'Diskon tidak boleh melebihi total penjualan.';
+        return tr('Diskon tidak boleh melebihi total penjualan.');
       }
-      if (_received <= 0) return 'Jumlah yang diterima harus lebih dari 0.';
+      if (_received <= 0) return tr('Jumlah yang diterima harus lebih dari 0.');
       if (_costValue <= 0) {
-        return 'Isi Harga Modal lebih dari 0. Tanpa modal, pilih Penjualan lainnya.';
+        return tr(
+            'Isi Harga Modal lebih dari 0. Tanpa modal, pilih Penjualan lainnya.');
       }
     }
     if (_credit) return _contact.validate();
@@ -561,11 +563,13 @@ class _CashFormState extends State<_CashForm> {
           sale: sale,
         );
         final off = _offsetPreview;
-        final base =
-            _isIn ? 'Dicatat sebagai piutang.' : 'Dicatat sebagai utang.';
+        final base = _isIn
+            ? tr('Dicatat sebagai piutang.')
+            : tr('Dicatat sebagai utang.');
         _toast(off > 0
-            ? '$base ${formatMoney(off)} otomatis dikompensasi dengan saldo kontak.'
-            : '$base Lihat di tab Utang.');
+            ? tr('{0} {1} otomatis dikompensasi dengan saldo kontak.',
+                [base, formatMoney(off)])
+            : tr('{0} Lihat di tab Utang.', [base]));
       } else if (_editing) {
         await widget.repo.edit(widget.existing!.id,
             type: _type,
@@ -588,7 +592,7 @@ class _CashFormState extends State<_CashForm> {
       _toast(e.message);
       if (mounted) setState(() => _busy = false);
     } catch (e) {
-      _toast('Gagal menyimpan: $e');
+      _toast(tr('Gagal menyimpan: {0}', [e]));
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -605,15 +609,15 @@ class _CashFormState extends State<_CashForm> {
             const SizedBox(height: 12),
             SegmentedButton<bool>(
               showSelectedIcon: false,
-              segments: const [
+              segments: [
                 ButtonSegment(
                     value: false,
-                    icon: Icon(Icons.check_circle_outline_rounded),
-                    label: Text('Lunas')),
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: Text(tr('Lunas'))),
                 ButtonSegment(
                     value: true,
-                    icon: Icon(Icons.schedule_rounded),
-                    label: Text('Hutang')),
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: Text(tr('Hutang'))),
               ],
               selected: {_credit},
               onSelectionChanged: (s) => setState(() => _credit = s.first),
@@ -624,10 +628,10 @@ class _CashFormState extends State<_CashForm> {
         selectedId: _categoryId);
 
     final title = _editing
-        ? 'Ubah transaksi'
+        ? tr('Ubah transaksi')
         : !widget.lockType
-            ? 'Catat transaksi'
-            : (_isIn ? 'Catat pemasukan' : 'Catat pengeluaran');
+            ? tr('Catat transaksi')
+            : (_isIn ? tr('Catat pemasukan') : tr('Catat pengeluaran'));
     return Scaffold(
       appBar: AppBar(leading: const CloseButton(), title: Text(title)),
       body: CalcHost(
@@ -643,12 +647,16 @@ class _CashFormState extends State<_CashForm> {
                 if (!widget.lockType)
                   Row(children: [
                     Expanded(
-                        child: _TypeTile('Pemasukan', Icons.south_west_rounded,
-                            true, _isIn, () => setState(() => _type = 'in'))),
+                        child: _TypeTile(
+                            tr('Pemasukan'),
+                            Icons.south_west_rounded,
+                            true,
+                            _isIn,
+                            () => setState(() => _type = 'in'))),
                     const SizedBox(width: 12),
                     Expanded(
                         child: _TypeTile(
-                            'Pengeluaran',
+                            tr('Pengeluaran'),
                             Icons.north_east_rounded,
                             false,
                             !_isIn,
@@ -658,10 +666,10 @@ class _CashFormState extends State<_CashForm> {
                   const SizedBox(height: 12),
                   SegmentedButton<bool>(
                     showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: true, label: Text('Penjualan')),
+                    segments: [
+                      ButtonSegment(value: true, label: Text(tr('Penjualan'))),
                       ButtonSegment(
-                          value: false, label: Text('Penjualan lainnya')),
+                          value: false, label: Text(tr('Penjualan lainnya'))),
                     ],
                     selected: {_sale},
                     onSelectionChanged: (s) => setState(() => _sale = s.first),
@@ -674,7 +682,7 @@ class _CashFormState extends State<_CashForm> {
                 const SizedBox(height: 16),
                 _AmountBox(
                   controller: _amount,
-                  label: sale ? 'Total Penjualan' : 'Jumlah',
+                  label: sale ? tr('Total Penjualan') : tr('Jumlah'),
                   color: _tone,
                   autofocus: !_editing,
                   onChanged: () => setState(() {}),
@@ -684,7 +692,7 @@ class _CashFormState extends State<_CashForm> {
                   const SizedBox(height: 12),
                   _AmountBox(
                     controller: _cost,
-                    label: 'Harga Modal',
+                    label: tr('Harga Modal'),
                     color: Brand.expense,
                     large: false,
                     onChanged: () => setState(() {}),
@@ -696,7 +704,7 @@ class _CashFormState extends State<_CashForm> {
                     child: ExpansionTile(
                       tilePadding: EdgeInsets.zero,
                       initiallyExpanded: _discountValue > 0 || _feeValue > 0,
-                      title: Text('Tambahan perhitungan (opsional)',
+                      title: Text(tr('Tambahan perhitungan (opsional)'),
                           style: theme.textTheme.titleSmall
                               ?.copyWith(fontWeight: FontWeight.w600)),
                       children: [
@@ -713,7 +721,7 @@ class _CashFormState extends State<_CashForm> {
                         const SizedBox(height: 12),
                         _MoneyField(
                           controller: _fee,
-                          label: 'Biaya Tambahan',
+                          label: tr('Biaya Tambahan'),
                           color: theme.colorScheme.onSurface,
                           onChanged: () => setState(() {}),
                         ),
@@ -725,7 +733,8 @@ class _CashFormState extends State<_CashForm> {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Row(children: [
                       Expanded(
-                        child: Text(_credit ? 'Total piutang' : 'Pemasukan',
+                        child: Text(
+                            _credit ? tr('Total piutang') : tr('Pemasukan'),
                             style: theme.textTheme.bodyMedium
                                 ?.copyWith(color: muted)),
                       ),
@@ -741,8 +750,8 @@ class _CashFormState extends State<_CashForm> {
                     controller: _contact,
                     contacts: _contacts,
                     label: _isIn
-                        ? 'Siapa yang berutang? (wajib)'
-                        : 'Berutang kepada siapa? (wajib)',
+                        ? tr('Siapa yang berutang? (wajib)')
+                        : tr('Berutang kepada siapa? (wajib)'),
                     onChanged: () {
                       setState(() {});
                       _refreshNet();
@@ -766,8 +775,14 @@ class _CashFormState extends State<_CashForm> {
                           Expanded(
                             child: Text(
                               _isIn
-                                  ? 'Utang Anda ke kontak ini ${formatMoney(-_contactNet!)} akan berkurang otomatis.'
-                                  : 'Piutang kontak ini ${formatMoney(_contactNet!)} akan berkurang otomatis.',
+                                  ? tr(
+                                      'Utang Anda ke kontak ini {0} akan berkurang otomatis.',
+                                      [
+                                          formatMoney(-_contactNet!)
+                                        ])
+                                  : tr(
+                                      'Piutang kontak ini {0} akan berkurang otomatis.',
+                                      [formatMoney(_contactNet!)]),
                               style: theme.textTheme.bodySmall,
                             ),
                           ),
@@ -783,7 +798,7 @@ class _CashFormState extends State<_CashForm> {
                     },
                     child: InputDecorator(
                       decoration: InputDecoration(
-                        labelText: 'Jatuh tempo (opsional)',
+                        labelText: tr('Jatuh tempo (opsional)'),
                         prefixIcon: const Icon(Icons.alarm_rounded),
                         suffixIcon: _due == null
                             ? null
@@ -795,12 +810,12 @@ class _CashFormState extends State<_CashForm> {
                     ),
                   ),
                 ] else if (!sale) ...[
-                  Text('Kategori', style: theme.textTheme.labelLarge),
+                  Text(tr('Kategori'), style: theme.textTheme.labelLarge),
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, runSpacing: 8, children: [
                     for (final c in split.$1)
                       ChoiceChip(
-                        label: Text(c.name),
+                        label: Text(tr(c.name)),
                         avatar:
                             Icon(categoryIcon(c.name, income: _isIn), size: 18),
                         selected: _categoryId == c.id,
@@ -811,8 +826,8 @@ class _CashFormState extends State<_CashForm> {
                     ActionChip(
                       avatar: const Icon(Icons.search_rounded, size: 18),
                       label: Text(split.$2.isEmpty
-                          ? 'Cari'
-                          : 'Cari (${split.$2.length} lainnya)'),
+                          ? tr('Cari')
+                          : tr('Cari ({0} lainnya)', [split.$2.length])),
                       onPressed: _openCategorySearch,
                     ),
                   ]),
@@ -826,9 +841,9 @@ class _CashFormState extends State<_CashForm> {
                     if (d != null) setState(() => _date = d);
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Tanggal',
-                      prefixIcon: Icon(Icons.event_rounded),
+                    decoration: InputDecoration(
+                      labelText: tr('Tanggal'),
+                      prefixIcon: const Icon(Icons.event_rounded),
                     ),
                     child: Text(dateId(_date)),
                   ),
@@ -837,9 +852,9 @@ class _CashFormState extends State<_CashForm> {
                 TextField(
                   controller: _note,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Catatan (opsional)',
-                    prefixIcon: Icon(Icons.notes_rounded),
+                  decoration: InputDecoration(
+                    labelText: tr('Catatan (opsional)'),
+                    prefixIcon: const Icon(Icons.notes_rounded),
                   ),
                 ),
               ],
@@ -890,8 +905,10 @@ class _CashFormState extends State<_CashForm> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
                       : Text(_editing
-                          ? 'Simpan perubahan'
-                          : (_credit ? 'Simpan sebagai hutang' : 'Simpan')),
+                          ? tr('Simpan perubahan')
+                          : (_credit
+                              ? tr('Simpan sebagai hutang')
+                              : tr('Simpan'))),
                 ),
               ),
               if (widget.scanReceipts) ...[
@@ -934,7 +951,7 @@ class _ProfitCard extends StatelessWidget {
         Expanded(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(positive ? 'Keuntungan' : 'Rugi',
+            Text(positive ? tr('Keuntungan') : tr('Rugi'),
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             Text(formatMoney(profit.abs()),
@@ -1031,8 +1048,9 @@ class _DiscountField extends StatelessWidget {
         showSelectedIcon: false,
         segments: [
           ButtonSegment(
-              value: false, label: Text('Diskon ${activeCurrency.symbol}')),
-          const ButtonSegment(value: true, label: Text('Diskon %')),
+              value: false,
+              label: Text(tr('Diskon {0}', [activeCurrency.symbol]))),
+          ButtonSegment(value: true, label: Text(tr('Diskon %'))),
         ],
         selected: {percent},
         onSelectionChanged: (s) => onModeChanged(s.first),
@@ -1051,7 +1069,7 @@ class _DiscountField extends StatelessWidget {
               .titleMedium
               ?.copyWith(fontWeight: FontWeight.w600, color: Brand.expense),
           decoration: InputDecoration(
-            labelText: 'Diskon',
+            labelText: tr('Diskon'),
             hintText: '0',
             suffixText: '%',
             helperText: amount > 0 ? '= ${formatMoney(amount)}' : null,
@@ -1060,7 +1078,7 @@ class _DiscountField extends StatelessWidget {
       else
         _MoneyField(
           controller: controller,
-          label: 'Diskon',
+          label: tr('Diskon'),
           color: Brand.expense,
           onChanged: onChanged,
         ),

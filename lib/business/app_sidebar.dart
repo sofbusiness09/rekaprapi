@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../common/widgets.dart';
 import '../theme/theme_picker.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Satu menu di bilah samping.
 class SidebarItem {
@@ -210,7 +211,7 @@ class _Header extends StatelessWidget {
         height: 52,
         child: Row(children: [
           Tooltip(
-            message: extended ? 'Ciutkan menu' : 'Perluas menu',
+            message: extended ? tr('Ciutkan menu') : tr('Perluas menu'),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: onToggle,

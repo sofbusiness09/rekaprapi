@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth/auth_gate.dart';
 import 'auth/url_auth_hint.dart';
 import 'common/privacy.dart';
+import 'l10n/l10n.dart';
 import 'config.dart';
 import 'theme/app_style.dart';
 import 'theme/app_theme.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   await backgroundController.load();
   await privacyController.load();
   await styleController.load();
+  await languageController.load();
   // Dibaca sebelum Supabase menghapus parameter tautan email dari alamat.
   UrlAuthHint.read(Uri.base);
   await Supabase.initialize(

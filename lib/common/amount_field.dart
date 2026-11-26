@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'calc_expression.dart';
 import 'format.dart';
 import '../settings/input_prefs.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Perangkat sentuh (Android dan iPhone, termasuk web di ponsel).
 bool get isMobilePlatform =>
@@ -255,9 +256,9 @@ class _CalcKeypadState extends State<CalcKeypad> {
     if (_expr.isEmpty) {
       preview = ' ';
     } else if (tooBig) {
-      preview = 'Hasil terlalu besar';
+      preview = tr('Hasil terlalu besar');
     } else if (negative) {
-      preview = 'Hasil negatif';
+      preview = tr('Hasil negatif');
     } else if (_hasOperator && value != null) {
       preview = '= ${thousands(value.toInt())}';
     } else {
@@ -424,11 +425,10 @@ class _CalcKeypadState extends State<CalcKeypad> {
                         borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: negative || tooBig ? null : _done,
-                  child:
-                      const Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.check_rounded, size: 26),
-                    SizedBox(height: 2),
-                    Text('Selesai'),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.check_rounded, size: 26),
+                    const SizedBox(height: 2),
+                    Text(tr('Selesai')),
                   ]),
                 ),
               ),

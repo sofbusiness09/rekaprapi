@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../common/widgets.dart';
 import 'reset_code_page.dart';
 import 'url_auth_hint.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage(
@@ -49,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
     final email = _email.text.trim();
     final password = _password.text;
     if (!email.contains('@') || password.length < 6) {
-      _toast('Isi email yang valid dan password minimal 6 karakter.');
+      _toast(tr('Isi email yang valid dan password minimal 6 karakter.'));
       return;
     }
     setState(() => _busy = true);
@@ -57,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       if (_register) {
         await auth.signUp(email: email, password: password);
-        _toast('Akun dibuat. Silakan masuk.');
+        _toast(tr('Akun dibuat. Silakan masuk.'));
         setState(() => _register = false);
       } else {
         await auth.signInWithPassword(email: email, password: password);
@@ -65,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal: $e');
+      _toast(tr('Gagal: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _resetPassword() async {
     final email = _email.text.trim();
     if (!email.contains('@')) {
-      _toast('Isi email dulu.');
+      _toast(tr('Isi email dulu.'));
       return;
     }
     setState(() => _busy = true);
@@ -89,7 +90,7 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal mengirim kode: $e');
+      _toast(tr('Gagal mengirim kode: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -114,15 +115,15 @@ class _LoginPageState extends State<LoginPage> {
                     'assets/icon/icon.png',
                     width: 96,
                     height: 96,
-                    semanticLabel: 'RekapRapi',
+                    semanticLabel: tr('RekapRapi'),
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('RekapRapi',
+                Text(tr('RekapRapi'),
                     style: theme.textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                Text('Catat kas dan utang piutang usaha, rapi dan cepat.',
+                Text(tr('Catat kas dan utang piutang usaha, rapi dan cepat.'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
                 const SizedBox(height: 28),
@@ -131,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(_register ? 'Buat akun baru' : 'Masuk',
+                        Text(_register ? tr('Buat akun baru') : tr('Masuk'),
                             style: theme.textTheme.titleLarge
                                 ?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 16),
@@ -139,9 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                           controller: _email,
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(Icons.mail_outline_rounded),
+                          decoration: InputDecoration(
+                            labelText: tr('Email'),
+                            prefixIcon: const Icon(Icons.mail_outline_rounded),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -150,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
                           obscureText: _hide,
                           autofillHints: const [AutofillHints.password],
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: tr('Password'),
                             prefixIcon: const Icon(Icons.lock_outline_rounded),
                             suffixIcon: IconButton(
                               icon: Icon(_hide
@@ -170,14 +171,14 @@ class _LoginPageState extends State<LoginPage> {
                                   height: 22,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2.5, color: Colors.white))
-                              : Text(_register ? 'Daftar' : 'Masuk'),
+                              : Text(_register ? tr('Daftar') : tr('Masuk')),
                         ),
                         if (!_register)
                           Align(
                             alignment: Alignment.center,
                             child: TextButton(
                                 onPressed: _busy ? null : _resetPassword,
-                                child: const Text('Lupa password?')),
+                                child: Text(tr('Lupa password?'))),
                           ),
                       ]),
                 ),
@@ -187,8 +188,8 @@ class _LoginPageState extends State<LoginPage> {
                       ? null
                       : () => setState(() => _register = !_register),
                   child: Text(_register
-                      ? 'Sudah punya akun? Masuk'
-                      : 'Belum punya akun? Daftar'),
+                      ? tr('Sudah punya akun? Masuk')
+                      : tr('Belum punya akun? Daftar')),
                 ),
               ]),
             ),

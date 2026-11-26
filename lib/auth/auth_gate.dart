@@ -9,6 +9,7 @@ import 'login_page.dart';
 import 'reset_code_page.dart';
 import 'reset_password_page.dart';
 import 'url_auth_hint.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Menampilkan halaman masuk, layar password baru, atau pemilih usaha sesuai status sesi.
 class AuthGate extends StatefulWidget {
@@ -53,12 +54,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         showDialog<void>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Tautan tidak berlaku'),
-            content: Text('$problem Password Anda tidak berubah.'),
+            title: Text(tr('Tautan tidak berlaku')),
+            content: Text(tr('{0} Password Anda tidak berubah.', [problem])),
             actions: [
               FilledButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Mengerti')),
+                  child: Text(tr('Mengerti'))),
             ],
           ),
         );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../common/widgets.dart';
 import 'home_prefs.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Pengaturan > Tampilan Transaksi: apa saja yang tampil di tab Transaksi.
 /// Bawaannya hanya pemasukan dan pengeluaran; catatan utang piutang tersembunyi.
@@ -17,7 +18,7 @@ class TxPrefsPage extends StatelessWidget {
     final muted = theme.colorScheme.onSurfaceVariant;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tampilan Transaksi')),
+      appBar: AppBar(title: Text(tr('Tampilan Transaksi'))),
       body: ListenableBuilder(
         listenable: homePrefs,
         builder: (context, _) {
@@ -44,31 +45,31 @@ class TxPrefsPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                   child: Text(
                     businessName == null
-                        ? 'Berlaku untuk usaha yang sedang dibuka.'
-                        : 'Berlaku untuk usaha "$businessName".',
+                        ? tr('Berlaku untuk usaha yang sedang dibuka.')
+                        : tr('Berlaku untuk usaha "{0}".', [businessName]),
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted),
                   ),
                 ),
-                const SectionTitle('Transaksi kas'),
+                SectionTitle(tr('Transaksi kas')),
                 SoftCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(children: [
-                    toggle('Pemasukan', '', p.txIn,
+                    toggle(tr('Pemasukan'), '', p.txIn,
                         (v) => set(p.copyWith(txIn: v))),
                     const Divider(),
-                    toggle('Pengeluaran', '', p.txOut,
+                    toggle(tr('Pengeluaran'), '', p.txOut,
                         (v) => set(p.copyWith(txOut: v))),
                   ]),
                 ),
-                const SectionTitle('Catatan utang piutang'),
+                SectionTitle(tr('Catatan utang piutang')),
                 SoftCard(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(children: [
-                    toggle('Transaksi hutang', '', p.txCredit,
+                    toggle(tr('Transaksi hutang'), '', p.txCredit,
                         (v) => set(p.copyWith(txCredit: v))),
                     const Divider(),
                     toggle(
-                        'Kas dari utang piutang',
+                        tr('Kas dari utang piutang'),
                         'Pelunasan, pembayaran, pemberian, penerimaan',
                         p.txDebtCash,
                         (v) => set(p.copyWith(txDebtCash: v))),
@@ -78,7 +79,7 @@ class TxPrefsPage extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
                     child: Text(
-                      'Semua dimatikan, jadi daftar Transaksi akan kosong.',
+                      tr('Semua dimatikan, jadi daftar Transaksi akan kosong.'),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.colorScheme.error),
                     ),
@@ -86,7 +87,7 @@ class TxPrefsPage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
                   child: Text(
-                    'Saldo dan rekapan tetap menghitung semuanya.',
+                    tr('Saldo dan rekapan tetap menghitung semuanya.'),
                     style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ),
@@ -100,11 +101,11 @@ class TxPrefsPage extends StatelessWidget {
                       txCredit: false,
                       txDebtCash: false,
                     ));
-                    messenger.showSnackBar(const SnackBar(
-                        content: Text('Dikembalikan ke tampilan bawaan.')));
+                    messenger.showSnackBar(SnackBar(
+                        content: Text(tr('Dikembalikan ke tampilan bawaan.'))));
                   },
                   icon: const Icon(Icons.restart_alt_rounded),
-                  label: const Text('Kembalikan ke bawaan'),
+                  label: Text(tr('Kembalikan ke bawaan')),
                 ),
               ],
             ),

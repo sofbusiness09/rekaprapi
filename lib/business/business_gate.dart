@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'business_controller.dart';
 import 'business_home.dart';
 import 'business_switcher.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Setelah masuk: langsung membuka usaha terakhir. Layar "belum ada usaha"
 /// hanya tampil bila pengguna belum punya usaha sama sekali.
@@ -48,9 +49,9 @@ class _BusinessGateState extends State<BusinessGate> {
             body: Center(
               child: EmptyState(
                 icon: Icons.cloud_off_rounded,
-                title: 'Gagal memuat usaha',
+                title: tr('Gagal memuat usaha'),
                 subtitle: '${c.error}',
-                actionLabel: 'Coba lagi',
+                actionLabel: tr('Coba lagi'),
                 onAction: () => c.load(),
               ),
             ),
@@ -79,10 +80,10 @@ class _NoBusinessPage extends StatelessWidget {
     final muted = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RekapRapi'),
+        title: Text(tr('RekapRapi')),
         actions: [
           IconButton(
-            tooltip: 'Keluar',
+            tooltip: tr('Keluar'),
             icon: const Icon(Icons.logout_rounded),
             onPressed: () => Supabase.instance.client.auth.signOut(),
           ),
@@ -95,16 +96,16 @@ class _NoBusinessPage extends StatelessWidget {
           children: [
             EmptyState(
               icon: Icons.storefront_rounded,
-              title: 'Selamat datang!',
-              subtitle:
-                  'Buat pembukuan pertama Anda, atau gabung dengan kode undangan.',
-              actionLabel: 'Buat pembukuan',
+              title: tr('Selamat datang!'),
+              subtitle: tr(
+                  'Buat pembukuan pertama Anda, atau gabung dengan kode undangan.'),
+              actionLabel: tr('Buat pembukuan'),
               onAction: () => promptCreateBusiness(context, controller),
             ),
             OutlinedButton.icon(
               onPressed: () => promptJoinByCode(context, controller),
               icon: const Icon(Icons.vpn_key_rounded),
-              label: const Text('Gabung dengan kode'),
+              label: Text(tr('Gabung dengan kode')),
             ),
             const SizedBox(height: 8),
             // Akun baru atau pembukuan terhapus: pulihkan dari backup Google Sheet.
@@ -115,10 +116,10 @@ class _NoBusinessPage extends StatelessWidget {
                     RestorePage(onRestored: controller.afterRestore),
               )),
               icon: const Icon(Icons.restore_rounded),
-              label: const Text('Pulihkan dari Google Sheet'),
+              label: Text(tr('Pulihkan dari Google Sheet')),
             ),
             if (controller.invites.isNotEmpty) ...[
-              const SectionTitle('Undangan untuk Anda'),
+              SectionTitle(tr('Undangan untuk Anda')),
               for (final i in controller.invites)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -138,7 +139,8 @@ class _NoBusinessPage extends StatelessWidget {
                                     style: theme.textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.w600)),
                                 Text(
-                                    'Diundang sebagai ${roleNames[i.role] ?? i.role}',
+                                    tr('Diundang sebagai {0}',
+                                        [roleNames[i.role] ?? i.role]),
                                     style: theme.textTheme.bodySmall
                                         ?.copyWith(color: muted)),
                               ],
@@ -153,7 +155,7 @@ class _NoBusinessPage extends StatelessWidget {
                                   minimumSize: const Size.fromHeight(44)),
                               onPressed: () => runWithToast(
                                   context, () => controller.decline(i.id)),
-                              child: const Text('Tolak'),
+                              child: Text(tr('Tolak')),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -163,8 +165,8 @@ class _NoBusinessPage extends StatelessWidget {
                                   minimumSize: const Size.fromHeight(44)),
                               onPressed: () => runWithToast(
                                   context, () => controller.accept(i.id),
-                                  done: 'Berhasil bergabung.'),
-                              child: const Text('Terima'),
+                                  done: tr('Berhasil bergabung.')),
+                              child: Text(tr('Terima')),
                             ),
                           ),
                         ]),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Dialog satu isian teks. Mengembalikan teks (sudah di-trim) atau null bila dibatalkan.
 Future<String?> askText(
@@ -62,11 +63,10 @@ class _TextDialogState extends State<_TextDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal')),
+            onPressed: () => Navigator.pop(context), child: Text(tr('Batal'))),
         FilledButton(
             onPressed: () => Navigator.pop(context, _c.text.trim()),
-            child: const Text('OK')),
+            child: Text(tr('OK'))),
       ],
     );
   }
@@ -86,7 +86,7 @@ Future<bool> confirmDialog(
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal')),
+            child: Text(tr('Batal'))),
         FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(okLabel)),

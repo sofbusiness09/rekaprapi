@@ -11,6 +11,7 @@ import '../settings/home_prefs.dart';
 import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
 import 'report_exporter.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 enum _Preset { thisMonth, lastMonth, thisYear, custom }
 
@@ -171,9 +172,9 @@ class _ReportPageState extends State<ReportPage> {
       } else {
         await exporter.exportCsv(_from, _to);
       }
-      _toast('Berkas rekapan dibuat.');
+      _toast(tr('Berkas rekapan dibuat.'));
     } catch (e) {
-      _toast('Gagal ekspor: $e');
+      _toast(tr('Gagal ekspor: {0}', [e]));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -216,7 +217,7 @@ class _ReportPageState extends State<ReportPage> {
       future: _future,
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Gagal memuat: ${snap.error}'));
+          return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
         }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -238,11 +239,11 @@ class _ReportPageState extends State<ReportPage> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(children: [
-                    for (final f in const <(_Preset, String)>[
-                      (_Preset.thisMonth, 'Bulan ini'),
-                      (_Preset.lastMonth, 'Bulan lalu'),
-                      (_Preset.thisYear, 'Tahun ini'),
-                      (_Preset.custom, 'Pilih tanggal'),
+                    for (final f in <(_Preset, String)>[
+                      (_Preset.thisMonth, tr('Bulan ini')),
+                      (_Preset.lastMonth, tr('Bulan lalu')),
+                      (_Preset.thisYear, tr('Tahun ini')),
+                      (_Preset.custom, tr('Pilih tanggal')),
                     ]) ...[
                       ChoiceChip(
                         label: Text(f.$2),
@@ -272,33 +273,33 @@ class _ReportPageState extends State<ReportPage> {
                 if (widget.business.isPersonal ||
                     widget.business.canSeeProfit) ...[
                   SectionTitle(widget.business.isPersonal
-                      ? 'Arus kas'
-                      : 'Pemasukan dan pengeluaran'),
+                      ? tr('Arus kas')
+                      : tr('Pemasukan dan pengeluaran')),
                   SoftCard(
                     padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
                     child: _CashFlowChart(
                       buckets: buckets,
                       inLabel: widget.business.isPersonal
-                          ? 'Pemasukan'
-                          : 'Pemasukan',
+                          ? tr('Pemasukan')
+                          : tr('Pemasukan'),
                       outLabel: widget.business.isPersonal
-                          ? 'Pengeluaran'
-                          : 'Pengeluaran',
+                          ? tr('Pengeluaran')
+                          : tr('Pengeluaran'),
                     ),
                   ),
                   if (!widget.business.isPersonal) ...[
-                    const SectionTitle('Laba'),
+                    SectionTitle(tr('Laba')),
                     SoftCard(
                       padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
                       child: hasProfit
-                          ? _ProfitChart(buckets: buckets, label: 'Laba')
-                          : const EmptyState(
+                          ? _ProfitChart(buckets: buckets, label: tr('Laba'))
+                          : EmptyState(
                               icon: Icons.trending_up_rounded,
-                              title: 'Belum ada data laba',
+                              title: tr('Belum ada data laba'),
                             ),
                     ),
                   ],
-                  const SectionTitle('Per kategori'),
+                  SectionTitle(tr('Per kategori')),
                   SoftCard(
                       child: _CategoryBreakdown(
                     rows: d.byCategory,
@@ -307,7 +308,7 @@ class _ReportPageState extends State<ReportPage> {
                   )),
                 ],
                 if (widget.business.canManage) ...[
-                  const SectionTitle('Ekspor'),
+                  SectionTitle(tr('Ekspor')),
                   SoftCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -315,13 +316,13 @@ class _ReportPageState extends State<ReportPage> {
                         FilledButton.icon(
                           onPressed: _exporting ? null : () => _export(true),
                           icon: const Icon(Icons.table_chart_outlined),
-                          label: const Text('Unduh Excel (.xlsx)'),
+                          label: Text(tr('Unduh Excel (.xlsx)')),
                         ),
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: _exporting ? null : () => _export(false),
                           icon: const Icon(Icons.description_outlined),
-                          label: const Text('Unduh CSV (transaksi kas)'),
+                          label: Text(tr('Unduh CSV (transaksi kas)')),
                         ),
                         if (_exporting)
                           const Padding(
@@ -335,7 +336,7 @@ class _ReportPageState extends State<ReportPage> {
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
                     child: Text(
-                      'Ekspor rekapan hanya untuk Pemilik dan Admin.',
+                      tr('Ekspor rekapan hanya untuk Pemilik dan Admin.'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -360,8 +361,9 @@ class _Kpis extends StatelessWidget {
     final p = previous;
     if (p == null) return null;
     final diff = summary.net - p.net;
-    if (diff == 0) return 'sama seperti periode lalu';
-    return '${diff > 0 ? 'naik' : 'turun'} ${rupiah(diff.abs())} dari periode lalu';
+    if (diff == 0) return tr('sama seperti periode lalu');
+    return tr('{0} {1} dari periode lalu',
+        [diff > 0 ? tr('naik') : tr('turun'), rupiah(diff.abs())]);
   }
 
   @override
@@ -373,20 +375,20 @@ class _Kpis extends StatelessWidget {
       final net = summary.totalIn - summary.totalOut;
       // Saldo kas adalah kartu utama Pembukuan Pribadi.
       hero = _HeroKpi(
-          'Saldo kas',
+          tr('Saldo kas'),
           summary.balance,
           summary.balance >= 0 ? Brand.deep : Brand.expense,
           Icons.account_balance_wallet_rounded);
       cards = [
-        _Kpi('Pemasukan', summary.totalIn, Brand.income,
+        _Kpi(tr('Pemasukan'), summary.totalIn, Brand.income,
             Icons.south_west_rounded),
-        _Kpi('Pengeluaran', summary.totalOut, Brand.expense,
+        _Kpi(tr('Pengeluaran'), summary.totalOut, Brand.expense,
             Icons.north_east_rounded),
-        _Kpi('Selisih periode', net, net >= 0 ? Brand.income : Brand.expense,
-            Icons.swap_vert_rounded),
-        _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
-            Icons.call_received_rounded),
-        _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
+        _Kpi(tr('Selisih periode'), net,
+            net >= 0 ? Brand.income : Brand.expense, Icons.swap_vert_rounded),
+        _Kpi(tr('Piutang belum lunas'), summary.receivableOpen,
+            Brand.receivable, Icons.call_received_rounded),
+        _Kpi(tr('Utang belum lunas'), summary.payableOpen, Brand.payable,
             Icons.call_made_rounded),
       ];
     } else {
@@ -394,25 +396,25 @@ class _Kpis extends StatelessWidget {
       // Laba hanya untuk Pemilik dan Admin.
       hero = business.canSeeProfit
           ? _HeroKpi(
-              profit ? 'Laba' : 'Rugi',
+              profit ? tr('Laba') : tr('Rugi'),
               summary.net.abs(),
               profit ? profitColor(context) : Brand.expense,
               profit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
               sub: _compare())
           : const SizedBox.shrink();
       cards = [
-        _Kpi('Pemasukan', summary.incomeTotal, Brand.income,
+        _Kpi(tr('Pemasukan'), summary.incomeTotal, Brand.income,
             Icons.south_west_rounded),
         if (business.canSeeProfit)
-          _Kpi('Pengeluaran', summary.expenseTotal, Brand.expense,
+          _Kpi(tr('Pengeluaran'), summary.expenseTotal, Brand.expense,
               Icons.north_east_rounded),
-        _Kpi('Piutang belum lunas', summary.receivableOpen, Brand.receivable,
-            Icons.call_received_rounded),
-        _Kpi('Utang belum lunas', summary.payableOpen, Brand.payable,
+        _Kpi(tr('Piutang belum lunas'), summary.receivableOpen,
+            Brand.receivable, Icons.call_received_rounded),
+        _Kpi(tr('Utang belum lunas'), summary.payableOpen, Brand.payable,
             Icons.call_made_rounded),
         // Saldo kas disembunyikan; dihidupkan di Pengaturan.
         if (business.canSeeProfit && homePrefs.value.showCashBalance)
-          _Kpi('Saldo kas saat ini', summary.balance, Brand.deep,
+          _Kpi(tr('Saldo kas saat ini'), summary.balance, Brand.deep,
               Icons.account_balance_wallet_rounded),
       ];
     }
@@ -679,9 +681,9 @@ class _CashFlowChart extends StatelessWidget {
     final peak = buckets.fold<int>(
         0, (m, b) => [m, b.cashIn, b.cashOut].reduce((a, c) => a > c ? a : c));
     if (peak == 0) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.bar_chart_rounded,
-        title: 'Belum ada arus kas',
+        title: tr('Belum ada arus kas'),
       );
     }
     final dense = buckets.length > 16;
@@ -828,18 +830,18 @@ class _CategoryBreakdown extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       SegmentedButton<bool>(
         showSelectedIcon: false,
-        segments: const [
-          ButtonSegment(value: true, label: Text('Pemasukan')),
-          ButtonSegment(value: false, label: Text('Pengeluaran')),
+        segments: [
+          ButtonSegment(value: true, label: Text(tr('Pemasukan'))),
+          ButtonSegment(value: false, label: Text(tr('Pengeluaran'))),
         ],
         selected: {income},
         onSelectionChanged: (s) => onToggle(s.first),
       ),
       const SizedBox(height: 16),
       if (items.isEmpty)
-        const EmptyState(
+        EmptyState(
           icon: Icons.pie_chart_rounded,
-          title: 'Belum ada data',
+          title: tr('Belum ada data'),
         )
       else ...[
         SizedBox(
@@ -861,7 +863,7 @@ class _CategoryBreakdown extends StatelessWidget {
               ),
             ),
             Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('Total',
+              Text(tr('Total'),
                   style: theme.textTheme.labelMedium
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               Text(rupiah(total),

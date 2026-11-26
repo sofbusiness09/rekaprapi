@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Repositori GitHub tempat APK rilis diterbitkan (Releases).
 const githubRepo = 'sofbusiness09/rekaprapi';
@@ -217,7 +218,7 @@ Future<void> showUpdateDialog(
       return PopScope(
         canPop: !release.mandatory,
         child: AlertDialog(
-          title: Text('Versi ${release.version} tersedia'),
+          title: Text(tr('Versi {0} tersedia', [release.version])),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -227,7 +228,8 @@ Future<void> showUpdateDialog(
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
-                        'Pembaruan ini wajib dipasang agar aplikasi tetap berjalan dengan benar.',
+                        tr(
+                            'Pembaruan ini wajib dipasang agar aplikasi tetap berjalan dengan benar.'),
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
@@ -237,8 +239,7 @@ Future<void> showUpdateDialog(
                     child: Text('• $n', style: theme.textTheme.bodyMedium),
                   ),
                 const SizedBox(height: 8),
-                Text(
-                    'Setelah unduhan selesai, buka berkasnya lalu tekan Pasang. Data Anda tetap aman.',
+                Text(tr('Setelah unduhan selesai, buka berkasnya lalu tekan Pasang. Data Anda tetap aman.'),
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ],
@@ -251,7 +252,7 @@ Future<void> showUpdateDialog(
                   checker?.snooze(release);
                   Navigator.pop(dialogContext);
                 },
-                child: const Text('Nanti'),
+                child: Text(tr('Nanti')),
               ),
             FilledButton(
               onPressed: () async {
@@ -261,7 +262,7 @@ Future<void> showUpdateDialog(
                   Navigator.pop(dialogContext);
                 }
               },
-              child: const Text('Perbarui'),
+              child: Text(tr('Perbarui')),
             ),
           ],
         ),

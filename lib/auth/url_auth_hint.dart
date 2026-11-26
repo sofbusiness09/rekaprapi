@@ -1,3 +1,5 @@
+import 'package:rekap_rapi/l10n/l10n.dart';
+
 /// Petunjuk dari alamat halaman saat aplikasi web dibuka lewat tautan email Supabase.
 ///
 /// Tautan reset password berbentuk `.../#access_token=...&type=recovery`, dan tautan
@@ -40,8 +42,9 @@ class UrlAuthHint {
       final expired = code == 'otp_expired';
       return UrlAuthHint(
         error: expired
-            ? 'Tautan sudah kedaluwarsa atau sudah terpakai. Minta tautan baru.'
-            : 'Tautan tidak dapat dipakai. Minta tautan baru.',
+            ? tr(
+                'Tautan sudah kedaluwarsa atau sudah terpakai. Minta tautan baru.')
+            : tr('Tautan tidak dapat dipakai. Minta tautan baru.'),
       );
     }
     return UrlAuthHint(recovery: params['type'] == 'recovery');

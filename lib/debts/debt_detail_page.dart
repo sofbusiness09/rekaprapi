@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'debt_form.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class DebtDetailPage extends StatefulWidget {
   const DebtDetailPage({
@@ -99,10 +100,10 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal')),
+              child: Text(tr('Batal'))),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Hapus')),
+              child: Text(tr('Hapus'))),
         ],
       ),
     );
@@ -128,9 +129,9 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
 
   Future<void> _deleteDebt(Debt debt) async {
     final extra = debt.paid > 0 || debt.cashMoved
-        ? ' Catatan kas yang terkait juga ikut dihapus.'
+        ? tr(' Catatan kas yang terkait juga ikut dihapus.')
         : '';
-    if (!await _confirm('Hapus catatan ini?',
+    if (!await _confirm(tr('Hapus catatan ini?'),
         '${widget.contactName}, ${rupiah(debt.amount)}.$extra')) {
       return;
     }
@@ -166,7 +167,7 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
               ? FloatingActionButton.extended(
                   onPressed: () => _pay(debt, max: debt.remaining),
                   icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Catat pembayaran'),
+                  label: Text(tr('Catat pembayaran')),
                 )
               : null,
         );
@@ -176,11 +177,11 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
 
   Widget _body(AsyncSnapshot<_Loaded> snap) {
     if (snap.hasError)
-      return Center(child: Text('Gagal memuat: ${snap.error}'));
+      return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
     if (!snap.hasData) return const Center(child: CircularProgressIndicator());
     final debt = snap.data!.debt;
     if (debt == null) {
-      return const Center(child: Text('Catatan ini sudah dihapus.'));
+      return Center(child: Text(tr('Catatan ini sudah dihapus.')));
     }
     final data = snap.data!;
     final payments = data.payments;
@@ -195,54 +196,60 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
             padding: const EdgeInsets.all(20),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(debt.isReceivable ? 'Piutang' : 'Utang'),
+              Text(debt.isReceivable ? tr('Piutang') : tr('Utang')),
               const SizedBox(height: 4),
-              Text(debt.settled ? 'Lunas' : 'Sisa ${rupiah(debt.remaining)}',
+              Text(
+                  debt.settled
+                      ? tr('Lunas')
+                      : tr('Sisa {0}', [rupiah(debt.remaining)]),
                   style: theme.textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
-              Text(
-                  'Total ${rupiah(debt.amount)} · Dibayar ${rupiah(debt.paid)}'),
+              Text(tr('Total {0} · Dibayar {1}',
+                  [rupiah(debt.amount), rupiah(debt.paid)])),
             ]),
           ),
         ),
         const SizedBox(height: 12),
         DetailCard(rows: [
           if (data.contact?.phone != null)
-            DetailRow('Nomor telepon', data.contact!.phone!),
+            DetailRow(tr('Nomor telepon'), data.contact!.phone!),
           if (debt.isSale) ...[
-            DetailRow('Total penjualan',
+            DetailRow(tr('Total penjualan'),
                 rupiah(debt.amount + debt.discountAmount - debt.extraFee)),
             if (debt.discountAmount > 0)
-              DetailRow('Diskon', '-${rupiah(debt.discountAmount)}'),
+              DetailRow(tr('Diskon'), '-${rupiah(debt.discountAmount)}'),
             if (debt.extraFee > 0)
-              DetailRow('Biaya tambahan', rupiah(debt.extraFee)),
+              DetailRow(tr('Biaya tambahan'), rupiah(debt.extraFee)),
             if (widget.business.canSeeProfit) ...[
-              DetailRow('Modal', rupiah(debt.costAmount), color: Brand.expense),
-              DetailRow(debt.profit >= 0 ? 'Keuntungan' : 'Kerugian',
+              DetailRow(tr('Modal'), rupiah(debt.costAmount),
+                  color: Brand.expense),
+              DetailRow(debt.profit >= 0 ? tr('Keuntungan') : tr('Kerugian'),
                   rupiah(debt.profit.abs()),
                   color:
                       debt.profit >= 0 ? profitColor(context) : Brand.expense,
                   bold: true),
             ],
           ],
-          DetailRow('Status', debt.settled ? 'Lunas' : 'Belum lunas',
+          DetailRow(
+              tr('Status'), debt.settled ? tr('Lunas') : tr('Belum lunas'),
               color: debt.settled ? Brand.income : Brand.pending, bold: true),
           DetailRow(
-              'Tanggal dan jam', dateTimeId(debt.debtDate, debt.createdAt)),
+              tr('Tanggal dan jam'), dateTimeId(debt.debtDate, debt.createdAt)),
           if (debt.dueDate != null)
-            DetailRow(debt.overdue ? 'Lewat tempo' : 'Jatuh tempo',
+            DetailRow(debt.overdue ? tr('Lewat tempo') : tr('Jatuh tempo'),
                 dateId(debt.dueDate!),
                 color: debt.overdue ? Brand.expense : null),
-          if (data.recorder != null) DetailRow('Dicatat oleh', data.recorder!),
-          if (debt.note != null) DetailRow('Catatan', debt.note!),
+          if (data.recorder != null)
+            DetailRow(tr('Dicatat oleh'), data.recorder!),
+          if (debt.note != null) DetailRow(tr('Catatan'), debt.note!),
         ]),
         if (_canModify(debt.createdBy)) ...[
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: () => _editDebt(debt),
             icon: const Icon(Icons.edit_rounded),
-            label: const Text('Ubah'),
+            label: Text(tr('Ubah')),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -252,16 +259,16 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
             ),
             onPressed: () => _deleteDebt(debt),
             icon: const Icon(Icons.delete_outline_rounded),
-            label: const Text('Hapus'),
+            label: Text(tr('Hapus')),
           ),
         ],
         const SizedBox(height: 8),
         const Divider(),
-        Text('Riwayat pembayaran', style: theme.textTheme.titleMedium),
+        Text(tr('Riwayat pembayaran'), style: theme.textTheme.titleMedium),
         if (payments.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text('Belum ada pembayaran.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(tr('Belum ada pembayaran.')),
           ),
         for (final p in payments)
           ListTile(
@@ -279,14 +286,16 @@ class _DebtDetailPageState extends State<DebtDetailPage> {
                       if (v == 'edit') {
                         await _pay(debt,
                             existing: p, max: debt.remaining + p.amount);
-                      } else if (await _confirm('Hapus pembayaran?',
-                          '${rupiah(p.amount)} pada ${dateId(p.paidOn)}. Kas terkait ikut dihapus.')) {
+                      } else if (await _confirm(
+                          tr('Hapus pembayaran?'),
+                          tr('{0} pada {1}. Kas terkait ikut dihapus.',
+                              [rupiah(p.amount), dateId(p.paidOn)]))) {
                         await _run(() => widget.repo.removePayment(p.id));
                       }
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Ubah')),
-                      PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'edit', child: Text(tr('Ubah'))),
+                      PopupMenuItem(value: 'delete', child: Text(tr('Hapus'))),
                     ],
                   )
                 : null,

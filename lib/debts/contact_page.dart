@@ -13,6 +13,7 @@ import 'contact_form.dart';
 import 'debt_detail_page.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Halaman satu kontak: data kontak yang bisa diubah (telepon, alamat, catatan),
 /// saldo bersih (piutang dan utang digabung), tombol **Lunaskan** dan
@@ -70,7 +71,7 @@ class _ContactPageState extends State<ContactPage> {
     } on PostgrestException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal: $e');
+      _toast(tr('Gagal: {0}', [e]));
     }
   }
 
@@ -84,10 +85,11 @@ class _ContactPageState extends State<ContactPage> {
 
   Future<void> _delete() async {
     final ok = await confirmDialog(context,
-        title: 'Hapus kontak?',
-        body:
-            '${_contact.name} akan dihapus dari daftar kontak. Riwayat transaksi lamanya tetap tersimpan.',
-        okLabel: 'Hapus');
+        title: tr('Hapus kontak?'),
+        body: tr(
+            '{0} akan dihapus dari daftar kontak. Riwayat transaksi lamanya tetap tersimpan.',
+            [_contact.name]),
+        okLabel: tr('Hapus'));
     if (!ok) return;
     try {
       await widget.repo.deleteContact(_contact.id);
@@ -96,7 +98,7 @@ class _ContactPageState extends State<ContactPage> {
     } on PostgrestException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal: $e');
+      _toast(tr('Gagal: {0}', [e]));
     }
   }
 
@@ -104,16 +106,19 @@ class _ContactPageState extends State<ContactPage> {
     final net = l.net;
     final ok = await confirmDialog(
       context,
-      title: 'Lunaskan?',
+      title: tr('Lunaskan?'),
       body: net > 0
-          ? '${_contact.name} membayar ${rupiah(net)}. Kas masuk otomatis tercatat.'
-          : 'Anda membayar/mengembalikan ${rupiah(-net)} kepada ${_contact.name}. Kas keluar otomatis tercatat.',
-      okLabel: 'Lunaskan',
+          ? tr('{0} membayar {1}. Kas masuk otomatis tercatat.',
+              [_contact.name, rupiah(net)])
+          : tr(
+              'Anda membayar/mengembalikan {0} kepada {1}. Kas keluar otomatis tercatat.',
+              [rupiah(-net), _contact.name]),
+      okLabel: tr('Lunaskan'),
     );
     if (!ok) return;
     await _run(
       () => widget.repo.settle(_contact.id, paidOn: DateTime.now()),
-      'Lunas.',
+      tr('Lunas.'),
     );
   }
 
@@ -155,15 +160,15 @@ class _ContactPageState extends State<ContactPage> {
     await _run(
       () => widget.repo.transfer(_contact.id,
           receive: choice, amount: r.amount, paidOn: r.date, note: r.note),
-      choice ? 'Uang masuk dicatat.' : 'Uang keluar dicatat.',
+      choice ? tr('Uang masuk dicatat.') : tr('Uang keluar dicatat.'),
     );
   }
 
   static String _receiveTitle(int net) =>
-      net > 0 ? 'Terima pembayaran' : 'Terima utang / modal';
+      net > 0 ? tr('Terima pembayaran') : tr('Terima utang / modal');
 
   static String _giveTitle(int net) =>
-      net < 0 ? 'Bayar utang' : 'Berikan hutang';
+      net < 0 ? tr('Bayar utang') : tr('Berikan hutang');
 
   Future<void> _openDebt(Debt d) async {
     await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -179,16 +184,18 @@ class _ContactPageState extends State<ContactPage> {
   }
 
   String _label(LedgerEntry e) {
-    if (e.isOffset) return 'Dikompensasi';
+    if (e.isOffset) return tr('Dikompensasi');
     if (e.isPayment) {
-      return e.parent!.isReceivable ? 'Pembayaran diterima' : 'Utang dibayar';
+      return e.parent!.isReceivable
+          ? tr('Pembayaran diterima')
+          : tr('Utang dibayar');
     }
     final d = e.debt!;
     if (d.isReceivable) {
-      if (d.isSale) return 'Penjualan';
-      return d.cashMoved ? 'Pemberian hutang' : 'Transaksi';
+      if (d.isSale) return tr('Penjualan');
+      return d.cashMoved ? tr('Pemberian hutang') : tr('Transaksi');
     }
-    return d.cashMoved ? 'Utang diterima (modal)' : 'Pembelian kredit';
+    return d.cashMoved ? tr('Utang diterima (modal)') : tr('Pembelian kredit');
   }
 
   @override
@@ -207,12 +214,12 @@ class _ContactPageState extends State<ContactPage> {
         ]),
         actions: [
           IconButton(
-              tooltip: 'Ubah kontak',
+              tooltip: tr('Ubah kontak'),
               icon: const Icon(Icons.edit_outlined),
               onPressed: _edit),
           if (widget.business.canManage)
             IconButton(
-                tooltip: 'Hapus kontak',
+                tooltip: tr('Hapus kontak'),
                 icon: const Icon(Icons.delete_outline_rounded),
                 onPressed: _delete),
         ],
@@ -224,14 +231,14 @@ class _ContactPageState extends State<ContactPage> {
         builder: (context, snap) => FloatingActionButton.extended(
           onPressed: snap.hasData ? () => _manual(snap.data!) : null,
           icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Catat manual'),
+          label: Text(tr('Catat manual')),
         ),
       ),
       body: FutureBuilder<Ledger>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Text('Gagal memuat: ${snap.error}'));
+            return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
           }
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -246,16 +253,16 @@ class _ContactPageState extends State<ContactPage> {
           final String balanceHint;
           if (net > 0) {
             tone = Brand.receivable;
-            balanceLabel = 'Piutang';
-            balanceHint = '${_contact.name} berutang kepada Anda';
+            balanceLabel = tr('Piutang');
+            balanceHint = tr('{0} berutang kepada Anda', [_contact.name]);
           } else if (net < 0) {
             tone = Brand.payable;
-            balanceLabel = 'Utang';
-            balanceHint = 'Anda berutang kepada ${_contact.name}';
+            balanceLabel = tr('Utang');
+            balanceHint = tr('Anda berutang kepada {0}', [_contact.name]);
           } else {
             tone = Brand.income;
-            balanceLabel = 'Saldo';
-            balanceHint = 'Tidak ada utang piutang';
+            balanceLabel = tr('Saldo');
+            balanceHint = tr('Tidak ada utang piutang');
           }
 
           return ContentWidth(
@@ -280,7 +287,9 @@ class _ContactPageState extends State<ContactPage> {
                                     fit: BoxFit.scaleDown,
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                        net == 0 ? 'Lunas' : rupiah(net.abs()),
+                                        net == 0
+                                            ? tr('Lunas')
+                                            : rupiah(net.abs()),
                                         style: theme.textTheme.headlineSmall
                                             ?.copyWith(
                                                 fontWeight: FontWeight.w600,
@@ -300,7 +309,7 @@ class _ContactPageState extends State<ContactPage> {
                                   color: Brand.income, width: 1.4),
                             ),
                             onPressed: net != 0 ? () => _settle(l) : null,
-                            child: const Text('LUNASKAN'),
+                            child: Text(tr('LUNASKAN')),
                           ),
                         ]),
                       ]),
@@ -310,19 +319,19 @@ class _ContactPageState extends State<ContactPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Row(children: [
                     Expanded(
-                        child: Text('Tanggal',
+                        child: Text(tr('Tanggal'),
                             style: theme.textTheme.labelMedium
                                 ?.copyWith(color: muted))),
                     SizedBox(
                       width: 104,
-                      child: Text('Menerima',
+                      child: Text(tr('Menerima'),
                           textAlign: TextAlign.right,
                           style: theme.textTheme.labelMedium
                               ?.copyWith(color: muted)),
                     ),
                     SizedBox(
                       width: 104,
-                      child: Text('Memberi',
+                      child: Text(tr('Memberi'),
                           textAlign: TextAlign.right,
                           style: theme.textTheme.labelMedium
                               ?.copyWith(color: muted)),
@@ -331,9 +340,9 @@ class _ContactPageState extends State<ContactPage> {
                 ),
                 const SizedBox(height: 8),
                 if (entries.isEmpty)
-                  const EmptyState(
+                  EmptyState(
                     icon: Icons.history_rounded,
-                    title: 'Belum ada catatan',
+                    title: tr('Belum ada catatan'),
                   ),
                 for (final e in entries) ...[
                   _EntryTile(
@@ -382,10 +391,10 @@ class _ProfileCard extends StatelessWidget {
       child: empty
           ? Row(children: [
               Expanded(
-                child: Text('Belum ada nomor telepon atau alamat.',
+                child: Text(tr('Belum ada nomor telepon atau alamat.'),
                     style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
               ),
-              TextButton(onPressed: onEdit, child: const Text('Lengkapi')),
+              TextButton(onPressed: onEdit, child: Text(tr('Lengkapi'))),
             ])
           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (contact.phone != null)
@@ -393,14 +402,14 @@ class _ProfileCard extends StatelessWidget {
                   Icons.phone_outlined,
                   contact.phone!,
                   trailing: IconButton(
-                    tooltip: 'Salin nomor',
+                    tooltip: tr('Salin nomor'),
                     icon: const Icon(Icons.copy_rounded, size: 18),
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
                       await Clipboard.setData(
                           ClipboardData(text: contact.phone!));
                       messenger.showSnackBar(
-                          const SnackBar(content: Text('Nomor disalin.')));
+                          SnackBar(content: Text(tr('Nomor disalin.'))));
                     },
                   ),
                 ),
@@ -437,11 +446,12 @@ class _EntryTile extends StatelessWidget {
     Color? statusColor;
     if (debt != null) {
       if (debt.settled) {
-        status = 'Lunas';
+        status = tr('Lunas');
         statusColor = Brand.income;
       } else {
-        status =
-            debt.paid > 0 ? 'Sisa ${rupiah(debt.remaining)}' : 'Belum lunas';
+        status = debt.paid > 0
+            ? tr('Sisa {0}', [rupiah(debt.remaining)])
+            : tr('Belum lunas');
         statusColor = debt.overdue ? Brand.expense : Brand.pending;
       }
     }
@@ -533,28 +543,30 @@ class _MoneySheetState extends State<_MoneySheet> {
     final s = _settleable;
     if (v <= 0) return ' ';
     if (widget.receive) {
-      if (s == 0) return 'Dicatat sebagai utang/modal.';
-      if (v < s) return 'Sisa piutang ${formatMoney(s - v)}.';
-      if (v == s) return 'Piutang lunas.';
-      return 'Lunas. Kelebihan ${formatMoney(v - s)} menjadi utang.';
+      if (s == 0) return tr('Dicatat sebagai utang/modal.');
+      if (v < s) return tr('Sisa piutang {0}.', [formatMoney(s - v)]);
+      if (v == s) return tr('Piutang lunas.');
+      return tr('Lunas. Kelebihan {0} menjadi utang.', [formatMoney(v - s)]);
     }
-    if (s == 0) return 'Dicatat sebagai piutang.';
-    if (v < s) return 'Sisa utang ${formatMoney(s - v)}.';
-    if (v == s) return 'Utang lunas.';
-    return 'Lunas. Kelebihan ${formatMoney(v - s)} menjadi piutang.';
+    if (s == 0) return tr('Dicatat sebagai piutang.');
+    if (v < s) return tr('Sisa utang {0}.', [formatMoney(s - v)]);
+    if (v == s) return tr('Utang lunas.');
+    return tr('Lunas. Kelebihan {0} menjadi piutang.', [formatMoney(v - s)]);
   }
 
   String get _title {
     if (widget.receive)
-      return widget.net > 0 ? 'Terima pembayaran' : 'Terima utang / modal';
-    return widget.net < 0 ? 'Bayar utang' : 'Berikan hutang';
+      return widget.net > 0
+          ? tr('Terima pembayaran')
+          : tr('Terima utang / modal');
+    return widget.net < 0 ? tr('Bayar utang') : tr('Berikan hutang');
   }
 
   void _submit() {
     final v = _value;
     if (v <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Isi jumlah lebih dari 0.')));
+          SnackBar(content: Text(tr('Isi jumlah lebih dari 0.'))));
       return;
     }
     final note = _note.text.trim();
@@ -602,7 +614,8 @@ class _MoneySheetState extends State<_MoneySheet> {
                   onPressed: () => setState(() {
                     _amount.text = thousands(_settleable);
                   }),
-                  child: Text('Isi sesuai total (${formatMoney(_settleable)})'),
+                  child: Text(
+                      tr('Isi sesuai total ({0})', [formatMoney(_settleable)])),
                 ),
               ),
             Text(_effect(),
@@ -621,9 +634,9 @@ class _MoneySheetState extends State<_MoneySheet> {
                 if (d != null) setState(() => _date = d);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Tanggal',
-                  prefixIcon: Icon(Icons.event_rounded),
+                decoration: InputDecoration(
+                  labelText: tr('Tanggal'),
+                  prefixIcon: const Icon(Icons.event_rounded),
                 ),
                 child: Text(dateId(_date)),
               ),
@@ -631,16 +644,16 @@ class _MoneySheetState extends State<_MoneySheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _note,
-              decoration: const InputDecoration(
-                labelText: 'Catatan (opsional)',
-                prefixIcon: Icon(Icons.notes_rounded),
+              decoration: InputDecoration(
+                labelText: tr('Catatan (opsional)'),
+                prefixIcon: const Icon(Icons.notes_rounded),
               ),
             ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _submit,
               style: FilledButton.styleFrom(backgroundColor: color),
-              child: const Text('Simpan'),
+              child: Text(tr('Simpan')),
             ),
           ],
         ),

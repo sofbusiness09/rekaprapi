@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../common/widgets.dart';
 import '../config.dart';
 import '../theme/app_theme.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Penanda bahwa ganti password sedang berlangsung lewat kode di aplikasi. Selama
 /// aktif, AuthGate tidak membuka layar "password baru" dari tautan email, karena
@@ -102,7 +103,7 @@ class _ResetCodePageState extends State<ResetCodePage> {
     try {
       await widget.actions.sendCode(widget.email);
       if (!mounted) return;
-      _toast('Kode baru dikirim. Kode lama tidak berlaku lagi.');
+      _toast(tr('Kode baru dikirim. Kode lama tidak berlaku lagi.'));
       setState(_startWait);
     } on AuthException catch (e) {
       if (mounted) _toast(e.message);
@@ -114,15 +115,15 @@ class _ResetCodePageState extends State<ResetCodePage> {
   Future<void> _save() async {
     final code = _code.text.trim();
     if (!isResetCode(code)) {
-      _toast('Isi kode angka dari email.');
+      _toast(tr('Isi kode angka dari email.'));
       return;
     }
     if (_password.text.length < 6) {
-      _toast('Password minimal 6 karakter.');
+      _toast(tr('Password minimal 6 karakter.'));
       return;
     }
     if (_password.text != _confirm.text) {
-      _toast('Konfirmasi password tidak sama.');
+      _toast(tr('Konfirmasi password tidak sama.'));
       return;
     }
     setState(() => _busy = true);
@@ -143,12 +144,12 @@ class _ResetCodePageState extends State<ResetCodePage> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).popUntil((r) => r.isFirst);
       messenger.showSnackBar(
-          const SnackBar(content: Text('Password diganti. Anda sudah masuk.')));
+          SnackBar(content: Text(tr('Password diganti. Anda sudah masuk.'))));
     } on AuthException catch (e) {
       // Kode sudah benar dan pengguna sudah masuk; password lama tetap berlaku.
       if (mounted) {
         setState(() => _busy = false);
-        _toast('Password belum diganti: ${e.message}');
+        _toast(tr('Password belum diganti: {0}', [e.message]));
       }
     } finally {
       PasswordResetFlow.active = false;
@@ -158,7 +159,8 @@ class _ResetCodePageState extends State<ResetCodePage> {
   String _codeError(AuthException e) {
     final m = e.message.toLowerCase();
     if (m.contains('expired') || m.contains('invalid') || m.contains('token')) {
-      return 'Kode salah atau sudah kedaluwarsa. Periksa lagi, atau minta kode baru.';
+      return tr(
+          'Kode salah atau sudah kedaluwarsa. Periksa lagi, atau minta kode baru.');
     }
     return e.message;
   }
@@ -168,7 +170,7 @@ class _ResetCodePageState extends State<ResetCodePage> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
-      appBar: AppBar(title: const Text('Lupa password')),
+      appBar: AppBar(title: Text(tr('Lupa password'))),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -185,12 +187,12 @@ class _ResetCodePageState extends State<ResetCodePage> {
                           color: Brand.seed, size: 56),
                     ),
                     const SizedBox(height: 16),
-                    Text('Masukkan kode dari email',
+                    Text(tr('Masukkan kode dari email'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Text('Kode dikirim ke ${widget.email}.',
+                    Text(tr('Kode dikirim ke {0}.', [widget.email]),
                         textAlign: TextAlign.center,
                         style:
                             theme.textTheme.bodyMedium?.copyWith(color: muted)),
@@ -205,8 +207,8 @@ class _ResetCodePageState extends State<ResetCodePage> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       style: theme.textTheme.headlineSmall?.copyWith(
                           letterSpacing: 6, fontWeight: FontWeight.w600),
-                      decoration: const InputDecoration(
-                        labelText: 'Kode',
+                      decoration: InputDecoration(
+                        labelText: tr('Kode'),
                         counterText: '',
                       ),
                     ),
@@ -216,7 +218,7 @@ class _ResetCodePageState extends State<ResetCodePage> {
                       obscureText: _hide,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'Password baru',
+                        labelText: tr('Password baru'),
                         prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           icon: Icon(_hide
@@ -230,9 +232,9 @@ class _ResetCodePageState extends State<ResetCodePage> {
                     TextField(
                       controller: _confirm,
                       obscureText: _hide,
-                      decoration: const InputDecoration(
-                        labelText: 'Ulangi password baru',
-                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                      decoration: InputDecoration(
+                        labelText: tr('Ulangi password baru'),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
                       ),
                       onSubmitted: (_) => _busy ? null : _save(),
                     ),
@@ -245,13 +247,13 @@ class _ResetCodePageState extends State<ResetCodePage> {
                               height: 22,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2.5, color: Colors.white))
-                          : const Text('Simpan password'),
+                          : Text(tr('Simpan password')),
                     ),
                     TextButton(
                       onPressed: _busy || _wait > 0 ? null : _resend,
                       child: Text(_wait > 0
-                          ? 'Kirim ulang kode ($_wait)'
-                          : 'Kirim ulang kode'),
+                          ? tr('Kirim ulang kode ({0})', [_wait])
+                          : tr('Kirim ulang kode')),
                     ),
                   ],
                 ),

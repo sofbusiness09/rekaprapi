@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'business.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Undangan yang menunggu dijawab oleh pengguna ini.
 class BusinessInvite {
@@ -65,7 +66,7 @@ class BusinessController extends ChangeNotifier {
               role: m['role'] as String,
               kind: BusinessKind.parse(m['businesses']['kind'] as String?),
               photoUrl: m['businesses']['photo_url'] as String?,
-              currency: (m['businesses']['currency'] as String?) ?? 'IDR',
+              currency: (m['businesses']['currency'] as String?) ?? tr('IDR'),
             ),
       ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -148,8 +149,9 @@ class BusinessController extends ChangeNotifier {
         .eq('id', id)
         .select('id');
     if ((rows as List).isEmpty) {
-      throw const PostgrestException(
-          message: 'Hanya Pemilik dan Admin yang bisa mengganti mata uang.');
+      throw PostgrestException(
+          message:
+              tr('Hanya Pemilik dan Admin yang bisa mengganti mata uang.'));
     }
     businesses = [
       for (final b in businesses) b.id == id ? b.copyWith(currency: code) : b,

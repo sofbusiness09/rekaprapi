@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'apps_script_client.dart';
 import 'backup_settings.dart';
 import 'recovery.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Pemeriksaan dan penyambungan di sekitar pemulihan. Dapat diganti tiruan saat diuji.
 class RestoreBackend {
@@ -147,13 +148,13 @@ class _RestorePageState extends State<RestorePage> {
 
   Future<void> _read(String url, String token) async {
     if (!isValidScriptUrl(url)) {
-      setState(() => _error =
-          'Alamat harus berbentuk https://script.google.com/macros/s/…/exec');
+      setState(() => _error = tr(
+          'Alamat harus berbentuk https://script.google.com/macros/s/…/exec'));
       return;
     }
     if (token.trim().length < 16) {
-      setState(
-          () => _error = 'Isi kode rahasia dari kode skrip di Google Sheet.');
+      setState(() =>
+          _error = tr('Isi kode rahasia dari kode skrip di Google Sheet.'));
       return;
     }
     setState(() {
@@ -194,7 +195,7 @@ class _RestorePageState extends State<RestorePage> {
         _needsUpdate = e.code == 'old_script';
       });
     } catch (e) {
-      if (mounted) setState(() => _error = 'Gagal membaca: $e');
+      if (mounted) setState(() => _error = tr('Gagal membaca: {0}', [e]));
     } finally {
       if (mounted) setState(() => _reading = false);
     }
@@ -204,10 +205,11 @@ class _RestorePageState extends State<RestorePage> {
     if (value && _conflicts.isNotEmpty) {
       final ok = await confirmDialog(
         context,
-        title: 'Tetap sambungkan?',
-        body:
-            'Google Sheet ini masih dipakai untuk backup ${_conflictNames()}. Backup kedua pembukuan akan saling menimpa di sheet yang sama.',
-        okLabel: 'Tetap sambungkan',
+        title: tr('Tetap sambungkan?'),
+        body: tr(
+            'Google Sheet ini masih dipakai untuk backup {0}. Backup kedua pembukuan akan saling menimpa di sheet yang sama.',
+            [_conflictNames()]),
+        okLabel: tr('Tetap sambungkan'),
       );
       if (!ok || !mounted) return;
     }
@@ -224,24 +226,27 @@ class _RestorePageState extends State<RestorePage> {
     final target = widget.target;
     final name = into ? target!.name : _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Isi nama pembukuan baru.');
+      setState(() => _error = tr('Isi nama pembukuan baru.'));
       return;
     }
     final ok = await confirmDialog(
       context,
       title: into
-          ? 'Pulihkan ke pembukuan ini?'
-          : 'Pulihkan sebagai pembukuan baru?',
+          ? tr('Pulihkan ke pembukuan ini?')
+          : tr('Pulihkan sebagai pembukuan baru?'),
       body: into
-          ? 'Data backup (${payload.summary}) akan dimasukkan ke "$name".'
-          : '"$name" akan dibuat dari data backup (${payload.summary}). Pembukuan lain tidak diubah.',
-      okLabel: 'Pulihkan',
+          ? tr('Data backup ({0}) akan dimasukkan ke "{1}".',
+              [payload.summary, name])
+          : tr(
+              '"{0}" akan dibuat dari data backup ({1}). Pembukuan lain tidak diubah.',
+              [name, payload.summary]),
+      okLabel: tr('Pulihkan'),
     );
     if (!ok || !mounted) return;
     setState(() {
       _restoring = true;
       _error = null;
-      _step = 'Memulai…';
+      _step = tr('Memulai…');
       _progress = 0;
     });
     try {
@@ -274,12 +279,15 @@ class _RestorePageState extends State<RestorePage> {
       Navigator.of(context).popUntil((r) => r.isFirst);
       messenger.showSnackBar(SnackBar(
           content: Text(connectFailed
-              ? 'Pembukuan "$name" berhasil dipulihkan, tetapi backup belum tersambung. Sambungkan dari Pengaturan.'
-              : 'Pembukuan "$name" berhasil dipulihkan.')));
+              ? tr(
+                  'Pembukuan "{0}" berhasil dipulihkan, tetapi backup belum tersambung. Sambungkan dari Pengaturan.',
+                  [name])
+              : tr('Pembukuan "{0}" berhasil dipulihkan.', [name]))));
     } on PostgrestException catch (e) {
-      if (mounted) setState(() => _error = 'Gagal memulihkan: ${e.message}');
+      if (mounted)
+        setState(() => _error = tr('Gagal memulihkan: {0}', [e.message]));
     } catch (e) {
-      if (mounted) setState(() => _error = 'Gagal memulihkan: $e');
+      if (mounted) setState(() => _error = tr('Gagal memulihkan: {0}', [e]));
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
@@ -294,14 +302,14 @@ class _RestorePageState extends State<RestorePage> {
     final target = widget.target;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pulihkan dari Google Sheet')),
+      appBar: AppBar(title: Text(tr('Pulihkan dari Google Sheet'))),
       body: ContentWidth(
         maxWidth: 680,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
           children: [
             Text(
-              'Data dibaca dari Google Sheet hasil backup, lalu dimasukkan sebagai pembukuan baru. Pembukuan lain tidak diubah.',
+              tr('Data dibaca dari Google Sheet hasil backup, lalu dimasukkan sebagai pembukuan baru. Pembukuan lain tidak diubah.'),
               style: theme.textTheme.bodyMedium?.copyWith(color: muted),
             ),
             const SizedBox(height: 16),
@@ -310,7 +318,7 @@ class _RestorePageState extends State<RestorePage> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Google Sheet yang tersambung',
+                      Text(tr('Google Sheet yang tersambung'),
                           style: theme.textTheme.titleSmall
                               ?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
@@ -319,7 +327,7 @@ class _RestorePageState extends State<RestorePage> {
                             ? null
                             : () => _read(c.scriptUrl, c.token),
                         icon: const Icon(Icons.cloud_download_rounded),
-                        label: const Text('Baca dari sheet ini'),
+                        label: Text(tr('Baca dari sheet ini')),
                       ),
                     ]),
               ),
@@ -329,21 +337,21 @@ class _RestorePageState extends State<RestorePage> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(c == null ? 'Sumber' : 'Atau sumber lain',
+                    Text(c == null ? tr('Sumber') : tr('Atau sumber lain'),
                         style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _url,
                       keyboardType: TextInputType.url,
-                      decoration: const InputDecoration(
-                          labelText: 'Alamat skrip (…/exec)'),
+                      decoration: InputDecoration(
+                          labelText: tr('Alamat skrip (…/exec)')),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _token,
-                      decoration: const InputDecoration(
-                          labelText: 'Kode rahasia (ada di kode skrip)'),
+                      decoration: InputDecoration(
+                          labelText: tr('Kode rahasia (ada di kode skrip)')),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
@@ -351,7 +359,7 @@ class _RestorePageState extends State<RestorePage> {
                           ? null
                           : () => _read(_url.text, _token.text),
                       icon: const Icon(Icons.cloud_download_outlined),
-                      label: const Text('Baca data'),
+                      label: Text(tr('Baca data')),
                     ),
                   ]),
             ),
@@ -369,7 +377,7 @@ class _RestorePageState extends State<RestorePage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    'Buka Pengaturan > Backup dan Pemulihan untuk panduan memperbarui skrip.',
+                    tr('Buka Pengaturan > Backup dan Pemulihan untuk panduan memperbarui skrip.'),
                     style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ),
@@ -392,7 +400,11 @@ class _RestorePageState extends State<RestorePage> {
                                     style: theme.textTheme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.w600)),
                                 Text(
-                                    'Pembukuan ${payload.kind.label} · backup ${savedAtLabel(_savedAt ?? payload.createdAt?.toIso8601String())}',
+                                    tr('Pembukuan {0} · backup {1}', [
+                                      payload.kind.label,
+                                      savedAtLabel(_savedAt ??
+                                          payload.createdAt?.toIso8601String())
+                                    ]),
                                     style: theme.textTheme.bodySmall
                                         ?.copyWith(color: muted)),
                               ]),
@@ -405,11 +417,12 @@ class _RestorePageState extends State<RestorePage> {
                       if (_canUseTarget && target != null) ...[
                         SegmentedButton<bool>(
                           showSelectedIcon: false,
-                          segments: const [
+                          segments: [
                             ButtonSegment(
-                                value: false, label: Text('Pembukuan baru')),
+                                value: false,
+                                label: Text(tr('Pembukuan baru'))),
                             ButtonSegment(
-                                value: true, label: Text('Pembukuan ini')),
+                                value: true, label: Text(tr('Pembukuan ini'))),
                           ],
                           selected: {_intoTarget},
                           onSelectionChanged: _restoring
@@ -420,25 +433,26 @@ class _RestorePageState extends State<RestorePage> {
                       ],
                       if (_intoTarget && target != null)
                         Text(
-                            'Data dimasukkan ke "${target.name}" yang masih kosong. Nama dan anggotanya tidak berubah.',
+                            tr('Data dimasukkan ke "{0}" yang masih kosong. Nama dan anggotanya tidak berubah.',
+                                [target.name]),
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: muted))
                       else
                         TextField(
                           controller: _name,
                           enabled: !_restoring,
-                          decoration: const InputDecoration(
-                              labelText: 'Nama pembukuan baru'),
+                          decoration: InputDecoration(
+                              labelText: tr('Nama pembukuan baru')),
                         ),
                       if (!_targetAlreadyConnected) ...[
                         const SizedBox(height: 8),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                              'Lanjutkan backup ke Google Sheet ini'),
+                          title:
+                              Text(tr('Lanjutkan backup ke Google Sheet ini')),
                           subtitle: _conflicts.isEmpty
-                              ? const Text(
-                                  'Matikan bila pembukuan aslinya masih aktif dan masih backup ke sheet ini.')
+                              ? Text(tr(
+                                  'Matikan bila pembukuan aslinya masih aktif dan masih backup ke sheet ini.'))
                               : null,
                           value: _keepBackup,
                           onChanged: _restoring ? null : _setKeepBackup,
@@ -460,7 +474,8 @@ class _RestorePageState extends State<RestorePage> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                        'Google Sheet ini masih dipakai untuk backup ${_conflictNames()}. Kalau dihidupkan, backup kedua pembukuan akan saling menimpa di sheet yang sama.',
+                                        tr('Google Sheet ini masih dipakai untuk backup {0}. Kalau dihidupkan, backup kedua pembukuan akan saling menimpa di sheet yang sama.',
+                                            [_conflictNames()]),
                                         style: theme.textTheme.bodySmall),
                                   ),
                                 ]),

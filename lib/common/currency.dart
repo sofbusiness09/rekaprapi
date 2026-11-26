@@ -1,3 +1,5 @@
+import 'package:rekap_rapi/l10n/l10n.dart';
+
 /// Mata uang pembukuan. Satu pembukuan memakai satu mata uang; jumlah selalu bulat
 /// (tanpa sen). Mengganti mata uang hanya mengganti tampilan, bukan mengonversi nilai.
 class Currency {
@@ -20,7 +22,10 @@ class Currency {
   /// Awalan pada kolom isian jumlah, mis. "Rp ".
   String get prefix => '$symbol ';
 
-  String get label => '$name ($code)';
+  /// Nama dalam bahasa aktif.
+  String get localName => tr(name);
+
+  String get label => '$localName ($code)';
 }
 
 /// Rupiah lebih dulu, lalu mata uang yang paling banyak dipakai secara internasional

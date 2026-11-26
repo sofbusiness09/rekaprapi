@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'currency.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Lembar pilihan mata uang dengan kotak cari (nama, kode, atau simbol).
 /// Mengembalikan mata uang yang dipilih, atau null bila ditutup.
@@ -36,6 +37,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
       for (final c in currencies)
         if (q.isEmpty ||
             c.name.toLowerCase().contains(q) ||
+            c.localName.toLowerCase().contains(q) ||
             c.code.toLowerCase().contains(q) ||
             c.symbol.toLowerCase() == q)
           c,
@@ -57,9 +59,9 @@ class _CurrencySheetState extends State<_CurrencySheet> {
             const SizedBox(height: 12),
             TextField(
               onChanged: (v) => setState(() => _query = v),
-              decoration: const InputDecoration(
-                hintText: 'Cari nama atau kode, mis. Dirham atau AED',
-                prefixIcon: Icon(Icons.search_rounded),
+              decoration: InputDecoration(
+                hintText: tr('Cari nama atau kode, mis. Dirham atau AED'),
+                prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
             const SizedBox(height: 8),
@@ -67,7 +69,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
               child: items.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Mata uang tidak ditemukan.',
+                      child: Text(tr('Mata uang tidak ditemukan.'),
                           style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant)),
                     )
@@ -89,7 +91,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                                 style: theme.textTheme.titleSmall
                                     ?.copyWith(fontWeight: FontWeight.w700)),
                           ),
-                          title: Text(c.name),
+                          title: Text(c.localName),
                           subtitle:
                               Text('${c.code} · ${formatMoney(50000, c)}'),
                           trailing: picked

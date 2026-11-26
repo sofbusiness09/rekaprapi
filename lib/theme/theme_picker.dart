@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'theme_controller.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Pemilih tampilan Terang / Gelap / Ikuti perangkat.
 /// [compact] hanya menampilkan ikon (untuk sidebar yang sempit).
@@ -27,20 +28,20 @@ class ThemeModePicker extends StatelessWidget {
             ButtonSegment(
               value: ThemeMode.light,
               icon: const Icon(Icons.light_mode_rounded, size: 18),
-              label: compact ? null : const _OneLine('Terang'),
-              tooltip: 'Terang',
+              label: compact ? null : _OneLine(tr('Terang')),
+              tooltip: tr('Terang'),
             ),
             ButtonSegment(
               value: ThemeMode.dark,
               icon: const Icon(Icons.dark_mode_rounded, size: 18),
-              label: compact ? null : const _OneLine('Gelap'),
-              tooltip: 'Gelap',
+              label: compact ? null : _OneLine(tr('Gelap')),
+              tooltip: tr('Gelap'),
             ),
             ButtonSegment(
               value: ThemeMode.system,
               icon: const Icon(Icons.brightness_auto_rounded, size: 18),
-              label: compact ? null : const _OneLine('Otomatis'),
-              tooltip: 'Ikuti perangkat',
+              label: compact ? null : _OneLine(tr('Otomatis')),
+              tooltip: tr('Ikuti perangkat'),
             ),
           ],
           selected: {themeController.mode},
@@ -58,10 +59,10 @@ class ThemeModeColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const modes = <(ThemeMode, IconData, String)>[
-      (ThemeMode.light, Icons.light_mode_rounded, 'Terang'),
-      (ThemeMode.dark, Icons.dark_mode_rounded, 'Gelap'),
-      (ThemeMode.system, Icons.brightness_auto_rounded, 'Ikuti perangkat'),
+    final modes = <(ThemeMode, IconData, String)>[
+      (ThemeMode.light, Icons.light_mode_rounded, tr('Terang')),
+      (ThemeMode.dark, Icons.dark_mode_rounded, tr('Gelap')),
+      (ThemeMode.system, Icons.brightness_auto_rounded, tr('Ikuti perangkat')),
     ];
     return ListenableBuilder(
       listenable: themeController,
@@ -108,7 +109,7 @@ class ThemeToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
-      tooltip: dark ? 'Mode terang' : 'Mode gelap',
+      tooltip: dark ? tr('Mode terang') : tr('Mode gelap'),
       onPressed: () =>
           themeController.set(dark ? ThemeMode.light : ThemeMode.dark),
       icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),

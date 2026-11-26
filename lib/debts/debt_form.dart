@@ -8,6 +8,7 @@ import '../common/widgets.dart';
 import 'contact_picker.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Formulir tambah/ubah utang piutang. Mengembalikan true bila tersimpan.
 /// Saat mengubah, jenis dan pilihan "uang berpindah" tidak bisa diganti.
@@ -89,7 +90,7 @@ class _DebtFormState extends State<_DebtForm> {
   Future<void> _save() async {
     final amount = parseAmount(_amount.text);
     if (amount == null || amount <= 0) {
-      _toast('Isi jumlah lebih dari 0.');
+      _toast(tr('Isi jumlah lebih dari 0.'));
       return;
     }
     final problem = _contact.validate();
@@ -131,10 +132,10 @@ class _DebtFormState extends State<_DebtForm> {
   @override
   Widget build(BuildContext context) {
     final title = _editing
-        ? 'Ubah catatan'
+        ? tr('Ubah catatan')
         : (widget.lockKind
-            ? (_receivable ? 'Catat piutang' : 'Catat utang')
-            : 'Catat utang piutang');
+            ? (_receivable ? tr('Catat piutang') : tr('Catat utang'))
+            : tr('Catat utang piutang'));
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(leading: const CloseButton(), title: Text(title)),
@@ -152,7 +153,7 @@ class _DebtFormState extends State<_DebtForm> {
                 maxWidth: 560,
                 child: FilledButton(
                   onPressed: _busy ? null : _save,
-                  child: const Text('Simpan'),
+                  child: Text(tr('Simpan')),
                 ),
               ),
             ),
@@ -168,10 +169,10 @@ class _DebtFormState extends State<_DebtForm> {
               children: [
                 if (!_editing && !widget.lockKind)
                   SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
-                          value: 'receivable', label: Text('Piutang')),
-                      ButtonSegment(value: 'payable', label: Text('Utang')),
+                          value: 'receivable', label: Text(tr('Piutang'))),
+                      ButtonSegment(value: 'payable', label: Text(tr('Utang'))),
                     ],
                     selected: {_kind},
                     onSelectionChanged: (s) => setState(() => _kind = s.first),
@@ -181,8 +182,8 @@ class _DebtFormState extends State<_DebtForm> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       _receivable
-                          ? 'Piutang: orang lain berutang kepada Anda.'
-                          : 'Utang: Anda berutang kepada orang lain.',
+                          ? tr('Piutang: orang lain berutang kepada Anda.')
+                          : tr('Utang: Anda berutang kepada orang lain.'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -190,7 +191,9 @@ class _DebtFormState extends State<_DebtForm> {
                 ContactPicker(
                   controller: _contact,
                   contacts: widget.contacts,
-                  label: _receivable ? 'Pelanggan / peminjam' : 'Pemberi utang',
+                  label: _receivable
+                      ? tr('Pelanggan / peminjam')
+                      : tr('Pemberi utang'),
                   onChanged: () => setState(() {}),
                 ),
                 const SizedBox(height: 12),
@@ -198,7 +201,8 @@ class _DebtFormState extends State<_DebtForm> {
                   controller: _amount,
                   onChanged: () => setState(() {}),
                   decoration: InputDecoration(
-                      labelText: 'Jumlah', prefixText: activeCurrency.prefix),
+                      labelText: tr('Jumlah'),
+                      prefixText: activeCurrency.prefix),
                 ),
                 if (!_editing) ...[
                   const SizedBox(height: 4),
@@ -207,8 +211,8 @@ class _DebtFormState extends State<_DebtForm> {
                     value: _cashMoved,
                     onChanged: (v) => setState(() => _cashMoved = v),
                     title: Text(_receivable
-                        ? 'Uang dipinjamkan sekarang'
-                        : 'Uang diterima sekarang'),
+                        ? tr('Uang dipinjamkan sekarang')
+                        : tr('Uang diterima sekarang')),
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -220,7 +224,7 @@ class _DebtFormState extends State<_DebtForm> {
                         if (d != null) setState(() => _date = d);
                       },
                       child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Tanggal'),
+                        decoration: InputDecoration(labelText: tr('Tanggal')),
                         child: Text(dateId(_date)),
                       ),
                     ),
@@ -234,7 +238,7 @@ class _DebtFormState extends State<_DebtForm> {
                       },
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          labelText: 'Jatuh tempo',
+                          labelText: tr('Jatuh tempo'),
                           suffixIcon: _due == null
                               ? null
                               : IconButton(
@@ -250,7 +254,7 @@ class _DebtFormState extends State<_DebtForm> {
                 TextField(
                   controller: _note,
                   decoration:
-                      const InputDecoration(labelText: 'Catatan (opsional)'),
+                      InputDecoration(labelText: tr('Catatan (opsional)')),
                 ),
               ],
             ),
@@ -325,7 +329,7 @@ class _PaymentFormState extends State<_PaymentForm> {
   Future<void> _save() async {
     final a = parseAmount(_amount.text);
     if (a == null || a <= 0 || a > widget.maxAmount) {
-      _toast('Isi jumlah 1 sampai ${formatMoney(widget.maxAmount)}.');
+      _toast(tr('Isi jumlah 1 sampai {0}.', [formatMoney(widget.maxAmount)]));
       return;
     }
     setState(() => _busy = true);
@@ -357,21 +361,21 @@ class _PaymentFormState extends State<_PaymentForm> {
           children: [
             Text(
                 widget.existing == null
-                    ? 'Catat pembayaran'
-                    : 'Ubah pembayaran',
+                    ? tr('Catat pembayaran')
+                    : tr('Ubah pembayaran'),
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Maksimal ${formatMoney(widget.maxAmount)}',
+              tr('Maksimal {0}', [formatMoney(widget.maxAmount)]),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
             AmountField(
               controller: _amount,
               autofocus: true,
-              title: 'Jumlah pembayaran',
+              title: tr('Jumlah pembayaran'),
               decoration: InputDecoration(
-                  labelText: 'Jumlah', prefixText: activeCurrency.prefix),
+                  labelText: tr('Jumlah'), prefixText: activeCurrency.prefix),
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -385,20 +389,19 @@ class _PaymentFormState extends State<_PaymentForm> {
                 if (d != null) setState(() => _date = d);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Tanggal'),
+                decoration: InputDecoration(labelText: tr('Tanggal')),
                 child: Text(dateId(_date)),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _note,
-              decoration:
-                  const InputDecoration(labelText: 'Catatan (opsional)'),
+              decoration: InputDecoration(labelText: tr('Catatan (opsional)')),
             ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _busy ? null : _save,
-              child: const Text('Simpan'),
+              child: Text(tr('Simpan')),
             ),
           ],
         ),

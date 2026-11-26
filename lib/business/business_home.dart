@@ -25,6 +25,7 @@ import 'app_sidebar.dart';
 import 'business.dart';
 import 'business_controller.dart';
 import 'business_switcher.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Tab layar lebar: Rekapan (dashboard utama), Transaksi, Utang, dan Pengaturan.
 const _tabs = <(IconData, IconData, String)>[
@@ -185,8 +186,8 @@ class _BusinessHomeState extends State<BusinessHome> {
   /// Ikon mata: sembunyikan atau tampilkan semua nominal.
   Widget _privacyButton() => IconButton(
         tooltip: privacyController.hidden
-            ? 'Tampilkan nominal'
-            : 'Sembunyikan nominal',
+            ? tr('Tampilkan nominal')
+            : tr('Sembunyikan nominal'),
         onPressed: privacyController.toggle,
         icon: Icon(privacyController.hidden
             ? Icons.visibility_off_outlined
@@ -208,8 +209,8 @@ class _BusinessHomeState extends State<BusinessHome> {
     }
     return IconButton(
       tooltip: _backup.configured
-          ? 'Backup ke Google Sheet'
-          : 'Atur backup Google Sheet',
+          ? tr('Backup ke Google Sheet')
+          : tr('Atur backup Google Sheet'),
       onPressed: _backup.loading ? null : _backupTap,
       icon: Badge(
         isLabelVisible: _backup.needsAttention,
@@ -223,31 +224,35 @@ class _BusinessHomeState extends State<BusinessHome> {
   // --- Tombol Catat ---
 
   List<(_CatatKind, IconData, Color, String)> _catatOptions() {
-    const income = (
+    final income = (
       _CatatKind.income,
       Icons.south_west_rounded,
       Brand.income,
-      'Pemasukan'
+      tr('Pemasukan')
     );
-    const expense = (
+    final expense = (
       _CatatKind.expense,
       Icons.north_east_rounded,
       Brand.expense,
-      'Pengeluaran'
+      tr('Pengeluaran')
     );
-    const debt = (
+    final debt = (
       _CatatKind.debtGroup,
       Icons.handshake_rounded,
       Brand.info,
-      'Utang piutang'
+      tr('Utang piutang')
     );
-    const payable =
-        (_CatatKind.payable, Icons.call_made_rounded, Brand.payable, 'Utang');
-    const receivable = (
+    final payable = (
+      _CatatKind.payable,
+      Icons.call_made_rounded,
+      Brand.payable,
+      tr('Utang')
+    );
+    final receivable = (
       _CatatKind.receivable,
       Icons.call_received_rounded,
       Brand.receivable,
-      'Piutang'
+      tr('Piutang')
     );
     return switch (_tab) {
       1 => [income, expense],
@@ -256,13 +261,18 @@ class _BusinessHomeState extends State<BusinessHome> {
     };
   }
 
-  List<(_CatatKind, IconData, Color, String)> _debtOptions() => const [
-        (_CatatKind.payable, Icons.call_made_rounded, Brand.payable, 'Utang'),
+  List<(_CatatKind, IconData, Color, String)> _debtOptions() => [
+        (
+          _CatatKind.payable,
+          Icons.call_made_rounded,
+          Brand.payable,
+          tr('Utang')
+        ),
         (
           _CatatKind.receivable,
           Icons.call_received_rounded,
           Brand.receivable,
-          'Piutang'
+          tr('Piutang')
         ),
       ];
 
@@ -280,7 +290,7 @@ class _BusinessHomeState extends State<BusinessHome> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Catat apa?',
+                child: Text(tr('Catat apa?'),
                     style: Theme.of(sheetContext)
                         .textTheme
                         .titleLarge
@@ -459,7 +469,7 @@ class _BusinessHomeState extends State<BusinessHome> {
             onOpenSwitcher: _openSwitcher,
             accent: backgroundController.preset.accent,
             items: [
-              for (final t in _tabs) SidebarItem(t.$1, t.$2, t.$3),
+              for (final t in _tabs) SidebarItem(t.$1, t.$2, tr(t.$3)),
             ],
             selected: _tab,
             onSelected: (i) => setState(() => _tab = i),
@@ -479,7 +489,7 @@ class _BusinessHomeState extends State<BusinessHome> {
                     child: FloatingActionButton.extended(
                       onPressed: _catat,
                       icon: const Icon(Icons.add_rounded),
-                      label: const Text('Catat'),
+                      label: Text(tr('Catat')),
                     ),
                   ),
                 ),
@@ -501,7 +511,7 @@ class _BusinessHomeState extends State<BusinessHome> {
                 backgroundColor: transparent,
                 leading: BackButton(
                     onPressed: () => setState(() => _settingsOpen = false)),
-                title: const Text('Pengaturan'),
+                title: Text(tr('Pengaturan')),
               )
             : AppBar(
                 backgroundColor: transparent,
@@ -522,7 +532,7 @@ class _BusinessHomeState extends State<BusinessHome> {
         // Panel bawah melayang: empat tab dengan tombol "+" di tengah.
         bottomNavigationBar: FloatingNavBar(
           items: [
-            for (final t in _phoneTabs) FloatingNavItem(t.$1, t.$2, t.$3),
+            for (final t in _phoneTabs) FloatingNavItem(t.$1, t.$2, tr(t.$3)),
           ],
           selectedIndex: _tab.clamp(0, _phoneTabs.length - 1),
           onCenter: _catat,

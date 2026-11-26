@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../common/format.dart';
 import 'settings_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 const _verbs = {
   'create': 'menambah',
@@ -40,17 +41,17 @@ class ActivityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Riwayat aktivitas')),
+      appBar: AppBar(title: Text(tr('Riwayat aktivitas'))),
       body: FutureBuilder<List<ActivityEntry>>(
         future: repo.activity(),
         builder: (context, snap) {
           if (snap.hasError)
-            return Center(child: Text('Gagal memuat: ${snap.error}'));
+            return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
           if (!snap.hasData)
             return const Center(child: CircularProgressIndicator());
           final items = snap.data!;
           if (items.isEmpty)
-            return const Center(child: Text('Belum ada aktivitas.'));
+            return Center(child: Text(tr('Belum ada aktivitas.')));
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 1),

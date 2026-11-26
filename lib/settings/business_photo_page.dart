@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../common/dialogs.dart';
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Wadah foto profil pembukuan di Supabase Storage.
 const businessPhotoBucket = 'business-photos';
@@ -83,8 +84,8 @@ class BusinessPhotoRepository {
         .eq('id', businessId)
         .select('id');
     if (rows.isEmpty) {
-      throw const PostgrestException(
-          message: 'Hanya Pemilik dan Admin yang bisa mengganti foto.');
+      throw PostgrestException(
+          message: tr('Hanya Pemilik dan Admin yang bisa mengganti foto.'));
     }
   }
 
@@ -116,12 +117,12 @@ Future<PickedPhoto?> pickBusinessPhoto() async {
   if (file == null) return null;
   final mime = photoMimeType(file.mimeType, file.name);
   if (mime == null) {
-    throw const FormatException('Pakai gambar JPG, PNG, atau WebP.');
+    throw FormatException(tr('Pakai gambar JPG, PNG, atau WebP.'));
   }
   final bytes = await file.readAsBytes();
   if (bytes.length > businessPhotoMaxBytes) {
-    throw const FormatException(
-        'Gambar terlalu besar. Pilih gambar lain yang lebih kecil.');
+    throw FormatException(
+        tr('Gambar terlalu besar. Pilih gambar lain yang lebih kecil.'));
   }
   return PickedPhoto(bytes, mime);
 }
@@ -207,17 +208,17 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
     final save = widget.saveProfile;
     if (save == null) return;
     if (_name.text.trim().isEmpty) {
-      _toast('Nama pembukuan wajib diisi.');
+      _toast(tr('Nama pembukuan wajib diisi.'));
       return;
     }
     setState(() => _busy = true);
     try {
       await save(_name.text, _address.text, _phone.text);
-      if (mounted) _toast('Profil pembukuan disimpan.');
+      if (mounted) _toast(tr('Profil pembukuan disimpan.'));
     } on PostgrestException catch (e) {
       if (mounted) _toast(e.message);
     } catch (e) {
-      if (mounted) _toast('Gagal menyimpan: $e');
+      if (mounted) _toast(tr('Gagal menyimpan: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -235,15 +236,15 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
       if (!mounted) return;
       setState(() => _url = url);
       widget.onChanged(url);
-      _toast('Foto profil diganti.');
+      _toast(tr('Foto profil diganti.'));
     } on FormatException catch (e) {
       if (mounted) _toast(e.message);
     } on StorageException catch (e) {
-      if (mounted) _toast('Gagal mengunggah: ${e.message}');
+      if (mounted) _toast(tr('Gagal mengunggah: {0}', [e.message]));
     } on PostgrestException catch (e) {
       if (mounted) _toast(e.message);
     } catch (e) {
-      if (mounted) _toast('Gagal mengganti foto: $e');
+      if (mounted) _toast(tr('Gagal mengganti foto: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -251,9 +252,9 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
 
   Future<void> _remove() async {
     final ok = await confirmDialog(context,
-        title: 'Hapus foto profil?',
-        body: 'Pembukuan akan kembali memakai inisial nama.',
-        okLabel: 'Hapus');
+        title: tr('Hapus foto profil?'),
+        body: tr('Pembukuan akan kembali memakai inisial nama.'),
+        okLabel: tr('Hapus'));
     if (!ok) return;
     setState(() => _busy = true);
     try {
@@ -261,11 +262,11 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
       if (!mounted) return;
       setState(() => _url = null);
       widget.onChanged(null);
-      _toast('Foto profil dihapus.');
+      _toast(tr('Foto profil dihapus.'));
     } on PostgrestException catch (e) {
       if (mounted) _toast(e.message);
     } catch (e) {
-      if (mounted) _toast('Gagal menghapus foto: $e');
+      if (mounted) _toast(tr('Gagal menghapus foto: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -276,7 +277,8 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-          title: Text(_withProfile ? 'Profil pembukuan' : 'Foto profil')),
+          title:
+              Text(_withProfile ? tr('Profil pembukuan') : tr('Foto profil'))),
       body: ContentWidth(
         maxWidth: 480,
         child: ListView(
@@ -295,14 +297,14 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
               TextButton.icon(
                 onPressed: _busy ? null : _change,
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(_url == null ? 'Pilih foto' : 'Ganti foto'),
+                label: Text(_url == null ? tr('Pilih foto') : tr('Ganti foto')),
               ),
               if (_url != null)
                 TextButton.icon(
                   style: TextButton.styleFrom(foregroundColor: Brand.expense),
                   onPressed: _busy ? null : _remove,
                   icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text('Hapus foto'),
+                  label: Text(tr('Hapus foto')),
                 ),
             ]),
             if (_busy) const LinearProgressIndicator(),
@@ -314,24 +316,23 @@ class _BusinessPhotoPageState extends State<BusinessPhotoPage> {
                 TextField(
                   controller: _name,
                   textCapitalization: TextCapitalization.words,
-                  decoration:
-                      const InputDecoration(labelText: 'Nama pembukuan'),
+                  decoration: InputDecoration(labelText: tr('Nama pembukuan')),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _address,
-                  decoration: const InputDecoration(labelText: 'Alamat'),
+                  decoration: InputDecoration(labelText: tr('Alamat')),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'No. telepon'),
+                  decoration: InputDecoration(labelText: tr('No. telepon')),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _busy ? null : _saveProfile,
-                  child: const Text('Simpan'),
+                  child: Text(tr('Simpan')),
                 ),
               ],
             ] else

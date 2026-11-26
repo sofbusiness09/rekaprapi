@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/format.dart';
 import 'cash_models.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Rincian penjualan yang menyertai transaksi kas masuk.
 class SaleDetail {
@@ -56,7 +57,7 @@ class CashRepository {
     return {
       for (final r in rows)
         r['id'] as String:
-            (r['display_name'] ?? r['email'] ?? 'Anggota') as String,
+            (r['display_name'] ?? r['email'] ?? tr('Anggota')) as String,
     };
   }
 
@@ -248,8 +249,8 @@ class CashRepository {
   /// RLS menolak dengan diam (0 baris) bila pengguna tidak berhak.
   void _requireAffected(List rows) {
     if (rows.isEmpty) {
-      throw const PostgrestException(
-          message: 'Anda tidak berhak mengubah transaksi ini.');
+      throw PostgrestException(
+          message: tr('Anda tidak berhak mengubah transaksi ini.'));
     }
   }
 

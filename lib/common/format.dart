@@ -2,8 +2,9 @@ import 'package:flutter/services.dart';
 
 import 'currency.dart';
 import 'privacy.dart';
+import '../l10n/l10n.dart';
 
-const _months = [
+const _monthsId = [
   'Januari',
   'Februari',
   'Maret',
@@ -18,7 +19,43 @@ const _months = [
   'Desember',
 ];
 
-const _days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const _monthsEn = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const _daysId = [
+  'Senin',
+  'Selasa',
+  'Rabu',
+  'Kamis',
+  'Jumat',
+  'Sabtu',
+  'Minggu'
+];
+const _daysEn = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+bool get _en => languageController.language == AppLanguage.en;
+List<String> get _months => _en ? _monthsEn : _monthsId;
+List<String> get _days => _en ? _daysEn : _daysId;
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
@@ -34,18 +71,20 @@ String rupiah(num n) =>
 String compact(num v) {
   if (privacyController.hidden) return '•••';
   final a = v.abs();
+  // Bahasa Inggris: 1.5M dan 250K; Indonesia: 1,5jt dan 250rb.
+  final dec = _en ? '.' : ',';
   String fmt(double x) {
-    final s = x.toStringAsFixed(1).replaceAll('.', ',');
-    return s.endsWith(',0') ? s.substring(0, s.length - 2) : s;
+    final s = x.toStringAsFixed(1).replaceAll('.', dec);
+    return s.endsWith('${dec}0') ? s.substring(0, s.length - 2) : s;
   }
 
   final String s;
   if (a >= 1e9) {
-    s = '${fmt(a / 1e9)}M';
+    s = '${fmt(a / 1e9)}${_en ? 'B' : 'M'}';
   } else if (a >= 1e6) {
-    s = '${fmt(a / 1e6)}jt';
+    s = '${fmt(a / 1e6)}${_en ? 'M' : 'jt'}';
   } else if (a >= 1e3) {
-    s = '${fmt(a / 1e3)}rb';
+    s = '${fmt(a / 1e3)}${_en ? 'K' : 'rb'}';
   } else {
     s = a.round().toString();
   }
@@ -84,7 +123,10 @@ String ymd(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
 
 DateTime parseYmd(String s) => DateTime.parse(s);
 
-String dateId(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';
+/// "3 November 2026" atau, dalam Bahasa Inggris, "November 3, 2026".
+String dateId(DateTime d) => _en
+    ? '${_months[d.month - 1]} ${d.day}, ${d.year}'
+    : '${d.day} ${_months[d.month - 1]} ${d.year}';
 
 /// "3 Nov 2026 14:05"
 String timeId(DateTime d) =>
@@ -103,8 +145,8 @@ String dayLabel(DateTime d) {
   final today = DateTime(now.year, now.month, now.day);
   final day = DateTime(d.year, d.month, d.day);
   final diff = today.difference(day).inDays;
-  if (diff == 0) return 'Hari ini';
-  if (diff == 1) return 'Kemarin';
+  if (diff == 0) return _en ? 'Today' : 'Hari ini';
+  if (diff == 1) return _en ? 'Yesterday' : 'Kemarin';
   final yearPart = d.year == now.year ? '' : ' ${d.year}';
   return '${_days[d.weekday - 1]}, ${d.day} ${_months[d.month - 1].substring(0, 3)}$yearPart';
 }

@@ -4,6 +4,7 @@ import '../common/format.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'font_controller.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Lembar pilihan jenis huruf, tiap pilihan tampil dengan hurufnya sendiri.
 Future<void> showFontPicker(BuildContext context) {
@@ -33,7 +34,7 @@ class _FontSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Jenis huruf',
+                child: Text(tr('Jenis huruf'),
                     style: theme.textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.w600)),
               ),
@@ -42,7 +43,7 @@ class _FontSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Berlaku di seluruh aplikasi.',
+                child: Text(tr('Berlaku di seluruh aplikasi.'),
                     style: theme.textTheme.bodySmall?.copyWith(color: muted)),
               ),
             ),
@@ -84,7 +85,8 @@ class _FontTile extends StatelessWidget {
       selected: selected,
       selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.5),
       title: Text(font.name, style: sample),
-      subtitle: Text('${rupiah(1250000)}  ·  Penjualan hari ini', style: small),
+      subtitle: Text(tr('{0}  ·  Penjualan hari ini', [rupiah(1250000)]),
+          style: small),
       trailing: selected
           ? Icon(Icons.check_circle_rounded, color: scheme.primary)
           : null,

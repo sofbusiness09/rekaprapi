@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../common/widgets.dart';
 import '../theme/app_theme.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Layar untuk memilih password baru setelah pengguna membuka tautan reset dari email.
 class ResetPasswordPage extends StatefulWidget {
@@ -33,11 +34,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   Future<void> _save() async {
     if (_password.text.length < 6) {
-      _toast('Password minimal 6 karakter.');
+      _toast(tr('Password minimal 6 karakter.'));
       return;
     }
     if (_password.text != _confirm.text) {
-      _toast('Konfirmasi password tidak sama.');
+      _toast(tr('Konfirmasi password tidak sama.'));
       return;
     }
     setState(() => _busy = true);
@@ -45,12 +46,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       await Supabase.instance.client.auth
           .updateUser(UserAttributes(password: _password.text));
       if (!mounted) return;
-      _toast('Password diganti. Anda sudah masuk.');
+      _toast(tr('Password diganti. Anda sudah masuk.'));
       widget.onDone();
     } on AuthException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal: $e');
+      _toast(tr('Gagal: {0}', [e]));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -81,12 +82,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           color: Brand.seed, size: 56),
                     ),
                     const SizedBox(height: 16),
-                    Text('Buat password baru',
+                    Text(tr('Buat password baru'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge
                             ?.copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    Text('Masukkan password baru untuk akun Anda.',
+                    Text(tr('Masukkan password baru untuk akun Anda.'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant)),
@@ -96,7 +97,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       obscureText: _hide,
                       autofillHints: const [AutofillHints.newPassword],
                       decoration: InputDecoration(
-                        labelText: 'Password baru',
+                        labelText: tr('Password baru'),
                         prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           icon: Icon(_hide
@@ -110,9 +111,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     TextField(
                       controller: _confirm,
                       obscureText: _hide,
-                      decoration: const InputDecoration(
-                        labelText: 'Ulangi password baru',
-                        prefixIcon: Icon(Icons.lock_outline_rounded),
+                      decoration: InputDecoration(
+                        labelText: tr('Ulangi password baru'),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
                       ),
                       onSubmitted: (_) => _busy ? null : _save(),
                     ),
@@ -125,11 +126,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                               height: 22,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2.5, color: Colors.white))
-                          : const Text('Simpan password'),
+                          : Text(tr('Simpan password')),
                     ),
                     TextButton(
                       onPressed: _busy ? null : _cancel,
-                      child: const Text('Batal'),
+                      child: Text(tr('Batal')),
                     ),
                   ],
                 ),

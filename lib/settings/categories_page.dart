@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../cash/cash_models.dart';
 import '../common/dialogs.dart';
 import 'settings_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class CategoriesPage extends StatefulWidget {
   const CategoriesPage({super.key, required this.repo});
@@ -40,33 +41,34 @@ class _CategoriesPageState extends State<CategoriesPage> {
     final type = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
-        title: const Text('Jenis kategori'),
+        title: Text(tr('Jenis kategori')),
         children: [
           SimpleDialogOption(
               onPressed: () => Navigator.pop(context, 'in'),
-              child: const Text('Pemasukan')),
+              child: Text(tr('Pemasukan'))),
           SimpleDialogOption(
               onPressed: () => Navigator.pop(context, 'out'),
-              child: const Text('Pengeluaran')),
+              child: Text(tr('Pengeluaran'))),
         ],
       ),
     );
     if (type == null || !mounted) return;
-    final name = await askText(context, title: 'Kategori baru', label: 'Nama');
+    final name =
+        await askText(context, title: tr('Kategori baru'), label: tr('Nama'));
     if (name == null || name.isEmpty) return;
     await _run(() => widget.repo.addCategory(name, type));
   }
 
   Future<void> _rename(Category c) async {
     final name = await askText(context,
-        title: 'Ubah nama kategori', label: 'Nama', initial: c.name);
+        title: tr('Ubah nama kategori'), label: tr('Nama'), initial: c.name);
     if (name == null || name.isEmpty || name == c.name) return;
     await _run(() => widget.repo.renameCategory(c.id, name));
   }
 
   Future<void> _delete(Category c) async {
     if (await confirmDialog(context,
-        title: 'Hapus kategori?', body: c.name, okLabel: 'Hapus')) {
+        title: tr('Hapus kategori?'), body: c.name, okLabel: tr('Hapus'))) {
       await _run(() => widget.repo.deleteCategory(c.id));
     }
   }
@@ -74,21 +76,21 @@ class _CategoriesPageState extends State<CategoriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kategori')),
+      appBar: AppBar(title: Text(tr('Kategori'))),
       body: FutureBuilder<List<Category>>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError)
-            return Center(child: Text('Gagal memuat: ${snap.error}'));
+            return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
           if (!snap.hasData)
             return const Center(child: CircularProgressIndicator());
           final all = snap.data!;
           return ListView(
             padding: const EdgeInsets.only(bottom: 96),
             children: [
-              for (final section in const <(String, String)>[
-                ('in', 'Pemasukan'),
-                ('out', 'Pengeluaran'),
+              for (final section in <(String, String)>[
+                ('in', tr('Pemasukan')),
+                ('out', tr('Pengeluaran')),
               ]) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
@@ -97,21 +99,22 @@ class _CategoriesPageState extends State<CategoriesPage> {
                 ),
                 for (final c in all.where((c) => c.type == section.$1))
                   ListTile(
-                    title: Text(c.name),
+                    title: Text(tr(c.name)),
                     leading: c.isSystem ? const Icon(Icons.lock_outline) : null,
                     subtitle: c.isSystem
-                        ? const Text('Dipakai otomatis oleh utang piutang')
+                        ? Text(tr('Dipakai otomatis oleh utang piutang'))
                         : null,
                     trailing: c.isSystem
                         ? null
                         : PopupMenuButton<String>(
                             onSelected: (v) =>
                                 v == 'rename' ? _rename(c) : _delete(c),
-                            itemBuilder: (_) => const [
+                            itemBuilder: (_) => [
                               PopupMenuItem(
-                                  value: 'rename', child: Text('Ubah nama')),
+                                  value: 'rename',
+                                  child: Text(tr('Ubah nama'))),
                               PopupMenuItem(
-                                  value: 'delete', child: Text('Hapus')),
+                                  value: 'delete', child: Text(tr('Hapus'))),
                             ],
                           ),
                   ),
@@ -123,7 +126,7 @@ class _CategoriesPageState extends State<CategoriesPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
         icon: const Icon(Icons.add),
-        label: const Text('Kategori'),
+        label: Text(tr('Kategori')),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../business/business.dart';
 import '../common/dialogs.dart';
 import '../common/format.dart';
 import 'settings_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class MembersPage extends StatefulWidget {
   const MembersPage({super.key, required this.business, required this.repo});
@@ -85,12 +86,12 @@ class _MembersPageState extends State<MembersPage> {
     return showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Undangan dibuat'),
+        title: Text(tr('Undangan dibuat')),
         content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Bagikan pesan ini kepada yang diundang:'),
+              Text(tr('Bagikan pesan ini kepada yang diundang:')),
               const SizedBox(height: 12),
               SelectableText(text),
             ]),
@@ -98,13 +99,13 @@ class _MembersPageState extends State<MembersPage> {
           TextButton(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: text));
-              if (mounted) _toast('Disalin.');
+              if (mounted) _toast(tr('Disalin.'));
             },
-            child: const Text('Salin pesan'),
+            child: Text(tr('Salin pesan')),
           ),
           FilledButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Selesai')),
+              child: Text(tr('Selesai'))),
         ],
       ),
     );
@@ -112,24 +113,26 @@ class _MembersPageState extends State<MembersPage> {
 
   Future<void> _removeMember(Member m) async {
     if (await confirmDialog(context,
-        title: 'Keluarkan anggota?',
-        body:
-            '${m.name} tidak akan bisa mengakses usaha ini lagi. Transaksi yang pernah ia catat tetap ada.',
-        okLabel: 'Keluarkan')) {
+        title: tr('Keluarkan anggota?'),
+        body: tr(
+            '{0} tidak akan bisa mengakses usaha ini lagi. Transaksi yang pernah ia catat tetap ada.',
+            [m.name]),
+        okLabel: tr('Keluarkan'))) {
       await _run(() => widget.repo.removeMember(m.userId));
     }
   }
 
   Future<void> _transfer(Member m) async {
     if (await confirmDialog(context,
-        title: 'Alihkan kepemilikan?',
-        body:
-            '${m.name} menjadi Pemilik dan peran Anda menjadi Admin. Ini tidak bisa dibatalkan oleh Anda sendiri.',
-        okLabel: 'Alihkan')) {
+        title: tr('Alihkan kepemilikan?'),
+        body: tr(
+            '{0} menjadi Pemilik dan peran Anda menjadi Admin. Ini tidak bisa dibatalkan oleh Anda sendiri.',
+            [m.name]),
+        okLabel: tr('Alihkan'))) {
       await _run(() => widget.repo.transferOwnership(m.userId));
       if (mounted) {
-        _toast(
-            'Kepemilikan dialihkan. Buka ulang usaha untuk memperbarui tampilan.');
+        _toast(tr(
+            'Kepemilikan dialihkan. Buka ulang usaha untuk memperbarui tampilan.'));
       }
     }
   }
@@ -137,12 +140,12 @@ class _MembersPageState extends State<MembersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Anggota')),
+      appBar: AppBar(title: Text(tr('Anggota'))),
       body: FutureBuilder<_Loaded>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError)
-            return Center(child: Text('Gagal memuat: ${snap.error}'));
+            return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
           if (!snap.hasData)
             return const Center(child: CircularProgressIndicator());
           final d = snap.data!;
@@ -155,7 +158,8 @@ class _MembersPageState extends State<MembersPage> {
                 for (final m in d.members)
                   ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(m.userId == _uid ? '${m.name} (Anda)' : m.name),
+                    title: Text(
+                        m.userId == _uid ? tr('{0} (Anda)', [m.name]) : m.name),
                     subtitle: Text([
                       roleLabel[m.role]!,
                       if (m.email != null) m.email!
@@ -178,19 +182,20 @@ class _MembersPageState extends State<MembersPage> {
                             },
                             itemBuilder: (_) => [
                               if (m.role == 'staff')
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                     value: 'admin',
-                                    child: Text('Jadikan Admin')),
+                                    child: Text(tr('Jadikan Admin'))),
                               if (m.role == 'admin' && isOwner)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                     value: 'staff',
-                                    child: Text('Jadikan Staf')),
+                                    child: Text(tr('Jadikan Staf'))),
                               if (isOwner)
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                     value: 'transfer',
-                                    child: Text('Alihkan kepemilikan')),
-                              const PopupMenuItem(
-                                  value: 'remove', child: Text('Keluarkan')),
+                                    child: Text(tr('Alihkan kepemilikan'))),
+                              PopupMenuItem(
+                                  value: 'remove',
+                                  child: Text(tr('Keluarkan'))),
                             ],
                           )
                         : null,
@@ -199,7 +204,7 @@ class _MembersPageState extends State<MembersPage> {
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Text('Undangan tertunda',
+                    child: Text(tr('Undangan tertunda'),
                         style: Theme.of(context).textTheme.titleSmall),
                   ),
                   for (final i in d.invites)
@@ -207,20 +212,20 @@ class _MembersPageState extends State<MembersPage> {
                       leading:
                           const CircleAvatar(child: Icon(Icons.mail_outline)),
                       title: Text(i.email),
-                      subtitle: Text(
-                          '${roleLabel[i.role]} · kode ${i.code} · sampai ${dateId(i.expiresAt)}'),
+                      subtitle: Text(tr('{0} · kode {1} · sampai {2}',
+                          [roleLabel[i.role], i.code, dateId(i.expiresAt)])),
                       trailing: Wrap(children: [
                         IconButton(
-                          tooltip: 'Salin kode',
+                          tooltip: tr('Salin kode'),
                           icon: const Icon(Icons.copy),
                           onPressed: () async {
                             await Clipboard.setData(
                                 ClipboardData(text: i.code));
-                            if (mounted) _toast('Kode disalin.');
+                            if (mounted) _toast(tr('Kode disalin.'));
                           },
                         ),
                         IconButton(
-                          tooltip: 'Batalkan',
+                          tooltip: tr('Batalkan'),
                           icon: const Icon(Icons.close),
                           onPressed: () =>
                               _run(() => widget.repo.cancelInvite(i.id)),
@@ -237,7 +242,7 @@ class _MembersPageState extends State<MembersPage> {
           ? FloatingActionButton.extended(
               onPressed: _invite,
               icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('Undang'),
+              label: Text(tr('Undang')),
             )
           : null,
     );
@@ -264,35 +269,34 @@ class _InviteDialogState extends State<_InviteDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Undang anggota'),
+      title: Text(tr('Undang anggota')),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(
           controller: _email,
           autofocus: true,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email'),
+          decoration: InputDecoration(labelText: tr('Email')),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _role,
-          decoration: const InputDecoration(labelText: 'Peran'),
-          items: const [
-            DropdownMenuItem(value: 'staff', child: Text('Staf')),
-            DropdownMenuItem(value: 'admin', child: Text('Admin')),
+          decoration: InputDecoration(labelText: tr('Peran')),
+          items: [
+            DropdownMenuItem(value: 'staff', child: Text(tr('Staf'))),
+            DropdownMenuItem(value: 'admin', child: Text(tr('Admin'))),
           ],
           onChanged: (v) => setState(() => _role = v ?? 'staff'),
         ),
       ]),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal')),
+            onPressed: () => Navigator.pop(context), child: Text(tr('Batal'))),
         FilledButton(
           onPressed: () {
             final e = _email.text.trim();
             if (e.contains('@')) Navigator.pop(context, (e, _role));
           },
-          child: const Text('Buat undangan'),
+          child: Text(tr('Buat undangan')),
         ),
       ],
     );

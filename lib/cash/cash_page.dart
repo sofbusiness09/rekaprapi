@@ -14,6 +14,7 @@ import 'cash_form.dart';
 import 'cash_models.dart';
 import 'cash_repository.dart';
 import 'tx_detail_page.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class CashPage extends StatefulWidget {
   const CashPage({
@@ -152,9 +153,10 @@ class _CashPageState extends State<CashPage> {
 
   Future<void> _confirmDelete(CashTx t) async {
     final ok = await confirmDialog(context,
-        title: 'Hapus transaksi?',
-        body: '${rupiah(t.amount)} pada ${dateId(t.date)} akan dihapus.',
-        okLabel: 'Hapus');
+        title: tr('Hapus transaksi?'),
+        body: tr(
+            '{0} pada {1} akan dihapus.', [rupiah(t.amount), dateId(t.date)]),
+        okLabel: tr('Hapus'));
     if (!ok) return;
     try {
       await widget.repo.remove(t.id);
@@ -190,7 +192,7 @@ class _CashPageState extends State<CashPage> {
       future: _future,
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Gagal memuat: ${snap.error}'));
+          return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
         }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -245,10 +247,10 @@ class _CashPageState extends State<CashPage> {
                           summary: d.summary, business: widget.business),
                       const SizedBox(height: 16),
                       Wrap(spacing: 8, children: [
-                        for (final f in const <(String?, String)>[
-                          (null, 'Semua'),
-                          ('in', 'Pemasukan'),
-                          ('out', 'Pengeluaran'),
+                        for (final f in <(String?, String)>[
+                          (null, tr('Semua')),
+                          ('in', tr('Pemasukan')),
+                          ('out', tr('Pengeluaran')),
                         ])
                           ChoiceChip(
                             label: Text(f.$2),
@@ -258,9 +260,9 @@ class _CashPageState extends State<CashPage> {
                           ),
                       ]),
                       if (rows.isEmpty)
-                        const EmptyState(
+                        EmptyState(
                           icon: Icons.receipt_long_rounded,
-                          title: 'Belum ada transaksi',
+                          title: tr('Belum ada transaksi'),
                         ),
                       for (final entry in groups.entries) ...[
                         _DayHeader(
@@ -280,12 +282,12 @@ class _CashPageState extends State<CashPage> {
                                   debt: entry.value[i].credit!,
                                   contact: d.contactNames[
                                           entry.value[i].credit!.contactId] ??
-                                      'Kontak',
+                                      tr('Kontak'),
                                   onTap: () => _openCredit(
                                     entry.value[i].credit!,
                                     d.contactNames[
                                             entry.value[i].credit!.contactId] ??
-                                        'Kontak',
+                                        tr('Kontak'),
                                   ),
                                 )
                               else
@@ -326,17 +328,19 @@ class _CreditTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final tone = debt.isReceivable ? Brand.receivable : Brand.payable;
     final title = debt.isSale
-        ? 'Penjualan utang'
-        : (debt.isReceivable ? 'Piutang' : 'Utang');
+        ? tr('Penjualan utang')
+        : (debt.isReceivable ? tr('Piutang') : tr('Utang'));
     final status = debt.settled
-        ? 'Lunas'
-        : (debt.paid > 0 ? 'Sisa ${rupiah(debt.remaining)}' : 'Belum lunas');
+        ? tr('Lunas')
+        : (debt.paid > 0
+            ? tr('Sisa {0}', [rupiah(debt.remaining)])
+            : tr('Belum lunas'));
     final statusColor = debt.settled
         ? Brand.income
         : (debt.overdue ? Brand.expense : Brand.pending);
 
     return EntryRow(
-      icon: categoryIcon(debt.isSale ? 'Penjualan' : title,
+      icon: categoryIcon(debt.isSale ? tr('Penjualan') : title,
           income: debt.isReceivable),
       iconColor: tone,
       title: title,
@@ -404,19 +408,19 @@ class _SummaryCard extends StatelessWidget {
     if (business.isPersonal) {
       final net = summary.totalIn - summary.totalOut;
       metrics = [
-        _Metric('Pemasukan', summary.totalIn, Brand.income),
-        _Metric('Pengeluaran', summary.totalOut, Brand.expense),
-        _Metric('Selisih', net, net >= 0 ? Brand.income : Brand.expense),
+        _Metric(tr('Pemasukan'), summary.totalIn, Brand.income),
+        _Metric(tr('Pengeluaran'), summary.totalOut, Brand.expense),
+        _Metric(tr('Selisih'), net, net >= 0 ? Brand.income : Brand.expense),
       ];
     } else if (business.canSeeProfit) {
       metrics = [
-        _Metric('Pemasukan', summary.incomeTotal, Brand.income),
-        _Metric('Pengeluaran', summary.expenseTotal, Brand.expense),
-        _Metric(summary.net >= 0 ? 'Laba' : 'Rugi', summary.net.abs(),
+        _Metric(tr('Pemasukan'), summary.incomeTotal, Brand.income),
+        _Metric(tr('Pengeluaran'), summary.expenseTotal, Brand.expense),
+        _Metric(summary.net >= 0 ? tr('Laba') : tr('Rugi'), summary.net.abs(),
             summary.net >= 0 ? profitColor(context) : Brand.expense),
       ];
     } else {
-      metrics = [_Metric('Pemasukan', summary.incomeTotal, Brand.income)];
+      metrics = [_Metric(tr('Pemasukan'), summary.incomeTotal, Brand.income)];
     }
     return SoftCard(
       child: Row(children: [
@@ -506,7 +510,7 @@ class _TxTile extends StatelessWidget {
     return EntryRow(
       icon: categoryIcon(category, income: tx.isIn),
       iconColor: color,
-      title: category ?? 'Tanpa kategori',
+      title: category ?? tr('Tanpa kategori'),
       amount: '${tx.isIn ? '+' : '-'}${rupiah(tx.amount)}',
       amountColor: color,
       sub: tx.createdAt == null ? null : clockId(tx.createdAt!),

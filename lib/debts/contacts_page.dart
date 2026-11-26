@@ -9,6 +9,7 @@ import 'contact_form.dart';
 import 'contact_page.dart';
 import 'debt_models.dart';
 import 'debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 enum _Filter { all, receivable, payable, settled }
 
@@ -153,7 +154,7 @@ class _ContactsPageState extends State<ContactsPage> {
       future: _future,
       builder: (context, snap) {
         if (snap.hasError) {
-          return Center(child: Text('Gagal memuat: ${snap.error}'));
+          return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
         }
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -224,7 +225,7 @@ class _ContactsPageState extends State<ContactsPage> {
                   Row(children: [
                     Expanded(
                       child: _Total(
-                        label: 'Piutang',
+                        label: tr('Piutang'),
                         hint: '',
                         value: totalReceivable,
                         color: Brand.receivable,
@@ -239,7 +240,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _Total(
-                        label: 'Utang',
+                        label: tr('Utang'),
                         hint: '',
                         value: totalPayable,
                         color: Brand.payable,
@@ -259,7 +260,7 @@ class _ContactsPageState extends State<ContactsPage> {
                         controller: _search,
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
-                          hintText: 'Cari nama atau nomor telepon',
+                          hintText: tr('Cari nama atau nomor telepon'),
                           prefixIcon: const Icon(Icons.search_rounded),
                           suffixIcon: _search.text.isEmpty
                               ? null
@@ -271,7 +272,7 @@ class _ContactsPageState extends State<ContactsPage> {
                     ),
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
-                      tooltip: 'Tambah kontak',
+                      tooltip: tr('Tambah kontak'),
                       onPressed: _add,
                       icon: const Icon(Icons.person_add_alt_1_rounded),
                     ),
@@ -280,11 +281,11 @@ class _ContactsPageState extends State<ContactsPage> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(children: [
-                      for (final f in const <(_Filter, String)>[
-                        (_Filter.all, 'Semua'),
-                        (_Filter.receivable, 'Piutang'),
-                        (_Filter.payable, 'Utang'),
-                        (_Filter.settled, 'Lunas'),
+                      for (final f in <(_Filter, String)>[
+                        (_Filter.all, tr('Semua')),
+                        (_Filter.receivable, tr('Piutang')),
+                        (_Filter.payable, tr('Utang')),
+                        (_Filter.settled, tr('Lunas')),
                       ]) ...[
                         ChoiceChip(
                           label: Text(f.$2),
@@ -299,7 +300,7 @@ class _ContactsPageState extends State<ContactsPage> {
                   // Urutan di baris sendiri, di kanan, agar tidak berdesakan dengan filter.
                   Row(children: [
                     Expanded(
-                      child: Text('${items.length} kontak',
+                      child: Text(tr('{0} kontak', [items.length]),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -309,12 +310,12 @@ class _ContactsPageState extends State<ContactsPage> {
                                       .onSurfaceVariant)),
                     ),
                     PopupMenuButton<_Sort>(
-                      tooltip: 'Urutkan',
+                      tooltip: tr('Urutkan'),
                       initialValue: _sort,
                       onSelected: (v) => setState(() => _sort = v),
                       itemBuilder: (_) => [
                         for (final s in _Sort.values)
-                          PopupMenuItem(value: s, child: Text(s.label)),
+                          PopupMenuItem(value: s, child: Text(tr(s.label))),
                       ],
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -322,7 +323,7 @@ class _ContactsPageState extends State<ContactsPage> {
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const Icon(Icons.swap_vert_rounded, size: 18),
                           const SizedBox(width: 6),
-                          Text('Urutkan: ${_sort.label}',
+                          Text(tr('Urutkan: {0}', [tr(_sort.label)]),
                               style: Theme.of(context).textTheme.labelLarge),
                         ]),
                       ),
@@ -332,15 +333,15 @@ class _ContactsPageState extends State<ContactsPage> {
                   if (d.contacts.isEmpty)
                     EmptyState(
                       icon: Icons.people_alt_rounded,
-                      title: 'Belum ada kontak',
-                      actionLabel: 'Tambah kontak',
+                      title: tr('Belum ada kontak'),
+                      actionLabel: tr('Tambah kontak'),
                       onAction: _add,
                     )
                   else if (items.isEmpty)
-                    const EmptyState(
+                    EmptyState(
                       icon: Icons.search_off_rounded,
-                      title: 'Tidak ada yang cocok',
-                      subtitle: 'Ubah kata pencarian atau pilihan filter.',
+                      title: tr('Tidak ada yang cocok'),
+                      subtitle: tr('Ubah kata pencarian atau pilihan filter.'),
                     ),
                   for (final r in items) ...[
                     _ContactTile(row: r, onTap: () => _open(r.contact)),
@@ -470,7 +471,7 @@ class _ContactTile extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         if (net == 0)
-          Text('Lunas',
+          Text(tr('Lunas'),
               style: theme.textTheme.labelLarge
                   ?.copyWith(color: Brand.income, fontWeight: FontWeight.w600))
         else

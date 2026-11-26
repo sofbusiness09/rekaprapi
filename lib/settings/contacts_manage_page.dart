@@ -7,6 +7,7 @@ import '../common/widgets.dart';
 import '../debts/contact_form.dart';
 import '../debts/debt_models.dart';
 import '../debts/debt_repository.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Pengaturan > Kontak Pelanggan (Pembukuan Pribadi: Kontak): daftar semua kontak untuk diubah (nama, nomor
 /// telepon, alamat, catatan), ditambah, atau dihapus. Semua anggota boleh mengubah;
@@ -62,25 +63,28 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
         await showContactForm(context, repo: widget.repo, existing: existing);
     if (saved != null) {
       widget.changes.value++;
-      _toast(existing == null ? 'Kontak ditambahkan.' : 'Kontak diperbarui.');
+      _toast(existing == null
+          ? tr('Kontak ditambahkan.')
+          : tr('Kontak diperbarui.'));
     }
   }
 
   Future<void> _delete(Contact c) async {
     final ok = await confirmDialog(context,
-        title: 'Hapus kontak?',
-        body:
-            '${c.name} akan dihapus dari daftar. Riwayat transaksi lamanya tetap tersimpan.',
-        okLabel: 'Hapus');
+        title: tr('Hapus kontak?'),
+        body: tr(
+            '{0} akan dihapus dari daftar. Riwayat transaksi lamanya tetap tersimpan.',
+            [c.name]),
+        okLabel: tr('Hapus'));
     if (!ok) return;
     try {
       await widget.repo.deleteContact(c.id);
       widget.changes.value++;
-      _toast('Kontak dihapus.');
+      _toast(tr('Kontak dihapus.'));
     } on PostgrestException catch (e) {
       _toast(e.message);
     } catch (e) {
-      _toast('Gagal: $e');
+      _toast(tr('Gagal: {0}', [e]));
     }
   }
 
@@ -90,13 +94,14 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
     final muted = theme.colorScheme.onSurfaceVariant;
     return Scaffold(
       appBar: AppBar(
-          title:
-              Text(widget.business.isPersonal ? 'Kontak' : 'Kontak Pelanggan')),
+          title: Text(widget.business.isPersonal
+              ? tr('Kontak')
+              : tr('Kontak Pelanggan'))),
       body: FutureBuilder<List<Contact>>(
         future: _future,
         builder: (context, snap) {
           if (snap.hasError) {
-            return Center(child: Text('Gagal memuat: ${snap.error}'));
+            return Center(child: Text(tr('Gagal memuat: {0}', [snap.error])));
           }
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -120,7 +125,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                   controller: _search,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    hintText: 'Cari nama, nomor telepon, atau alamat',
+                    hintText: tr('Cari nama, nomor telepon, atau alamat'),
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _search.text.isEmpty
                         ? null
@@ -131,22 +136,22 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-                  child: Text('${all.length} kontak',
+                  child: Text(tr('{0} kontak', [all.length]),
                       style:
                           theme.textTheme.labelMedium?.copyWith(color: muted)),
                 ),
                 if (all.isEmpty)
                   EmptyState(
                     icon: Icons.people_alt_rounded,
-                    title: 'Belum ada kontak',
-                    actionLabel: 'Tambah kontak',
+                    title: tr('Belum ada kontak'),
+                    actionLabel: tr('Tambah kontak'),
                     onAction: _edit,
                   )
                 else if (items.isEmpty)
-                  const EmptyState(
+                  EmptyState(
                     icon: Icons.search_off_rounded,
-                    title: 'Tidak ada yang cocok',
-                    subtitle: 'Ubah kata pencarian.',
+                    title: tr('Tidak ada yang cocok'),
+                    subtitle: tr('Ubah kata pencarian.'),
                   ),
                 for (final c in items) ...[
                   SoftCard(
@@ -164,7 +169,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.titleSmall
                                       ?.copyWith(fontWeight: FontWeight.w600)),
-                              Text(c.phone ?? 'Belum ada nomor telepon',
+                              Text(c.phone ?? tr('Belum ada nomor telepon'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodySmall
@@ -180,11 +185,10 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
                       PopupMenuButton<String>(
                         onSelected: (v) => v == 'edit' ? _edit(c) : _delete(c),
                         itemBuilder: (_) => [
-                          const PopupMenuItem(
-                              value: 'edit', child: Text('Ubah')),
+                          PopupMenuItem(value: 'edit', child: Text(tr('Ubah'))),
                           if (widget.business.canManage)
-                            const PopupMenuItem(
-                                value: 'delete', child: Text('Hapus')),
+                            PopupMenuItem(
+                                value: 'delete', child: Text(tr('Hapus'))),
                         ],
                       ),
                     ]),
@@ -199,7 +203,7 @@ class _ContactsManagePageState extends State<ContactsManagePage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _edit,
         icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Kontak baru'),
+        label: Text(tr('Kontak baru')),
       ),
     );
   }

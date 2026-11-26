@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../cash/cash_models.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 class Member {
   const Member(this.userId, this.name, this.email, this.role);
@@ -34,7 +35,8 @@ class ActivityEntry {
   final DateTime at;
 }
 
-const roleLabel = {'owner': 'Pemilik', 'admin': 'Admin', 'staff': 'Staf'};
+Map<String, String> get roleLabel =>
+    {'owner': tr('Pemilik'), 'admin': tr('Admin'), 'staff': tr('Staf')};
 
 /// Pengaturan usaha, anggota, undangan, kategori, dan riwayat aktivitas.
 /// Perubahan anggota/undangan lewat fungsi database; hak akses ditegakkan di sana.
@@ -66,8 +68,8 @@ class SettingsRepository {
         .eq('id', businessId)
         .select('id');
     if (rows.isEmpty) {
-      throw const PostgrestException(
-          message: 'Anda tidak berhak mengubah profil usaha.');
+      throw PostgrestException(
+          message: tr('Anda tidak berhak mengubah profil usaha.'));
     }
   }
 
@@ -93,7 +95,7 @@ class SettingsRepository {
           r['user_id'] as String,
           (byId[r['user_id']]?['display_name'] ??
               byId[r['user_id']]?['email'] ??
-              'Anggota') as String,
+              tr('Anggota')) as String,
           byId[r['user_id']]?['email'] as String?,
           r['role'] as String,
         ),
@@ -171,8 +173,7 @@ class SettingsRepository {
         .eq('id', id)
         .select('id');
     if (rows.isEmpty) {
-      throw const PostgrestException(
-          message: 'Kategori ini tidak dapat diubah.');
+      throw PostgrestException(message: tr('Kategori ini tidak dapat diubah.'));
     }
   }
 
@@ -182,13 +183,14 @@ class SettingsRepository {
       final rows =
           await _db.from('categories').delete().eq('id', id).select('id');
       if (rows.isEmpty) {
-        throw const PostgrestException(
-            message: 'Kategori ini tidak dapat dihapus.');
+        throw PostgrestException(
+            message: tr('Kategori ini tidak dapat dihapus.'));
       }
     } on PostgrestException catch (e) {
       if (e.code == '23503') {
-        throw const PostgrestException(
-            message: 'Kategori masih dipakai transaksi. Ubah namanya saja.');
+        throw PostgrestException(
+            message:
+                tr('Kategori masih dipakai transaksi. Ubah namanya saja.'));
       }
       rethrow;
     }
@@ -208,12 +210,12 @@ class SettingsRepository {
     final names = {
       for (final p in profiles)
         p['id'] as String:
-            (p['display_name'] ?? p['email'] ?? 'Anggota') as String,
+            (p['display_name'] ?? p['email'] ?? tr('Anggota')) as String,
     };
     return [
       for (final r in rows)
         ActivityEntry(
-          names[r['user_id']] ?? 'Seseorang',
+          names[r['user_id']] ?? tr('Seseorang'),
           r['action'] as String,
           r['entity'] as String,
           Map<String, dynamic>.from((r['detail'] ?? {}) as Map),

@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rekap_rapi/l10n/l10n.dart';
 
 /// Gaya tampilan aplikasi. Disimpan per perangkat.
 enum AppStyle {
@@ -16,6 +17,10 @@ enum AppStyle {
 
   final String label;
   final String description;
+
+  /// Nama dan keterangan dalam bahasa aktif.
+  String get title => tr(label);
+  String get info => tr(description);
 
   static AppStyle parse(String? v) =>
       AppStyle.values.firstWhere((s) => s.name == v, orElse: () => standard);
