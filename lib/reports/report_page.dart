@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -10,22 +12,12 @@ import '../debts/debt_repository.dart';
 import '../settings/home_prefs.dart';
 import '../theme/app_style.dart';
 import '../theme/app_theme.dart';
+import '../debts/debt_models.dart';
 import 'report_exporter.dart';
+import 'report_visuals.dart';
 import 'package:rekap_rapi/l10n/l10n.dart';
 
 enum _Preset { thisMonth, lastMonth, thisYear, custom }
-
-/// Irisan terbesar memakai aksen merek; sisanya abu bertingkat agar tidak seperti pelangi.
-const _palette = <Color>[
-  Color(0xFF0E9F6E),
-  Color(0xFF3D4A44),
-  Color(0xFF66736D),
-  Color(0xFF8E9A94),
-  Color(0xFFB0BAB5),
-  Color(0xFFCBD2CE),
-  Color(0xFFDDE2DF),
-  Color(0xFFEBEEEC),
-];
 
 class ReportPage extends StatefulWidget {
   const ReportPage({
@@ -46,13 +38,21 @@ class ReportPage extends StatefulWidget {
 }
 
 class _Loaded {
-  _Loaded(this.summary, this.daily, this.byCategory, [this.previous]);
+  _Loaded(this.summary, this.daily, this.byCategory, this.previousByCategory,
+      this.debts,
+      [this.previous]);
   final Summary summary;
 
   /// Ringkasan periode sebelumnya, untuk perbandingan laba (null bila tidak dipakai).
   final Summary? previous;
   final List<DailyPoint> daily;
   final List<Map<String, dynamic>> byCategory;
+
+  /// Per kategori periode sebelumnya, untuk tanda naik/turun.
+  final List<Map<String, dynamic>>? previousByCategory;
+
+  /// Semua utang dan piutang, untuk kartu jatuh tempo (kosong bila gagal dimuat).
+  final List<Debt> debts;
 }
 
 /// Satu batang/titik grafik: satu hari, atau satu bulan untuk rentang panjang.
@@ -63,6 +63,9 @@ class _Bucket {
   int cashIn = 0;
   int cashOut = 0;
   int profit = 0;
+
+  /// Berisi hari ini (per hari) atau bulan ini (per bulan).
+  bool current = false;
 }
 
 class _ReportPageState extends State<ReportPage> {
@@ -71,7 +74,7 @@ class _ReportPageState extends State<ReportPage> {
   late DateTime _to = lastOfMonth(DateTime.now());
   late Future<_Loaded> _future = _load();
   bool _exporting = false;
-  bool _showIncome = true; // donat kategori: pemasukan dulu, lalu pengeluaran
+  bool _showIncome = false; // donat kategori: pengeluaran dulu
 
   @override
   void initState() {
@@ -88,19 +91,25 @@ class _ReportPageState extends State<ReportPage> {
   Future<_Loaded> _load() async {
     final usaha = !widget.business.isPersonal;
     final (pf, pt) = _previousRange();
+    Future<List<Map<String, dynamic>>> byCategory(DateTime f, DateTime t) =>
+        usaha ? widget.cash.plByCategory(f, t) : widget.cash.byCategory(f, t);
     final r = await Future.wait([
       widget.cash.summary(_from, _to),
       usaha ? widget.cash.dailyPl(_from, _to) : widget.cash.daily(_from, _to),
-      usaha
-          ? widget.cash.plByCategory(_from, _to)
-          : widget.cash.byCategory(_from, _to),
+      byCategory(_from, _to),
+      // Tambahan: bila gagal, grafik utama tetap tampil tanpa perbandingan/jatuh tempo.
+      byCategory(pf, pt)
+          .then<List<Map<String, dynamic>>?>((v) => v, onError: (_) => null),
+      widget.debts.debts().then((v) => v, onError: (_) => <Debt>[]),
       if (widget.business.canSeeProfit) widget.cash.summary(pf, pt),
     ]);
     return _Loaded(
         r[0] as Summary,
         r[1] as List<DailyPoint>,
         r[2] as List<Map<String, dynamic>>,
-        r.length > 3 ? r[3] as Summary : null);
+        r[3] as List<Map<String, dynamic>>?,
+        r[4] as List<Debt>,
+        r.length > 5 ? r[5] as Summary : null);
   }
 
   /// Rentang tepat sebelum periode yang dipilih: bulan lalu, tahun lalu, atau rentang sama panjang.
@@ -120,6 +129,11 @@ class _ReportPageState extends State<ReportPage> {
         );
     }
   }
+
+  bool get _singleMonth =>
+      _from.year == _to.year &&
+      _from.month == _to.month &&
+      _to.difference(_from).inDays >= 6;
 
   void _reload() {
     if (mounted) {
@@ -182,13 +196,17 @@ class _ReportPageState extends State<ReportPage> {
 
   /// Rentang pendek per hari, rentang panjang per bulan.
   List<_Bucket> _buckets(List<DailyPoint> pts) {
+    final now = DateTime.now();
     if (pts.length <= 31) {
       return [
         for (final p in pts)
           _Bucket('${p.day.day}', dateId(p.day))
             ..cashIn = p.cashIn
             ..cashOut = p.cashOut
-            ..profit = p.profit,
+            ..profit = p.profit
+            ..current = p.day.year == now.year &&
+                p.day.month == now.month &&
+                p.day.day == now.day,
       ];
     }
     final multiYear = pts.first.day.year != pts.last.day.year;
@@ -207,6 +225,7 @@ class _ReportPageState extends State<ReportPage> {
       b.cashIn += p.cashIn;
       b.cashOut += p.cashOut;
       b.profit += p.profit;
+      if (p.day.year == now.year && p.day.month == now.month) b.current = true;
     }
     return byMonth.values.toList();
   }
@@ -301,11 +320,23 @@ class _ReportPageState extends State<ReportPage> {
                   ],
                   SectionTitle(tr('Per kategori')),
                   SoftCard(
-                      child: _CategoryBreakdown(
+                      child: CategoryBreakdown(
                     rows: d.byCategory,
+                    previous: d.previousByCategory,
                     income: _showIncome,
                     onToggle: (v) => setState(() => _showIncome = v),
                   )),
+                  // Kalender hanya untuk rentang satu bulan (per hari).
+                  if (_singleMonth) ...[
+                    SectionTitle(tr('Pengeluaran harian')),
+                    SoftCard(
+                      child: SpendingCalendar(points: d.daily, month: _from),
+                    ),
+                  ],
+                ],
+                if (d.debts.any((x) => !x.settled)) ...[
+                  SectionTitle(tr('Jatuh tempo utang piutang')),
+                  SoftCard(child: DueDebtsCard(debts: d.debts)),
                 ],
                 if (widget.business.canManage) ...[
                   SectionTitle(tr('Ekspor')),
@@ -687,7 +718,29 @@ class _CashFlowChart extends StatelessWidget {
       );
     }
     final dense = buckets.length > 16;
+    final theme = Theme.of(context);
+    final net = buckets.fold<int>(0, (s, b) => s + b.cashIn - b.cashOut);
+    // Periode sekarang (hari ini / bulan ini) tampil penuh, yang lain meredup.
+    final current = buckets.indexWhere((b) => b.current);
+    Color shade(Color c, int i) =>
+        current < 0 || i == current ? c : c.withValues(alpha: 0.45);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 16, bottom: 10),
+        child: Text.rich(
+          TextSpan(children: [
+            TextSpan(text: '${tr('Selisih')}  '),
+            TextSpan(
+              text: '${net >= 0 ? '+' : '-'}${rupiah(net.abs())}',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: net >= 0 ? Brand.income : Brand.expense),
+            ),
+          ]),
+          style: theme.textTheme.titleSmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ),
       Padding(
         padding: const EdgeInsets.only(left: 16, bottom: 12),
         child: _Legend([(inLabel, Brand.income), (outLabel, Brand.expense)]),
@@ -704,11 +757,15 @@ class _CashFlowChart extends StatelessWidget {
             titlesData: _titles(context, buckets),
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
+                // Satu keterangan untuk kedua batang: masuk, keluar, dan selisihnya.
                 getTooltipItem: (group, gi, rod, ri) {
+                  if (ri != 0) return null;
                   final b = buckets[group.x];
-                  final kind = ri == 0 ? inLabel : outLabel;
+                  final diff = b.cashIn - b.cashOut;
                   return BarTooltipItem(
-                    '${b.title}\n$kind ${rupiah(rod.toY)}',
+                    '${b.title}\n$inLabel ${rupiah(b.cashIn)}\n'
+                    '$outLabel ${rupiah(b.cashOut)}\n'
+                    '${tr('Selisih')} ${diff >= 0 ? '+' : '-'}${rupiah(diff.abs())}',
                     const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -725,13 +782,13 @@ class _CashFlowChart extends StatelessWidget {
                   barRods: [
                     BarChartRodData(
                       toY: buckets[i].cashIn.toDouble(),
-                      color: Brand.income,
+                      color: shade(Brand.income, i),
                       width: dense ? 4 : 10,
                       borderRadius: BorderRadius.circular(3),
                     ),
                     BarChartRodData(
                       toY: buckets[i].cashOut.toDouble(),
-                      color: Brand.expense,
+                      color: shade(Brand.expense, i),
                       width: dense ? 4 : 10,
                       borderRadius: BorderRadius.circular(3),
                     ),
@@ -756,10 +813,25 @@ class _ProfitChart extends StatelessWidget {
     final maxV = buckets.fold<int>(0, (m, b) => b.profit > m ? b.profit : m);
     final minV = buckets.fold<int>(0, (m, b) => b.profit < m ? b.profit : m);
     final span = (maxV - minV) == 0 ? 1 : (maxV - minV);
+    // Gradien garis mengikuti titik terendah-tertinggi garis itu sendiri: hijau di
+    // atas nol, merah di bawah nol.
+    final hi = buckets.map((b) => b.profit).reduce(math.max);
+    final lo = buckets.map((b) => b.profit).reduce(math.min);
+    final zero = hi <= 0
+        ? 0.0
+        : lo >= 0
+            ? 1.0
+            : hi / (hi - lo);
+    final lineGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: const [Brand.income, Brand.income, Brand.expense, Brand.expense],
+      stops: [0, zero, zero, 1],
+    );
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.only(left: 16, bottom: 12),
-        child: _Legend([(label, Brand.profit)]),
+        child: _Legend([(label, Brand.income), (tr('Rugi'), Brand.expense)]),
       ),
       SizedBox(
         height: 220,
@@ -772,12 +844,21 @@ class _ProfitChart extends StatelessWidget {
             gridData: _grid(context),
             borderData: FlBorderData(show: false),
             titlesData: _titles(context, buckets),
+            extraLinesData: ExtraLinesData(horizontalLines: [
+              if (minV < 0)
+                HorizontalLine(
+                    y: 0,
+                    color: Theme.of(context).colorScheme.outline,
+                    strokeWidth: 1,
+                    dashArray: [4, 4]),
+            ]),
             lineTouchData: LineTouchData(
               touchTooltipData: LineTouchTooltipData(
                 getTooltipItems: (spots) => [
                   for (final s in spots)
                     LineTooltipItem(
-                      '${buckets[s.x.toInt()].title}\nUntung ${rupiah(s.y)}',
+                      '${buckets[s.x.toInt()].title}\n'
+                      '${s.y < 0 ? tr('Rugi') : label} ${rupiah(s.y.abs())}',
                       const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -795,110 +876,34 @@ class _ProfitChart extends StatelessWidget {
                 isCurved: true,
                 curveSmoothness: 0.2,
                 preventCurveOverShooting: true,
-                color: Brand.profit,
+                gradient: lineGradient,
                 barWidth: 3,
-                dotData: FlDotData(show: buckets.length <= 16),
+                dotData: FlDotData(
+                  show: buckets.length <= 16,
+                  getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                    radius: 3,
+                    color: spot.y < 0 ? Brand.expense : Brand.income,
+                    strokeWidth: 0,
+                  ),
+                ),
+                // Area hijau di atas nol, merah di bawah nol.
                 belowBarData: BarAreaData(
                   show: true,
-                  color: Brand.profit.withValues(alpha: 0.14),
+                  color: Brand.income.withValues(alpha: 0.14),
+                  cutOffY: 0,
+                  applyCutOffY: true,
+                ),
+                aboveBarData: BarAreaData(
+                  show: minV < 0,
+                  color: Brand.expense.withValues(alpha: 0.14),
+                  cutOffY: 0,
+                  applyCutOffY: true,
                 ),
               ),
             ],
           ),
         ),
       ),
-    ]);
-  }
-}
-
-class _CategoryBreakdown extends StatelessWidget {
-  const _CategoryBreakdown(
-      {required this.rows, required this.income, required this.onToggle});
-
-  final List<Map<String, dynamic>> rows;
-  final bool income;
-  final ValueChanged<bool> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final type = income ? 'in' : 'out';
-    final items = rows.where((r) => r['type'] == type).toList()
-      ..sort((a, b) => (b['total'] as num).compareTo(a['total'] as num));
-    final total = items.fold<int>(0, (s, r) => s + (r['total'] as num).toInt());
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SegmentedButton<bool>(
-        showSelectedIcon: false,
-        segments: [
-          ButtonSegment(value: true, label: Text(tr('Pemasukan'))),
-          ButtonSegment(value: false, label: Text(tr('Pengeluaran'))),
-        ],
-        selected: {income},
-        onSelectionChanged: (s) => onToggle(s.first),
-      ),
-      const SizedBox(height: 16),
-      if (items.isEmpty)
-        EmptyState(
-          icon: Icons.pie_chart_rounded,
-          title: tr('Belum ada data'),
-        )
-      else ...[
-        SizedBox(
-          height: 200,
-          child: Stack(alignment: Alignment.center, children: [
-            PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 62,
-                sections: [
-                  for (var i = 0; i < items.length; i++)
-                    PieChartSectionData(
-                      value: (items[i]['total'] as num).toDouble(),
-                      color: _palette[i % _palette.length],
-                      radius: 30,
-                      showTitle: false,
-                    ),
-                ],
-              ),
-            ),
-            Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(tr('Total'),
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text(rupiah(total),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-            ]),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        for (var i = 0; i < items.length; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(children: [
-              Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                      color: _palette[i % _palette.length],
-                      borderRadius: BorderRadius.circular(4))),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(items[i]['category_name'] as String,
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-              Text(
-                  '${total == 0 ? 0 : ((items[i]['total'] as num) * 100 / total).round()}%',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(width: 12),
-              Text(rupiah((items[i]['total'] as num).toInt()),
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-            ]),
-          ),
-      ],
     ]);
   }
 }

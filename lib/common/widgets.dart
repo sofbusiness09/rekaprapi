@@ -413,6 +413,23 @@ IconData categoryIcon(String? name, {required bool income}) {
   if (n.contains('transport')) return Icons.local_shipping_rounded;
   if (n.contains('stok') || n.contains('beli'))
     return Icons.inventory_2_rounded;
+  if (n.contains('makan') || n.contains('minum'))
+    return Icons.restaurant_rounded;
+  if (n.contains('belanja')) return Icons.shopping_bag_rounded;
+  if (n.contains('sehat') || n.contains('obat')) {
+    return Icons.medical_services_rounded;
+  }
+  if (n.contains('didik') || n.contains('sekolah')) return Icons.school_rounded;
+  if (n.contains('hibur') || n.contains('rekreasi')) return Icons.movie_rounded;
+  if (n.contains('pulsa') || n.contains('internet')) return Icons.wifi_rounded;
+  if (n.contains('tabung') || n.contains('invest'))
+    return Icons.savings_rounded;
+  if (n.contains('cicil') || n.contains('kredit')) {
+    return Icons.credit_card_rounded;
+  }
+  if (n.contains('bonus') || n.contains('hadiah')) {
+    return Icons.card_giftcard_rounded;
+  }
   return income ? Icons.south_west_rounded : Icons.north_east_rounded;
 }
 

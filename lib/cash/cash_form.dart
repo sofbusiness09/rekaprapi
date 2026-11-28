@@ -1007,8 +1007,9 @@ class _AmountBox extends StatelessWidget {
       autofocus: autofocus,
       title: label,
       onChanged: onChanged,
-      style: (large ? theme.textTheme.headlineSmall : theme.textTheme.titleLarge)
-          ?.copyWith(fontWeight: FontWeight.w700, color: color),
+      style:
+          (large ? theme.textTheme.headlineSmall : theme.textTheme.titleLarge)
+              ?.copyWith(fontWeight: FontWeight.w700, color: color),
       decoration: InputDecoration(
         labelText: label,
         floatingLabelBehavior: FloatingLabelBehavior.always,
