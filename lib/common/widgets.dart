@@ -413,8 +413,34 @@ IconData categoryIcon(String? name, {required bool income}) {
   if (n.contains('transport')) return Icons.local_shipping_rounded;
   if (n.contains('stok') || n.contains('beli'))
     return Icons.inventory_2_rounded;
-  if (n.contains('makan') || n.contains('minum'))
+  if (n.contains('bbm') ||
+      n.contains('bensin') ||
+      n.contains('solar') ||
+      n.contains('pertalite')) {
+    return Icons.local_gas_station_rounded;
+  }
+  if (n.contains('parkir')) return Icons.local_parking_rounded;
+  if (n.contains('kopi')) return Icons.coffee_rounded;
+  if (n.contains('anak') || n.contains('bermain') || n.contains('mainan')) {
+    return Icons.child_care_rounded;
+  }
+  if (n.contains('makan') || n.contains('minum') || n.contains('jajan')) {
     return Icons.restaurant_rounded;
+  }
+  if (n.contains('rokok')) return Icons.smoking_rooms_rounded;
+  if (n.contains('baju') || n.contains('pakaian')) {
+    return Icons.checkroom_rounded;
+  }
+  if (n.contains('zakat') ||
+      n.contains('sedekah') ||
+      n.contains('infak') ||
+      n.contains('donasi') ||
+      n.contains('sumbang')) {
+    return Icons.volunteer_activism_rounded;
+  }
+  if (n.contains('servis') || n.contains('bengkel')) {
+    return Icons.build_rounded;
+  }
   if (n.contains('belanja')) return Icons.shopping_bag_rounded;
   if (n.contains('sehat') || n.contains('obat')) {
     return Icons.medical_services_rounded;

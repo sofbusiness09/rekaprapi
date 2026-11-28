@@ -28,9 +28,9 @@ const categoryPalette = <Color>[
 /// Abu untuk gabungan "kategori lainnya".
 const otherCategoryColor = Color(0xFFA8A6A0);
 
-/// Warna tetap sebuah kategori: kategori umum punya warna sendiri, kategori buatan
-/// pengguna mendapat warna dari namanya, jadi warnanya sama di setiap periode.
-Color categoryColor(String name) {
+/// Warna pilihan sebuah kategori (indeks di [categoryPalette]): kategori umum punya
+/// warna sendiri, kategori buatan pengguna mendapat warna dari namanya.
+int categoryColorIndex(String name) {
   final n = name.toLowerCase();
   const byKeyword = <String, int>{
     'stok': 0,
@@ -40,19 +40,43 @@ Color categoryColor(String name) {
     'listrik': 3,
     'air': 3,
     'transport': 4,
+    'bbm': 4,
+    'bensin': 4,
     'makan': 5,
     'jual': 8,
     'belanja': 6,
     'tabung': 9,
   };
   for (final e in byKeyword.entries) {
-    if (n.contains(e.key)) return categoryPalette[e.value];
+    if (n.contains(e.key)) return e.value;
   }
   var h = 0;
   for (final c in n.codeUnits) {
     h = (h * 31 + c) & 0x7fffffff;
   }
-  return categoryPalette[h % categoryPalette.length];
+  return h % categoryPalette.length;
+}
+
+Color categoryColor(String name) => categoryPalette[categoryColorIndex(name)];
+
+/// Warna untuk kategori yang tampil bersama, urut dari yang terbesar. Tiap kategori
+/// memakai warna pilihannya; bila sudah dipakai kategori yang lebih besar, warna
+/// berikutnya yang belum terpakai. Jadi tidak ada dua kategori berwarna sama
+/// (hingga sepuluh kategori).
+List<Color> distinctCategoryColors(List<String> names) {
+  final used = <int>{};
+  final out = <Color>[];
+  for (final name in names) {
+    var i = categoryColorIndex(name);
+    if (used.length < categoryPalette.length) {
+      while (used.contains(i)) {
+        i = (i + 1) % categoryPalette.length;
+      }
+    }
+    used.add(i);
+    out.add(categoryPalette[i]);
+  }
+  return out;
 }
 
 /// Latar lembut sewarna kategori, untuk lingkaran ikon.
@@ -94,7 +118,7 @@ class _Slice {
   _Slice(this.name, this.total, this.color, {this.before, this.others = 0});
   final String name;
   final int total;
-  final Color color;
+  Color color;
   final int? before;
 
   /// Jumlah kategori yang digabung (0: kategori biasa).
@@ -148,6 +172,11 @@ class _CategoryBreakdownState extends State<CategoryBreakdown> {
                 : before[r['category_name'] as String] ?? 0,
           ),
     ]..sort((a, b) => b.total.compareTo(a.total));
+    // Kategori yang tampil bersama tidak pernah berwarna sama.
+    final colors = distinctCategoryColors([for (final s in all) s.name]);
+    for (var i = 0; i < all.length; i++) {
+      all[i].color = colors[i];
+    }
     final total = all.fold<int>(0, (s, r) => s + r.total);
 
     // Banyak kategori: lima terbesar, sisanya digabung agar donat tidak penuh irisan tipis.

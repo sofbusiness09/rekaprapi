@@ -30,6 +30,22 @@ void main() {
         categoryColor('Kategori buatan saya'));
   });
 
+  test('kategori yang tampil bersama tidak pernah berwarna sama', () {
+    // Kombinasi dari laporan pengguna: beberapa sempat sama-sama merah muda.
+    final names = [
+      'BBM',
+      'Bermain Anak',
+      'Makan & Minum',
+      'Kopi',
+      'Makan',
+      'Listrik dan air',
+    ];
+    final colors = distinctCategoryColors(names);
+    expect(colors.toSet().length, names.length);
+    // Kategori terbesar tetap memakai warna pilihannya.
+    expect(colors.first, categoryColor('BBM'));
+  });
+
   test('tanda naik/turun dari periode lalu', () {
     expect(changeLabel(132, 100), '▲ 32%');
     expect(changeLabel(90, 100), '▼ 10%');
