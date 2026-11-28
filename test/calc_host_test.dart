@@ -83,6 +83,43 @@ void main() {
     expect(amount.text, '50.000');
   }, variant: _android);
 
+  testWidgets('hapus angka terakhir dan C mengosongkan kolom', (tester) async {
+    final (amount, _) = await _page(tester);
+    await _keys(tester, ['7', '5']);
+    expect(amount.text, '75');
+    await tester.tap(find.byIcon(Icons.backspace_outlined));
+    await tester.pump();
+    expect(amount.text, '7');
+    await tester.tap(find.byIcon(Icons.backspace_outlined));
+    await tester.pump();
+    expect(amount.text, '');
+
+    await _keys(tester, ['4', '000']);
+    expect(amount.text, '4.000');
+    await tester.tap(find.widgetWithText(FilledButton, 'C'));
+    await tester.pump();
+    expect(amount.text, '');
+  }, variant: _android);
+
+  testWidgets('kalkulator 4 baris; menggeser isian menurunkannya',
+      (tester) async {
+    await _page(tester);
+    final seven = tester.getRect(find.widgetWithText(FilledButton, '7'));
+    final zero = tester.getRect(find.widgetWithText(FilledButton, '0'));
+    final c = tester.getRect(find.widgetWithText(FilledButton, 'C'));
+    // 7 di baris atas, 0 di baris bawah: tiga jarak baris saja.
+    expect(zero.top - seven.top, lessThan(3 * 56));
+    // Jauh lebih pendek dari kalkulator lama (340).
+    expect(tester.getSize(find.byType(CalcKeypad)).height, lessThan(280));
+    expect(c.top, seven.top);
+    expect(find.text('Selesai'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -200));
+    await tester.pumpAndSettle();
+    expect(find.text('000'), findsNothing);
+    expect(find.text('Simpan'), findsOneWidget);
+  }, variant: _android);
+
   testWidgets('kolom teks aktif: kalkulator turun agar keyboard ponsel tampil',
       (tester) async {
     await _page(tester);

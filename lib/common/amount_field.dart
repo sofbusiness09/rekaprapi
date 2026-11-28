@@ -67,6 +67,13 @@ class _AmountFieldState extends State<AmountField> {
     final host = CalcHost.maybeOf(context);
     if (host != null) {
       host.attach(widget.controller, widget.title, widget.onChanged);
+      // Kalkulator memperkecil ruang isian: geser kolom ini agar tetap terlihat.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Scrollable.ensureVisible(context,
+            duration: const Duration(milliseconds: 200),
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+      });
       return;
     }
     final result = await showCalcKeypad(
@@ -221,11 +228,16 @@ class _CalcKeypadState extends State<CalcKeypad> {
   @override
   void setState(VoidCallback fn) {
     super.setState(fn);
-    // Kalkulator menempel: kolom jumlah ikut berubah selama mengetik.
-    final v = _value;
-    if (widget.onChanged != null && v != null && v >= BigInt.zero) {
-      widget.onChanged!(v.toInt());
+    // Kalkulator menempel: kolom jumlah ikut berubah selama mengetik. Isi kosong
+    // (setelah C atau menghapus angka terakhir) mengosongkan kolom.
+    final onChanged = widget.onChanged;
+    if (onChanged == null) return;
+    if (_expr.isEmpty) {
+      onChanged(0);
+      return;
     }
+    final v = _value;
+    if (v != null && v >= BigInt.zero) onChanged(v.toInt());
   }
 
   void _equals() {
@@ -265,6 +277,9 @@ class _CalcKeypadState extends State<CalcKeypad> {
       preview = ' ';
     }
 
+    // Menempel: tombol lebih pendek agar kolom isian di atasnya tetap lega.
+    final keyHeight = widget.docked ? 42.0 : 52.0;
+
     Widget key(String label,
         {VoidCallback? onTap,
         Widget? child,
@@ -273,11 +288,14 @@ class _CalcKeypadState extends State<CalcKeypad> {
       return Expanded(
         flex: flex,
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: EdgeInsets.all(widget.docked ? 3 : 4),
           child: FilledButton.tonal(
             style: FilledButton.styleFrom(
-              minimumSize: Size.fromHeight(widget.docked ? 46 : 52),
+              minimumSize: Size.fromHeight(keyHeight),
               padding: EdgeInsets.zero,
+              // Tombol sudah rapat satu sama lain; tanpa bantalan sentuh tambahan
+              // yang membuat tiap baris lebih tinggi dari tampilannya.
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               backgroundColor: operator
                   ? scheme.primaryContainer
                   : scheme.surfaceContainerHighest,
@@ -305,7 +323,7 @@ class _CalcKeypadState extends State<CalcKeypad> {
       top: !docked,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-            docked ? 6 : 12, 0, docked ? 6 : 12, docked ? 6 : 12),
+            docked ? 5 : 12, 0, docked ? 5 : 12, docked ? 4 : 12),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (!docked)
             Padding(
@@ -319,7 +337,7 @@ class _CalcKeypadState extends State<CalcKeypad> {
           // Menempel: kolom jumlah sudah menampilkan hasil; di sini cukup hitungannya.
           if (docked)
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
               child: Row(children: [
                 Text(widget.title,
                     style: theme.textTheme.labelMedium
@@ -371,65 +389,60 @@ class _CalcKeypadState extends State<CalcKeypad> {
               ]),
             ),
           SizedBox(height: docked ? 2 : 8),
-          // Baris atas: hapus semua, sama dengan, kali, hapus satu. C sengaja jauh dari
-          // tombol Selesai dan berwarna merah agar tidak tertekan saat hendak menyimpan.
+          // Empat baris, lima kolom: operator di dua kolom kanan. C di pojok kanan atas,
+          // merah dan jauh dari Selesai agar tidak tertekan saat hendak menyimpan.
           Row(children: [
+            numberKey('7'),
+            numberKey('8'),
+            numberKey('9'),
+            key('',
+                onTap: _backspace,
+                child: const Icon(Icons.backspace_outlined, size: 22)),
             key('C',
                 onTap: () => setState(() => _expr = ''),
                 child: Text('C',
                     style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700, color: scheme.error))),
-            key('=', operator: true, onTap: _equals),
-            opKey(calcMul),
-            key('',
-                onTap: _backspace,
-                child: const Icon(Icons.backspace_outlined, size: 22)),
-          ]),
-          Row(children: [
-            numberKey('7'),
-            numberKey('8'),
-            numberKey('9'),
-            opKey(calcSub),
           ]),
           Row(children: [
             numberKey('4'),
             numberKey('5'),
             numberKey('6'),
-            opKey(calcAdd),
+            opKey(calcMul),
+            opKey(calcSub),
           ]),
-          // Dua baris terakhir: angka di kiri, tombol Selesai setinggi dua baris di kanan.
           Row(children: [
+            numberKey('1'),
+            numberKey('2'),
+            numberKey('3'),
+            opKey(calcAdd),
+            key('=', operator: true, onTap: _equals),
+          ]),
+          Row(children: [
+            numberKey('0'),
+            numberKey('00'),
+            numberKey('000'),
             Expanded(
-              flex: 3,
-              child: Column(children: [
-                Row(children: [
-                  numberKey('1'),
-                  numberKey('2'),
-                  numberKey('3'),
-                ]),
-                Row(children: [
-                  numberKey('0'),
-                  numberKey('00'),
-                  numberKey('000'),
-                ]),
-              ]),
-            ),
-            Expanded(
+              flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(4),
+                padding: EdgeInsets.all(docked ? 3 : 4),
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    minimumSize: Size.fromHeight(widget.docked ? 100 : 112),
-                    padding: EdgeInsets.zero,
+                    minimumSize: Size.fromHeight(keyHeight),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: negative || tooBig ? null : _done,
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.check_rounded, size: 26),
-                    const SizedBox(height: 2),
-                    Text(tr('Selesai')),
-                  ]),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.check_rounded, size: 22),
+                      const SizedBox(width: 6),
+                      Text(tr('Selesai')),
+                    ]),
+                  ),
                 ),
               ),
             ),
@@ -517,7 +530,19 @@ class CalcHostState extends State<CalcHost> {
   Widget build(BuildContext context) {
     final target = _target;
     return Column(children: [
-      Expanded(child: widget.child),
+      Expanded(
+        // Menggeser isian ke atas/bawah menurunkan kalkulator, seperti keyboard
+        // ponsel, agar kolom di bawah terlihat. Kotak Jumlah membukanya lagi.
+        child: NotificationListener<ScrollStartNotification>(
+          onNotification: (n) {
+            if (n.dragDetails != null && n.metrics.axis == Axis.vertical) {
+              detach();
+            }
+            return false;
+          },
+          child: widget.child,
+        ),
+      ),
       widget.bottomBar,
       if (target != null)
         Material(

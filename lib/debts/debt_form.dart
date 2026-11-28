@@ -148,7 +148,7 @@ class _DebtFormState extends State<_DebtForm> {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: theme.dividerColor)),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: ContentWidth(
                 maxWidth: 560,
                 child: FilledButton(
@@ -187,7 +187,7 @@ class _DebtFormState extends State<_DebtForm> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 ContactPicker(
                   controller: _contact,
                   contacts: widget.contacts,

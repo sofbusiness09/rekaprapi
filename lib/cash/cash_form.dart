@@ -679,7 +679,7 @@ class _CashFormState extends State<_CashForm> {
                   const SizedBox(height: 12),
                   _ProfitCard(profit: _profit),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _AmountBox(
                   controller: _amount,
                   label: sale ? tr('Total Penjualan') : tr('Jumlah'),
@@ -811,28 +811,37 @@ class _CashFormState extends State<_CashForm> {
                   ),
                 ] else if (!sale) ...[
                   Text(tr('Kategori'), style: theme.textTheme.labelLarge),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (final c in split.$1)
-                      ChoiceChip(
-                        label: Text(tr(c.name)),
-                        avatar:
-                            Icon(categoryIcon(c.name, income: _isIn), size: 18),
-                        selected: _categoryId == c.id,
-                        onSelected: (s) =>
-                            setState(() => _categoryId = s ? c.id : null),
+                  const SizedBox(height: 6),
+                  // Satu baris yang bisa digeser ke samping, agar tidak memakan tempat.
+                  // Cari di depan supaya selalu terlihat.
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    child: Row(children: [
+                      // Satu tombol untuk mencari kategori lain sekaligus menambah yang belum ada.
+                      ActionChip(
+                        avatar: const Icon(Icons.search_rounded, size: 18),
+                        label: Text(split.$2.isEmpty
+                            ? tr('Cari')
+                            : tr('Cari ({0} lainnya)', [split.$2.length])),
+                        onPressed: _openCategorySearch,
                       ),
-                    // Satu tombol untuk mencari kategori lain sekaligus menambah yang belum ada.
-                    ActionChip(
-                      avatar: const Icon(Icons.search_rounded, size: 18),
-                      label: Text(split.$2.isEmpty
-                          ? tr('Cari')
-                          : tr('Cari ({0} lainnya)', [split.$2.length])),
-                      onPressed: _openCategorySearch,
-                    ),
-                  ]),
+                      for (final c in split.$1)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: ChoiceChip(
+                            label: Text(tr(c.name)),
+                            avatar: Icon(categoryIcon(c.name, income: _isIn),
+                                size: 18),
+                            selected: _categoryId == c.id,
+                            onSelected: (s) =>
+                                setState(() => _categoryId = s ? c.id : null),
+                          ),
+                        ),
+                    ]),
+                  ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 InkWell(
                   borderRadius: BorderRadius.circular(14),
                   onTap: () async {
@@ -890,7 +899,7 @@ class _CashFormState extends State<_CashForm> {
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: theme.dividerColor)),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: ContentWidth(
             maxWidth: 560,
             child: Row(children: [
@@ -992,34 +1001,29 @@ class _AmountBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: c, width: width),
         );
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 6),
-        child: Text(label,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: theme.colorScheme.onSurface)),
-      ),
-      AmountField(
-        controller: controller,
-        autofocus: autofocus,
-        title: label,
-        onChanged: onChanged,
-        style: (large
-                ? theme.textTheme.headlineMedium
-                : theme.textTheme.titleLarge)
+    // Label di bingkai (bukan baris terpisah) agar kolom tidak memakan banyak tempat.
+    return AmountField(
+      controller: controller,
+      autofocus: autofocus,
+      title: label,
+      onChanged: onChanged,
+      style: (large ? theme.textTheme.headlineSmall : theme.textTheme.titleLarge)
+          ?.copyWith(fontWeight: FontWeight.w700, color: color),
+      decoration: InputDecoration(
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        labelStyle: theme.textTheme.titleSmall
+            ?.copyWith(color: theme.colorScheme.onSurface),
+        hintText: '0',
+        prefixText: activeCurrency.prefix,
+        prefixStyle: theme.textTheme.titleMedium
             ?.copyWith(fontWeight: FontWeight.w600, color: color),
-        decoration: InputDecoration(
-          hintText: '0',
-          prefixText: activeCurrency.prefix,
-          prefixStyle: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w600, color: color),
-          contentPadding:
-              EdgeInsets.symmetric(horizontal: 16, vertical: large ? 20 : 16),
-          enabledBorder: border(1.6, color.withValues(alpha: 0.55)),
-          focusedBorder: border(2.2, color),
-        ),
+        contentPadding:
+            EdgeInsets.symmetric(horizontal: 16, vertical: large ? 14 : 12),
+        enabledBorder: border(1.6, color.withValues(alpha: 0.55)),
+        focusedBorder: border(2.2, color),
       ),
-    ]);
+    );
   }
 }
 
@@ -1145,7 +1149,7 @@ class _TypeTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(width: 8),

@@ -57,15 +57,13 @@ void main() {
           tester.getCenter(find.widgetWithText(FilledButton, label).first);
       final c = at('C'), seven = at('7'), zero = at('0'), done = at('Selesai');
 
-      // C di atas semua angka dan di kolom paling kiri; Selesai di kolom paling kanan.
-      expect(c.dy, lessThan(seven.dy));
-      expect(c.dx, closeTo(seven.dx, 1));
+      // C di pojok kanan atas (sebaris 7); Selesai di kanan bawah (sebaris 0).
+      expect(c.dy, closeTo(seven.dy, 1));
+      expect(c.dx, greaterThan(at('9').dx));
+      expect(done.dy, closeTo(zero.dy, 1));
       expect(done.dx, greaterThan(at('000').dx));
-      // Selesai setinggi dua baris: pusatnya di antara baris 1-2-3 dan baris 0.
-      expect(done.dy, greaterThan(at('1').dy));
-      expect(done.dy, lessThan(zero.dy));
-      // C tidak lagi bersebelahan dengan Selesai.
-      expect((c.dy - done.dy).abs(), greaterThan(150));
+      // C tetap jauh dari Selesai: terpisah dua baris.
+      expect((c.dy - done.dy).abs(), greaterThan(120));
     } finally {
       debugDefaultTargetPlatformOverride = null;
       tester.view.resetPhysicalSize();
