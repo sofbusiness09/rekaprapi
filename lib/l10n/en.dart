@@ -698,6 +698,13 @@ const enStrings = <String, String>{
   'Dong Vietnam': 'Vietnamese Dong',
   'Dolar Brunei': 'Brunei Dollar',
   'Dolar Selandia Baru': 'New Zealand Dollar',
+  'Tampilan Rekapan': 'Summary view',
+  'Berlaku untuk pembukuan yang sedang dibuka.': 'Applies to the open book.',
+  'Berlaku untuk pembukuan "{0}".': 'Applies to the book "{0}".',
+  'Kartu ringkasan di atas Rekapan selalu tampil.':
+      'The summary cards at the top always show.',
+  'Bulan sebelumnya': 'Previous month',
+  'Bulan berikutnya': 'Next month',
   'Baru': 'New',
   'Lainnya': 'Others',
   '{0} kategori lainnya': '{0} other categories',

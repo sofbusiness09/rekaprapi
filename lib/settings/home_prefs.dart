@@ -42,6 +42,11 @@ class HomePrefs {
     this.txCredit = false,
     this.txDebtCash = false,
     this.showCashBalance = false,
+    this.rpFlow = true,
+    this.rpProfit = true,
+    this.rpCategory = true,
+    this.rpCalendar = true,
+    this.rpDue = true,
   });
 
   /// Saldo kas (angka besar).
@@ -88,6 +93,13 @@ class HomePrefs {
   /// Pembukuan Usaha: tampilkan Saldo Kas (uang di tangan). Bawaannya disembunyikan;
   /// yang utama adalah Pemasukan, Pengeluaran, dan Laba.
   final bool showCashBalance;
+
+  // Grafik yang tampil di tab Rekapan (bawaan: semuanya).
+  final bool rpFlow;
+  final bool rpProfit;
+  final bool rpCategory;
+  final bool rpCalendar;
+  final bool rpDue;
 
   static const countOptions = [5, 8, 10, 15];
 
@@ -149,6 +161,11 @@ class HomePrefs {
     bool? txCredit,
     bool? txDebtCash,
     bool? showCashBalance,
+    bool? rpFlow,
+    bool? rpProfit,
+    bool? rpCategory,
+    bool? rpCalendar,
+    bool? rpDue,
   }) =>
       HomePrefs(
         showBalance: showBalance ?? this.showBalance,
@@ -169,6 +186,11 @@ class HomePrefs {
         txCredit: txCredit ?? this.txCredit,
         txDebtCash: txDebtCash ?? this.txDebtCash,
         showCashBalance: showCashBalance ?? this.showCashBalance,
+        rpFlow: rpFlow ?? this.rpFlow,
+        rpProfit: rpProfit ?? this.rpProfit,
+        rpCategory: rpCategory ?? this.rpCategory,
+        rpCalendar: rpCalendar ?? this.rpCalendar,
+        rpDue: rpDue ?? this.rpDue,
       );
 
   Map<String, dynamic> toJson() => {
@@ -190,6 +212,11 @@ class HomePrefs {
         'txCredit': txCredit,
         'txDebtCash': txDebtCash,
         'showCashBalance': showCashBalance,
+        'rpFlow': rpFlow,
+        'rpProfit': rpProfit,
+        'rpCategory': rpCategory,
+        'rpCalendar': rpCalendar,
+        'rpDue': rpDue,
       };
 
   /// Nilai yang hilang atau tidak dikenal memakai bawaan.
@@ -219,6 +246,11 @@ class HomePrefs {
       txCredit: b('txCredit', false),
       txDebtCash: b('txDebtCash', false),
       showCashBalance: b('showCashBalance', false),
+      rpFlow: b('rpFlow'),
+      rpProfit: b('rpProfit'),
+      rpCategory: b('rpCategory'),
+      rpCalendar: b('rpCalendar'),
+      rpDue: b('rpDue'),
     );
   }
 

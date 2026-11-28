@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rekap_rapi/cash/cash_models.dart';
 import 'package:rekap_rapi/debts/debt_models.dart';
 import 'package:rekap_rapi/reports/report_visuals.dart';
+import 'package:rekap_rapi/settings/home_prefs.dart';
 
 Map<String, dynamic> _row(String name, int total, [String type = 'out']) =>
     {'category_name': name, 'type': type, 'total': total};
@@ -102,6 +103,41 @@ void main() {
     await tester.pump();
     expect(find.text('Penjualan'), findsWidgets);
     expect(find.text('Belanja stok'), findsNothing);
+  });
+
+  testWidgets('kalender periode panjang bisa pindah bulan', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: SpendingCalendar(
+            month: DateTime(2026, 11, 28),
+            from: DateTime(2026, 1, 1),
+            to: DateTime(2026, 12, 31),
+            points: [DailyPoint(DateTime(2026, 10, 5), 0, 80000, 0)],
+          ),
+        ),
+      ),
+    ));
+    expect(find.text('November 2026'), findsOneWidget);
+    expect(find.text('30'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pump();
+    expect(find.text('Oktober 2026'), findsOneWidget);
+    expect(find.text('31'), findsOneWidget);
+    await tester.tap(find.text('5'));
+    await tester.pump();
+    expect(find.textContaining('80.000'), findsOneWidget);
+  });
+
+  test('pilihan grafik Rekapan tersimpan; bawaannya semua tampil', () {
+    const p = HomePrefs();
+    expect([p.rpFlow, p.rpProfit, p.rpCategory, p.rpCalendar, p.rpDue],
+        everyElement(isTrue));
+    final off = HomePrefs.fromJson(p.copyWith(rpCalendar: false).toJson());
+    expect(off.rpCalendar, isFalse);
+    expect(off.rpCategory, isTrue);
+    // Pilihan lama tanpa kunci baru: tetap tampil semua.
+    expect(HomePrefs.fromJson(const {}).rpDue, isTrue);
   });
 
   testWidgets('kalender pengeluaran menampilkan semua tanggal bulan itu',

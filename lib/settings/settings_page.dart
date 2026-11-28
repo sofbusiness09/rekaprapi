@@ -27,6 +27,7 @@ import 'home_prefs.dart';
 import 'input_prefs.dart';
 import 'members_page.dart';
 import 'settings_repository.dart';
+import 'report_prefs_page.dart';
 import 'tx_prefs_page.dart';
 import 'package:rekap_rapi/l10n/l10n.dart';
 
@@ -364,6 +365,16 @@ class SettingsPage extends StatelessWidget {
           leading: const Icon(Icons.receipt_long_outlined),
           title: Text(tr('Tampilan Transaksi')),
           onTap: () => _push(context, TxPrefsPage(businessName: business.name)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.bar_chart_rounded),
+          title: Text(tr('Tampilan Rekapan')),
+          onTap: () => _push(
+              context,
+              ReportPrefsPage(
+                  businessName: business.name,
+                  personal: business.isPersonal,
+                  canSeeProfit: business.canSeeProfit)),
         ),
         // Pembukuan Usaha: Saldo Kas disembunyikan kecuali dihidupkan di sini.
         if (business.canSeeProfit)

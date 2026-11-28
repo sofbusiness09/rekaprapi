@@ -386,14 +386,24 @@ class _CategoryBreakdownState extends State<CategoryBreakdown> {
 }
 
 /// Kalender pengeluaran satu bulan: makin pekat, makin besar pengeluaran hari itu.
+/// Bila periode lebih dari satu bulan, tombol ‹ › berpindah antarbulan dalam periode.
 class SpendingCalendar extends StatefulWidget {
-  const SpendingCalendar(
-      {super.key, required this.points, required this.month});
+  const SpendingCalendar({
+    super.key,
+    required this.points,
+    required this.month,
+    this.from,
+    this.to,
+  });
 
   final List<DailyPoint> points;
 
-  /// Hari mana pun di bulan yang ditampilkan.
+  /// Hari mana pun di bulan yang ditampilkan lebih dulu.
   final DateTime month;
+
+  /// Batas periode untuk tombol pindah bulan (null: hanya [month]).
+  final DateTime? from;
+  final DateTime? to;
 
   @override
   State<SpendingCalendar> createState() => _SpendingCalendarState();
@@ -401,12 +411,35 @@ class SpendingCalendar extends StatefulWidget {
 
 class _SpendingCalendarState extends State<SpendingCalendar> {
   DateTime? _picked;
+  late DateTime _month = _monthOf(widget.month);
+
+  static DateTime _monthOf(DateTime d) => DateTime(d.year, d.month);
+
+  @override
+  void didUpdateWidget(SpendingCalendar old) {
+    super.didUpdateWidget(old);
+    if (old.month != widget.month ||
+        old.from != widget.from ||
+        old.to != widget.to) {
+      _month = _monthOf(widget.month);
+      _picked = null;
+    }
+  }
+
+  void _shift(int by) => setState(() {
+        _month = DateTime(_month.year, _month.month + by);
+        _picked = null;
+      });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final first = DateTime(widget.month.year, widget.month.month);
+    final first = _month;
+    final minMonth = _monthOf(widget.from ?? widget.month);
+    final maxMonth = _monthOf(widget.to ?? widget.month);
+    final canBack = first.isAfter(minMonth);
+    final canNext = first.isBefore(maxMonth);
     final days = DateTime(first.year, first.month + 1, 0).day;
     final spend = <int, int>{
       for (final p in widget.points)
@@ -434,7 +467,27 @@ class _SpendingCalendarState extends State<SpendingCalendar> {
     final picked = _picked;
     final cells = lead + days;
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final calendar =
+        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (canBack || canNext)
+        Row(children: [
+          IconButton(
+            tooltip: tr('Bulan sebelumnya'),
+            onPressed: canBack ? () => _shift(-1) : null,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Expanded(
+            child: Text(monthId(first),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            tooltip: tr('Bulan berikutnya'),
+            onPressed: canNext ? () => _shift(1) : null,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ]),
       Row(children: [
         for (final w in weekdays)
           Expanded(
@@ -504,6 +557,13 @@ class _SpendingCalendarState extends State<SpendingCalendar> {
         style: theme.textTheme.bodySmall?.copyWith(color: muted),
       ),
     ]);
+    // Di layar lebar kalender tidak melebar sampai kotak tanggal raksasa.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: calendar,
+      ),
+    );
   }
 }
 

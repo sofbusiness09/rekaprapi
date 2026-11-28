@@ -80,11 +80,18 @@ class _ReportPageState extends State<ReportPage> {
   void initState() {
     super.initState();
     widget.changes.addListener(_reload);
+    homePrefs.addListener(_prefsChanged);
+  }
+
+  /// Pilihan grafik di Pengaturan berubah: tampilkan ulang tanpa memuat data lagi.
+  void _prefsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     widget.changes.removeListener(_reload);
+    homePrefs.removeListener(_prefsChanged);
     super.dispose();
   }
 
@@ -130,10 +137,13 @@ class _ReportPageState extends State<ReportPage> {
     }
   }
 
-  bool get _singleMonth =>
-      _from.year == _to.year &&
-      _from.month == _to.month &&
-      _to.difference(_from).inDays >= 6;
+  /// Bulan yang pertama tampil di kalender: bulan ini bila ada di periode,
+  /// selain itu bulan terakhir periode.
+  DateTime get _calendarMonth {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.isBefore(_from) || today.isAfter(_to) ? _to : today;
+  }
 
   void _reload() {
     if (mounted) {
@@ -242,6 +252,7 @@ class _ReportPageState extends State<ReportPage> {
           return const Center(child: CircularProgressIndicator());
         }
         final d = snap.data!;
+        final prefs = homePrefs.value;
         final buckets = _buckets(d.daily);
         final hasProfit = buckets.any((b) => b.profit != 0);
 
@@ -291,22 +302,24 @@ class _ReportPageState extends State<ReportPage> {
                 // rincian kategori memuat modal dan laba, jadi untuk Pemilik dan Admin.
                 if (widget.business.isPersonal ||
                     widget.business.canSeeProfit) ...[
-                  SectionTitle(widget.business.isPersonal
-                      ? tr('Arus kas')
-                      : tr('Pemasukan dan pengeluaran')),
-                  SoftCard(
-                    padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
-                    child: _CashFlowChart(
-                      buckets: buckets,
-                      inLabel: widget.business.isPersonal
-                          ? tr('Pemasukan')
-                          : tr('Pemasukan'),
-                      outLabel: widget.business.isPersonal
-                          ? tr('Pengeluaran')
-                          : tr('Pengeluaran'),
+                  if (prefs.rpFlow) ...[
+                    SectionTitle(widget.business.isPersonal
+                        ? tr('Arus kas')
+                        : tr('Pemasukan dan pengeluaran')),
+                    SoftCard(
+                      padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
+                      child: _CashFlowChart(
+                        buckets: buckets,
+                        inLabel: widget.business.isPersonal
+                            ? tr('Pemasukan')
+                            : tr('Pemasukan'),
+                        outLabel: widget.business.isPersonal
+                            ? tr('Pengeluaran')
+                            : tr('Pengeluaran'),
+                      ),
                     ),
-                  ),
-                  if (!widget.business.isPersonal) ...[
+                  ],
+                  if (!widget.business.isPersonal && prefs.rpProfit) ...[
                     SectionTitle(tr('Laba')),
                     SoftCard(
                       padding: const EdgeInsets.fromLTRB(8, 16, 16, 12),
@@ -318,23 +331,29 @@ class _ReportPageState extends State<ReportPage> {
                             ),
                     ),
                   ],
-                  SectionTitle(tr('Per kategori')),
-                  SoftCard(
-                      child: CategoryBreakdown(
-                    rows: d.byCategory,
-                    previous: d.previousByCategory,
-                    income: _showIncome,
-                    onToggle: (v) => setState(() => _showIncome = v),
-                  )),
-                  // Kalender hanya untuk rentang satu bulan (per hari).
-                  if (_singleMonth) ...[
+                  if (prefs.rpCategory) ...[
+                    SectionTitle(tr('Per kategori')),
+                    SoftCard(
+                        child: CategoryBreakdown(
+                      rows: d.byCategory,
+                      previous: d.previousByCategory,
+                      income: _showIncome,
+                      onToggle: (v) => setState(() => _showIncome = v),
+                    )),
+                  ],
+                  // Periode lebih dari sebulan: kalender bisa berpindah antarbulan.
+                  if (prefs.rpCalendar) ...[
                     SectionTitle(tr('Pengeluaran harian')),
                     SoftCard(
-                      child: SpendingCalendar(points: d.daily, month: _from),
+                      child: SpendingCalendar(
+                          points: d.daily,
+                          month: _calendarMonth,
+                          from: _from,
+                          to: _to),
                     ),
                   ],
                 ],
-                if (d.debts.any((x) => !x.settled)) ...[
+                if (prefs.rpDue && d.debts.any((x) => !x.settled)) ...[
                   SectionTitle(tr('Jatuh tempo utang piutang')),
                   SoftCard(child: DueDebtsCard(debts: d.debts)),
                 ],
